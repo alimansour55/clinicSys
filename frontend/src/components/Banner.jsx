@@ -1,10 +1,13 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { assets } from '../assets/assets'
 import { useNavigate } from 'react-router-dom'
+import { AppContext } from '../context/AppContext'
+import { CalendarDays, UserRound } from 'lucide-react'
 
 const Banner = () => {
 
    const navigate = useNavigate()
+   const { token } = useContext(AppContext)
 
   return (
     <div className='flex bg-primary rounded-lg px-6 sm:px-10 md:px-14 lg:px-12 my-10 md:my-20 mx-3 md:mx-10'>
@@ -15,12 +18,33 @@ const Banner = () => {
             <p>Book Appointment</p>
             <p className='mt-2 sm:mt-4'>With 100+ Trusted Doctors</p>
         </div>
-        <button 
-          onClick={() => {navigate('/login'); scrollTo(0,0)}} 
-          className='bg-white text-xs sm:text-base text-gray-600 px-5 sm:px-8 py-2 sm:py-3 rounded-full mt-4 sm:mt-6 cursor-pointer hover:scale-105 transition-all duration-300 font-medium shadow-md active:scale-95'
-        >
-        Create account
-        </button>
+        <div className='flex flex-col sm:flex-row gap-3 mt-4 sm:mt-6'>
+          {token ? (
+            <>
+              <button 
+                onClick={() => {navigate('/my-appointments'); scrollTo(0,0)}} 
+                className='flex items-center justify-center gap-2 bg-white text-xs sm:text-base text-gray-600 px-5 sm:px-8 py-2 sm:py-3 rounded-full cursor-pointer hover:scale-105 transition-all duration-300 font-medium shadow-md active:scale-95'
+              >
+                <CalendarDays className='w-4 h-4' />
+                My appointments
+              </button>
+              <button 
+                onClick={() => {navigate('/my-profile'); scrollTo(0,0)}} 
+                className='flex items-center justify-center gap-2 border border-white/70 text-xs sm:text-base text-white px-5 sm:px-8 py-2 sm:py-3 rounded-full cursor-pointer hover:bg-white hover:text-primary transition-all duration-300 font-medium active:scale-95'
+              >
+                <UserRound className='w-4 h-4' />
+                My profile
+              </button>
+            </>
+          ) : (
+            <button 
+              onClick={() => {navigate('/login'); scrollTo(0,0)}} 
+              className='bg-white text-xs sm:text-base text-gray-600 px-5 sm:px-8 py-2 sm:py-3 rounded-full cursor-pointer hover:scale-105 transition-all duration-300 font-medium shadow-md active:scale-95'
+            >
+              Create account
+            </button>
+          )}
+        </div>
       </div>
 
       {/* -------- Right Side -------- */}

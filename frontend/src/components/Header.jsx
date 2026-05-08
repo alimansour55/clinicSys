@@ -1,9 +1,13 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { assets } from '../assets/assets'
 import { useNavigate } from 'react-router-dom'
+import { AppContext } from '../context/AppContext'
+import { CalendarDays } from 'lucide-react'
 
 const Header = () => {
   const navigate = useNavigate()
+  const { token } = useContext(AppContext)
+
   return (
     <div className='flex flex-col md:flex-row flex-wrap bg-primary rounded-lg px-6 md:px-10 lg:px-20'>
       
@@ -18,9 +22,17 @@ const Header = () => {
                schedule your appointment hassle-free.
             </p>
          </div>
-         <button onClick={() => navigate('/doctors')} className='flex items-center gap-2 bg-white px-8 py-3 rounded-full text-gray-600 text-sm m-auto md:m-0 hover:scale-105 transition-all duration-300 cursor-pointer'>
-          Book appointment <img  className='w-3' src={assets.arrow_icon} alt="" />
-         </button>
+         <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
+           <button onClick={() => navigate('/doctors')} className='flex items-center justify-center gap-2 bg-white px-8 py-3 rounded-full text-gray-600 text-sm m-auto md:m-0 hover:scale-105 transition-all duration-300 cursor-pointer'>
+            Book appointment <img  className='w-3' src={assets.arrow_icon} alt="" />
+           </button>
+           {token && (
+            <button onClick={() => navigate('/my-appointments')} className='flex items-center justify-center gap-2 bg-primary-dark/20 border border-white/50 px-8 py-3 rounded-full text-white text-sm m-auto md:m-0 hover:bg-white hover:text-primary transition-all duration-300 cursor-pointer'>
+              <CalendarDays className='w-4 h-4' />
+              My appointments
+            </button>
+           )}
+         </div>
       </div>
 
 

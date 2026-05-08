@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { assets } from '../assets/assets'
 import { useNavigate } from 'react-router-dom'
 import { Phone, Mail } from 'lucide-react'
+import { AppContext } from '../context/AppContext'
 
 const Footer = () => {
   const navigate = useNavigate()
+  const { token } = useContext(AppContext)
 
   return (
     <div className='px-4 sm:px-6 md:px-10'>
@@ -33,12 +35,23 @@ const Footer = () => {
               About
             </li>
 
+            <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/doctors'), scrollTo(0,0) }} >
+              All Doctors
+            </li>
+
             <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/contact'), scrollTo(0,0) }} >
               Contact Us
             </li>
-            <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/my-appointments'), scrollTo(0,0) }} >
-              My Appointments
-            </li>
+            {token && (
+              <>
+                <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/my-appointments'), scrollTo(0,0) }} >
+                  My Appointments
+                </li>
+                <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/my-profile'), scrollTo(0,0) }} >
+                  My Profile
+                </li>
+              </>
+            )}
             <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/'), scrollTo(0,0) }} >
               Privacy Policy
             </li>

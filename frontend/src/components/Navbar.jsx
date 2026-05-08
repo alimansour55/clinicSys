@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react'
 import { assets } from '../assets/assets'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
+import { CalendarDays, UserRound } from 'lucide-react'
 
 const Navbar = () => {
 
@@ -46,6 +47,14 @@ const Navbar = () => {
               <span className='absolute bottom-0 left-1/2 transform -translate-x-1/2 h-0.5 bg-primary w-0 group-hover:w-3/5 transition-all duration-300'></span>
             </li>
         </NavLink>
+        {token && (
+          <NavLink to='/my-appointments' className={({ isActive }) => isActive ? 'text-primary' : ''}>
+            <li className='py-1 relative group'>
+              APPOINTMENTS
+              <span className='absolute bottom-0 left-1/2 transform -translate-x-1/2 h-0.5 bg-primary w-0 group-hover:w-3/5 transition-all duration-300'></span>
+            </li>
+          </NavLink>
+        )}
       </ul>
 
       {/* Right Side - Auth & Menu */}
@@ -54,18 +63,30 @@ const Navbar = () => {
 
         {/* Desktop Auth Buttons */}
         {token && userData ? (
-          <div className='hidden md:flex items-center gap-4 relative group'>
-            <div className='flex items-center gap-2 cursor-pointer'>
-              <img className='w-8 h-8 rounded-full border-2 border-gray-200' src={userData.image} alt="Profile" />
-              <img className='w-2.5' src={assets.dropdown_icon} alt="" />
-            </div>
-            
-            {/* Desktop Dropdown */}
-            <div className='absolute top-full right-0 pt-4 hidden group-hover:block'>
-              <div className='min-w-48 bg-stone-100 rounded flex flex-col gap-1 p-4 text-gray-600 shadow-lg border border-gray-200'>
-                <p onClick={() => navigate('/my-profile')} className='hover:text-black cursor-pointer py-1 transition-colors'>My Profile</p>
-                <p onClick={() => navigate('/my-appointments')} className='hover:text-black cursor-pointer py-1 transition-colors'>My Appointments</p>
-                <p onClick={logout} className='hover:text-black cursor-pointer py-1 transition-colors border-t border-gray-200 mt-1 pt-1'>Logout</p>
+          <div className='hidden md:flex items-center gap-3'>
+            <button onClick={() => navigate('/my-profile')} className='flex items-center gap-2 border border-primary text-primary px-4 py-2 rounded-full font-medium hover:bg-primary hover:text-white transition'>
+              <UserRound className='w-4 h-4' />
+              Profile
+            </button>
+
+            <button onClick={() => navigate('/my-appointments')} className='flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-full font-medium hover:bg-primary-dark transition shadow-sm'>
+              <CalendarDays className='w-4 h-4' />
+              My Appointments
+            </button>
+
+            <div className='relative group'>
+              <div className='flex items-center gap-2 cursor-pointer'>
+                <img className='w-8 h-8 rounded-full border-2 border-gray-200' src={userData.image} alt="Profile" />
+                <img className='w-2.5' src={assets.dropdown_icon} alt="" />
+              </div>
+              
+              {/* Desktop Dropdown */}
+              <div className='absolute top-full right-0 pt-4 hidden group-hover:block'>
+                <div className='min-w-48 bg-stone-100 rounded flex flex-col gap-1 p-4 text-gray-600 shadow-lg border border-gray-200'>
+                  <p onClick={() => navigate('/my-profile')} className='hover:text-black cursor-pointer py-1 transition-colors'>My Profile</p>
+                  <p onClick={() => navigate('/my-appointments')} className='hover:text-black cursor-pointer py-1 transition-colors'>My Appointments</p>
+                  <p onClick={logout} className='hover:text-black cursor-pointer py-1 transition-colors border-t border-gray-200 mt-1 pt-1'>Logout</p>
+                </div>
               </div>
             </div>
           </div>
@@ -129,6 +150,28 @@ const Navbar = () => {
                     </li>
                   )}
                 </NavLink>
+
+                {token && (
+                  <>
+                    <NavLink to='/my-appointments' onClick={() => setShowMenu(false)}>
+                      {({ isActive }) => (
+                        <li className={`px-4 py-3 rounded-lg flex items-center gap-3 ${isActive ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}>
+                          <CalendarDays className='w-4 h-4' />
+                          MY APPOINTMENTS
+                        </li>
+                      )}
+                    </NavLink>
+
+                    <NavLink to='/my-profile' onClick={() => setShowMenu(false)}>
+                      {({ isActive }) => (
+                        <li className={`px-4 py-3 rounded-lg flex items-center gap-3 ${isActive ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}>
+                          <UserRound className='w-4 h-4' />
+                          MY PROFILE
+                        </li>
+                      )}
+                    </NavLink>
+                  </>
+                )}
               </ul>
 
               {/* Mobile Auth Buttons */}
@@ -141,17 +184,6 @@ const Navbar = () => {
                       <p className='text-xs text-gray-500'>{userData.email}</p>
                     </div>
                   </div>
-
-                  <ul className='flex flex-col gap-1 mb-6'>
-                    <li onClick={() => { setShowMenu(false); navigate('/my-profile'); }} className='px-4 py-3 rounded-lg hover:bg-gray-100 cursor-pointer flex items-center gap-3'>
-                      <span className='w-1.5 h-1.5 rounded-full bg-primary'></span>
-                      My Profile
-                    </li>
-                    <li onClick={() => { setShowMenu(false); navigate('/my-appointments'); }} className='px-4 py-3 rounded-lg hover:bg-gray-100 cursor-pointer flex items-center gap-3'>
-                      <span className='w-1.5 h-1.5 rounded-full bg-primary'></span>
-                      My Appointments
-                    </li>
-                  </ul>
 
                   <button onClick={() => { setShowMenu(false); logout(); }} className='w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-medium transition flex items-center justify-center gap-2'>
                     Logout
