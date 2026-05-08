@@ -54,11 +54,20 @@ const Navbar = () => {
 
         {/* Desktop Auth Buttons */}
         {token && userData ? (
-          <div className='hidden md:flex items-center gap-4'>
-            <img onClick={() => navigate('/my-profile')} className='w-8 h-8 rounded-full cursor-pointer hover:opacity-80 transition border-2 border-gray-200' src={userData.image}  alt="Profile" />
-            <button onClick={logout} className='bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-full font-medium transition shadow-sm cursor-pointer'>
-              Logout
-            </button>
+          <div className='hidden md:flex items-center gap-4 relative group'>
+            <div className='flex items-center gap-2 cursor-pointer'>
+              <img className='w-8 h-8 rounded-full border-2 border-gray-200' src={userData.image} alt="Profile" />
+              <img className='w-2.5' src={assets.dropdown_icon} alt="" />
+            </div>
+            
+            {/* Desktop Dropdown */}
+            <div className='absolute top-full right-0 pt-4 hidden group-hover:block'>
+              <div className='min-w-48 bg-stone-100 rounded flex flex-col gap-1 p-4 text-gray-600 shadow-lg border border-gray-200'>
+                <p onClick={() => navigate('/my-profile')} className='hover:text-black cursor-pointer py-1 transition-colors'>My Profile</p>
+                <p onClick={() => navigate('/my-appointments')} className='hover:text-black cursor-pointer py-1 transition-colors'>My Appointments</p>
+                <p onClick={logout} className='hover:text-black cursor-pointer py-1 transition-colors border-t border-gray-200 mt-1 pt-1'>Logout</p>
+              </div>
+            </div>
           </div>
         ) : (
           <div className='hidden md:flex items-center gap-3'>
@@ -125,14 +134,26 @@ const Navbar = () => {
               {/* Mobile Auth Buttons */}
               {token && userData ? (
                 <div className='mt-8 border-t pt-6'>
-                  <div onClick={() => { setShowMenu(false); navigate('/my-profile'); }}className='flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 cursor-pointer mb-4'>
-                    <img className='w-10 h-10 rounded-full border-2 border-gray-300' src={userData.image} alt="Profile" />
+                  <div className='flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-50 mb-4'>
+                    <img className='w-12 h-12 rounded-full border-2 border-primary/20' src={userData.image} alt="Profile" />
                     <div>
-                      <p className='font-semibold'>{userData.name || 'My Profile'}</p>
-                      <p className='text-xs text-gray-500'>View Profile</p>
+                      <p className='font-semibold text-gray-900'>{userData.name || 'User'}</p>
+                      <p className='text-xs text-gray-500'>{userData.email}</p>
                     </div>
                   </div>
-                  <button onClick={() => { setShowMenu(false); logout(); }} className='w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-medium transition'>
+
+                  <ul className='flex flex-col gap-1 mb-6'>
+                    <li onClick={() => { setShowMenu(false); navigate('/my-profile'); }} className='px-4 py-3 rounded-lg hover:bg-gray-100 cursor-pointer flex items-center gap-3'>
+                      <span className='w-1.5 h-1.5 rounded-full bg-primary'></span>
+                      My Profile
+                    </li>
+                    <li onClick={() => { setShowMenu(false); navigate('/my-appointments'); }} className='px-4 py-3 rounded-lg hover:bg-gray-100 cursor-pointer flex items-center gap-3'>
+                      <span className='w-1.5 h-1.5 rounded-full bg-primary'></span>
+                      My Appointments
+                    </li>
+                  </ul>
+
+                  <button onClick={() => { setShowMenu(false); logout(); }} className='w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-medium transition flex items-center justify-center gap-2'>
                     Logout
                   </button>
                 </div>

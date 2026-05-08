@@ -36,7 +36,12 @@ const Footer = () => {
             <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/contact'), scrollTo(0,0) }} >
               Contact Us
             </li>
-
+            <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/my-appointments'), scrollTo(0,0) }} >
+              My Appointments
+            </li>
+            <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/'), scrollTo(0,0) }} >
+              Privacy Policy
+            </li>
           </ul>
         </div>
 
