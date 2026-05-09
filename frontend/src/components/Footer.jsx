@@ -6,7 +6,7 @@ import { AppContext } from '../context/AppContext'
 
 const Footer = () => {
   const navigate = useNavigate()
-  const { token } = useContext(AppContext)
+  const { token, t } = useContext(AppContext)
 
   return (
     <div className='px-4 sm:px-6 md:px-10'>
@@ -18,42 +18,42 @@ const Footer = () => {
           <img className='mb-4 sm:mb-5 w-32 sm:w-36 md:w-40 cursor-pointer' src={assets.logo} alt="Prescripto Logo" 
             onClick={() => {navigate('/'), scrollTo(0,0) }} />
           <p className='w-full md:w-2/3 text-gray-600 leading-6 text-sm sm:text-base'>
-            Simplifying healthcare access through smart appointment management. Book your doctor, anytime, anywhere with Prescripto's intelligent scheduling system. No more long waits or booking hassles - just efficient, reliable, and patient-focused healthcare at your convenience.
+            {t("Simplifying healthcare access through smart appointment management. Book your doctor, anytime, anywhere with Prescripto's intelligent scheduling system. No more long waits or booking hassles - just efficient, reliable, and patient-focused healthcare at your convenience.")}
           </p>
         </div>
       
         
         {/* -------- Center Section -------- */}
         <div>
-          <p className='text-lg sm:text-xl font-medium mb-4 sm:mb-5'>COMPANY</p>
+          <p className='text-lg sm:text-xl font-medium mb-4 sm:mb-5'>{t('COMPANY')}</p>
           <ul className='flex flex-col gap-2 text-gray-600 text-sm sm:text-base'>
             <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/'), scrollTo(0,0) }} >
-              Home
+              {t('Home')}
             </li>
 
             <li className='hover:text-gray-900 cursor-pointer transition-colors  duration-200'onClick={() => {navigate('/about'), scrollTo(0,0)  }} >
-              About
+              {t('About')}
             </li>
 
             <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/doctors'), scrollTo(0,0) }} >
-              All Doctors
+              {t('All Doctors')}
             </li>
 
             <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/contact'), scrollTo(0,0) }} >
-              Contact Us
+              {t('Contact Us')}
             </li>
             {token && (
               <>
                 <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/my-appointments'), scrollTo(0,0) }} >
-                  My Appointments
+                  {t('My Appointments')}
                 </li>
                 <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/my-profile'), scrollTo(0,0) }} >
-                  My Profile
+                  {t('My Profile')}
                 </li>
               </>
             )}
             <li className='hover:text-gray-900 cursor-pointer transition-colors duration-200' onClick={() => {navigate('/'), scrollTo(0,0) }} >
-              Privacy Policy
+              {t('Privacy Policy')}
             </li>
           </ul>
         </div>
@@ -61,14 +61,14 @@ const Footer = () => {
          
         {/* -------- Right Section - RESPONSIVE TEXT & ICONS -------- */}
         <div>
-          <p className='text-lg sm:text-xl font-medium mb-4 sm:mb-5'>GET IN TOUCH</p>
+          <p className='text-lg sm:text-xl font-medium mb-4 sm:mb-5'>{t('GET IN TOUCH')}</p>
           <ul className='flex flex-col gap-3 sm:gap-4 text-gray-600'>
             
             {/* Phone - Lucide Icon */}
             <li className='flex items-start gap-2 group'>
               <Phone className='w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-primary mt-1' />
               <div>
-                <p className='font-medium text-gray-900 text-xs sm:text-sm md:text-base'>Phone</p>
+                <p className='font-medium text-gray-900 text-xs sm:text-sm md:text-base'>{t('Phone')}</p>
                 <a href="tel:+923432705821" className='text-gray-600 hover:text-primary transition-colors text-xs sm:text-sm md:text-base'>
                   +92 343 2705821
                 </a>
@@ -79,7 +79,7 @@ const Footer = () => {
             <li className='flex items-start gap-2 group'>
               <Mail className='w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-primary mt-1' />
               <div>
-                <p className='font-medium text-gray-900 text-xs sm:text-sm md:text-base'>Email</p>
+                <p className='font-medium text-gray-900 text-xs sm:text-sm md:text-base'>{t('Email')}</p>
                 <a href="mailto:marqum987@gmail.com" className='text-gray-600 hover:text-primary transition-colors break-all text-xs sm:text-sm md:text-base'>
                   marqum987@gmail.com
                 </a>

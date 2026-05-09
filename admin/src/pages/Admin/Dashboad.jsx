@@ -1,174 +1,299 @@
-import React from "react";
-import { useContext } from "react";
-import { AdminContext } from "../../context/AdminContext";
-import { useEffect } from "react";
-import { assets } from "../../assets/assets";
-import { AppContext } from "../../context/AppContext";
+import React, { useContext, useEffect, useMemo, useState } from 'react'
+import { AdminContext } from '../../context/AdminContext'
+import { AppContext } from '../../context/AppContext'
+import { assets } from '../../assets/assets'
+import { Building2, CalendarDays, ClipboardList, CreditCard, LineChart, ShieldCheck, Stethoscope, UserPlus, UserRound, WalletCards } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
-const Dashboard = () => {
-  const { aToken, getDashData, cancelAppointment, dashData } = useContext(AdminContext);
-  const { slotDateFormat } = useContext(AppContext);
-  const [loading, setLoading] = React.useState(true);
-
-  useEffect(() => {
-  const fetchData = async () => {
-    if (aToken) {
-      setLoading(true);
-      await getDashData();
-      setLoading(false);
-    }
-   };
-   fetchData();
-  }, [aToken]);
-
-
-  const handleCancelAppointment = async (appointmentId) => {
-    await cancelAppointment(appointmentId);
-    getDashData();
-  };
-
-  if (loading) {
-    return (
-      <div className="p-3 sm:p-5 md:p-6 lg:p-8">
-        <div className="max-w-5xl">
-          
-          {/* Stats Cards Skeleton */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-lg border-2 border-gray-200 animate-pulse">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gray-200 rounded"></div>
-                <div className="flex-1">
-                  <div className="h-6 sm:h-7 md:h-8 bg-gray-200 rounded w-16 mb-2"></div>
-                  <div className="h-3 sm:h-4 bg-gray-200 rounded w-20"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Latest Appointments Skeleton */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            
-            {/* Header Skeleton */}
-            <div className="flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b bg-gray-50 animate-pulse">
-              <div className="w-4 h-4 sm:w-5 sm:h-5 bg-gray-200 rounded"></div>
-              <div className="h-4 sm:h-5 bg-gray-200 rounded w-32"></div>
-            </div>
-
-            {/* Appointments List Skeleton */}
-            <div className="divide-y divide-gray-100">
-              {[...Array(5)].map((i) => (
-                <div key={i} className="flex items-center px-3 sm:px-4 md:px-6 py-3 sm:py-4 gap-2 sm:gap-3 animate-pulse">
-                  <div className="rounded-full w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gray-200 flex-shrink-0"></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-24"></div>
-                  </div>
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-gray-200 rounded"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+const StatTile = ({ icon, label, value, accent = 'bg-blue-50 text-blue-700' }) => (
+  <div className='bg-white border border-gray-200 rounded-lg p-4'>
+    <div className='flex items-center justify-between gap-3'>
+      <div>
+        <p className='text-xs sm:text-sm text-gray-500'>{label}</p>
+        <p className='mt-1 text-xl sm:text-2xl font-bold text-gray-900'>{value}</p>
       </div>
-    );
+      <div className={`w-11 h-11 rounded-lg flex items-center justify-center ${accent}`}>
+        {icon}
+      </div>
+    </div>
+  </div>
+)
+
+const TrendBars = ({ data }) => {
+  const maxCount = Math.max(...data.map((item) => item.count), 1)
+
+  if (!data.length) {
+    return <div className='h-56 flex items-center justify-center text-sm text-gray-500'>No appointment trend data yet.</div>
   }
 
   return (
-    dashData && (
-      <div className="p-3 sm:p-5 md:p-6 lg:p-8">
-        
-        {/* Main Container - Left Aligned with Max Width */}
-        <div className="max-w-5xl">
-          
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
-            {/* Doctors Card */}
-            <div className="flex items-center gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-lg border-2 border-gray-200 cursor-pointer hover:scale-105 hover:shadow-lg transition-all">
-              <img className="w-10 sm:w-12 md:w-14" src={assets.doctor_icon} alt="Doctors" />
+    <div className='h-56 flex items-end gap-2 overflow-x-auto pb-1'>
+      {data.map((item) => (
+        <div key={item.label} className='min-w-12 flex-1 flex flex-col items-center gap-2'>
+          <div className='text-xs font-semibold text-gray-700'>{item.count}</div>
+          <div className='w-full flex items-end justify-center h-36 bg-gray-50 rounded-md overflow-hidden'>
+            <div
+              className='w-full bg-blue-600 rounded-t-md'
+              style={{ height: `${Math.max((item.count / maxCount) * 100, 8)}%` }}
+            />
+          </div>
+          <div className='text-[10px] text-gray-500 whitespace-nowrap'>{item.label}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const Dashboard = () => {
+  const { aToken, getDashData, cancelAppointment, dashData } = useContext(AdminContext)
+  const { slotDateFormat, currency } = useContext(AppContext)
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(true)
+  const [trendRange, setTrendRange] = useState('day')
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (aToken) {
+        setLoading(true)
+        await getDashData()
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [aToken])
+
+  const paymentTotal = (dashData?.paidAppointments || 0) + (dashData?.unpaidAppointments || 0)
+  const paidPercent = paymentTotal ? Math.round(((dashData?.paidAppointments || 0) / paymentTotal) * 100) : 0
+
+  const trendData = useMemo(() => {
+    return dashData?.appointmentTrends?.[trendRange] || []
+  }, [dashData, trendRange])
+
+  const handleCancelAppointment = async (appointmentId) => {
+    await cancelAppointment(appointmentId)
+    getDashData()
+  }
+
+  const adminOptions = [
+    { label: 'Patients', path: '/patients', icon: <UserRound className='w-5 h-5' />, tone: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
+    { label: 'Doctors', path: '/doctor-list', icon: <Stethoscope className='w-5 h-5' />, tone: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' },
+    { label: 'Appointments', path: '/all-appointments', icon: <CalendarDays className='w-5 h-5' />, tone: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
+    { label: 'History', path: '/appointment-history', icon: <ClipboardList className='w-5 h-5' />, tone: 'bg-slate-100 text-slate-700 hover:bg-slate-200' },
+    { label: 'Clinics', path: '/clinics', icon: <Building2 className='w-5 h-5' />, tone: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
+    { label: 'Add Doctor', path: '/add-doctor', icon: <UserPlus className='w-5 h-5' />, tone: 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100' },
+    { label: 'Receptionists', path: '/receptionist-list', icon: <CreditCard className='w-5 h-5' />, tone: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+    { label: 'Audit Logs', path: '/audit-logs', icon: <ShieldCheck className='w-5 h-5' />, tone: 'bg-rose-50 text-rose-700 hover:bg-rose-100' }
+  ]
+
+  if (loading) {
+    return (
+      <div className='p-3 sm:p-5 md:p-6 lg:p-8'>
+        <div className='max-w-7xl'>
+          <div className='mb-5'>
+            <h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900'>Admin Dashboard</h1>
+            <p className='text-sm text-gray-600 mt-1'>Use the options below to manage the clinic system.</p>
+          </div>
+
+          <div className='bg-white border border-gray-200 rounded-lg p-4 sm:p-5 mb-5'>
+            <h2 className='font-semibold text-gray-900 mb-4'>Admin Options</h2>
+            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3'>
+              {adminOptions.map((option) => (
+                <button
+                  key={option.path}
+                  onClick={() => navigate(option.path)}
+                  className={`min-h-24 rounded-lg px-3 py-4 flex flex-col items-center justify-center gap-2 text-center font-semibold text-sm transition ${option.tone}`}
+                >
+                  {option.icon}
+                  <span>{option.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5'>
+            {[...Array(8)].map((_, index) => (
+              <div key={index} className='h-28 bg-white border border-gray-200 rounded-lg animate-pulse' />
+            ))}
+          </div>
+          <div className='h-72 bg-white border border-gray-200 rounded-lg animate-pulse' />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+      <div className='p-3 sm:p-5 md:p-6 lg:p-8'>
+        <div className='max-w-7xl'>
+          <div className='mb-5'>
+            <h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900'>Admin Dashboard</h1>
+            <p className='text-sm text-gray-600 mt-1'>Patients, doctors, revenue, payments, appointment trends, and clinic performance.</p>
+          </div>
+
+          <div className='bg-white border border-gray-200 rounded-lg p-4 sm:p-5 mb-5'>
+            <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4'>
               <div>
-                <p className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-600">
-                  {dashData.doctors}
-                </p>
-                <p className="text-xs sm:text-base text-gray-400">Doctors</p>
+                <h2 className='font-semibold text-gray-900'>Admin Options</h2>
+                <p className='text-sm text-gray-500'>Open the main management pages directly from here.</p>
               </div>
             </div>
+            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3'>
+              {adminOptions.map((option) => (
+                <button
+                  key={option.path}
+                  onClick={() => navigate(option.path)}
+                  className={`min-h-24 rounded-lg px-3 py-4 flex flex-col items-center justify-center gap-2 text-center font-semibold text-sm transition ${option.tone}`}
+                >
+                  {option.icon}
+                  <span>{option.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
-            {/* Appointments Card */}
-            <div className="flex items-center gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-lg border-2 border-gray-200 cursor-pointer hover:scale-105 hover:shadow-lg transition-all">
-              <img className="w-10 sm:w-12 md:w-14" src={assets.appointments_icon} alt="Appointments" />
-              <div>
-                <p className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-600">
-                  {dashData.appointments}
-                </p>
-                <p className="text-xs sm:text-base text-gray-400">Appointments</p>
+          <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5'>
+            <StatTile icon={<UserRound className='w-5 h-5' />} label='Total Patients' value={dashData?.patients || 0} accent='bg-blue-50 text-blue-700' />
+            <StatTile icon={<Stethoscope className='w-5 h-5' />} label='Total Doctors' value={dashData?.doctors || 0} accent='bg-indigo-50 text-indigo-700' />
+            <StatTile icon={<CalendarDays className='w-5 h-5' />} label='Appointments' value={dashData?.appointments || 0} accent='bg-purple-50 text-purple-700' />
+            <StatTile icon={<WalletCards className='w-5 h-5' />} label='Revenue' value={`${currency}${dashData?.revenue || 0}`} accent='bg-green-50 text-green-700' />
+          </div>
+
+          <div className='grid grid-cols-1 lg:grid-cols-[1.4fr_0.9fr] gap-5 mb-5'>
+            <div className='bg-white border border-gray-200 rounded-lg p-4 sm:p-5'>
+              <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4'>
+                <div className='flex items-center gap-2'>
+                  <LineChart className='w-5 h-5 text-blue-600' />
+                  <h2 className='font-semibold text-gray-800'>Appointment Trends</h2>
+                </div>
+                <div className='inline-flex w-fit rounded-lg border border-gray-200 overflow-hidden'>
+                  {['day', 'week', 'month'].map((range) => (
+                    <button
+                      key={range}
+                      onClick={() => setTrendRange(range)}
+                      className={`px-3 py-1.5 text-xs sm:text-sm capitalize ${trendRange === range ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      {range}
+                    </button>
+                  ))}
+                </div>
               </div>
+              <TrendBars data={trendData} />
             </div>
 
-            {/* Patients Card */}
-            <div className="flex items-center gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-lg border-2 border-gray-200 cursor-pointer hover:scale-105 hover:shadow-lg transition-all sm:col-span-2 lg:col-span-1">
-              <img className="w-10 sm:w-12 md:w-14" src={assets.patients_icon} alt="Patients" />
-              <div>
-                <p className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-600">
-                  {dashData.patients}
-                </p>
-                <p className="text-xs sm:text-base text-gray-400">Patients</p>
+            <div className='bg-white border border-gray-200 rounded-lg p-4 sm:p-5'>
+              <div className='flex items-center gap-2 mb-4'>
+                <CreditCard className='w-5 h-5 text-blue-600' />
+                <h2 className='font-semibold text-gray-800'>Paid vs Unpaid</h2>
+              </div>
+
+              <div className='mb-5'>
+                <div className='h-4 bg-amber-100 rounded-full overflow-hidden'>
+                  <div className='h-full bg-green-600 rounded-full' style={{ width: `${paidPercent}%` }} />
+                </div>
+                <div className='mt-2 flex justify-between text-sm text-gray-600'>
+                  <span>{paidPercent}% paid</span>
+                  <span>{paymentTotal} active payments</span>
+                </div>
+              </div>
+
+              <div className='grid grid-cols-2 gap-3 mb-5'>
+                <div className='rounded-lg bg-green-50 p-3'>
+                  <p className='text-xs text-green-700'>Paid</p>
+                  <p className='text-2xl font-bold text-green-800'>{dashData.paidAppointments || 0}</p>
+                </div>
+                <div className='rounded-lg bg-amber-50 p-3'>
+                  <p className='text-xs text-amber-700'>Unpaid</p>
+                  <p className='text-2xl font-bold text-amber-800'>{dashData.unpaidAppointments || 0}</p>
+                </div>
+              </div>
+
+              <div className='grid grid-cols-2 gap-3'>
+                <div className='rounded-lg bg-gray-100 p-3'>
+                  <p className='text-xs text-gray-600'>Completed</p>
+                  <p className='text-xl font-bold text-gray-800'>{dashData.completedAppointments || 0}</p>
+                </div>
+                <div className='rounded-lg bg-red-50 p-3'>
+                  <p className='text-xs text-red-700'>Cancelled</p>
+                  <p className='text-xl font-bold text-red-800'>{dashData.cancelledAppointments || 0}</p>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Latest Appointments */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b bg-gray-50">
-              <img className="w-4 sm:w-5" src={assets.list_icon} alt="List" />
-              <p className="font-semibold text-gray-700 text-sm sm:text-base md:text-lg">Latest Bookings</p>
+          <div className='grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-5'>
+            <div className='bg-white border border-gray-200 rounded-lg overflow-hidden'>
+              <div className='flex items-center gap-2 px-4 py-3 border-b bg-gray-50'>
+                <Building2 className='w-5 h-5 text-blue-600' />
+                <h2 className='font-semibold text-gray-800'>Clinic Statistics</h2>
+              </div>
+
+              <div className='overflow-x-auto'>
+                <div className='min-w-[720px]'>
+                  <div className='grid grid-cols-[1.5fr_0.7fr_0.8fr_0.8fr_0.8fr_0.9fr] gap-3 px-4 py-3 text-sm font-semibold text-gray-700 bg-white border-b'>
+                    <p>Clinic</p>
+                    <p>Doctors</p>
+                    <p>Patients</p>
+                    <p>Appointments</p>
+                    <p>Paid</p>
+                    <p>Revenue</p>
+                  </div>
+                  {(dashData?.clinicStats || []).length === 0 ? (
+                    <div className='px-4 py-8 text-center text-sm text-gray-500'>No clinic statistics available.</div>
+                  ) : (
+                    dashData.clinicStats.map((clinic) => (
+                      <div key={clinic.name} className='grid grid-cols-[1.5fr_0.7fr_0.8fr_0.8fr_0.8fr_0.9fr] gap-3 px-4 py-3 text-sm text-gray-600 border-b hover:bg-gray-50'>
+                        <p className='font-medium text-gray-800 truncate'>{clinic.name}</p>
+                        <p>{clinic.doctors}</p>
+                        <p>{clinic.patients}</p>
+                        <p>{clinic.appointments}</p>
+                        <p>{clinic.paidAppointments}</p>
+                        <p>{currency}{clinic.revenue}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Appointments List */}
-            <div className="divide-y divide-gray-100">
-              {dashData.latestAppointments && dashData.latestAppointments.length > 0 ? (
-                dashData.latestAppointments.map((item, index) => (
-                  <div className="flex items-center px-3 sm:px-4 md:px-6 py-3 sm:py-4 gap-2 sm:gap-3 hover:bg-gray-50 transition-colors" key={index}>
-                    {/* Doctor Image */}
-                    <img className="rounded-full w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 object-cover flex-shrink-0 bg-gray-100" src={item.docData.image} alt={item.docData.name}/>
+            <div className='bg-white border border-gray-200 rounded-lg overflow-hidden'>
+              <div className='flex items-center gap-2 px-4 py-3 border-b bg-gray-50'>
+                <img className='w-5 h-5' src={assets.list_icon} alt='List' />
+                <h2 className='font-semibold text-gray-800'>Latest Bookings</h2>
+              </div>
 
-                    {/* Doctor Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-gray-800 font-medium text-xs sm:text-sm md:text-base truncate">
-                        {item.docData.name}
-                      </p>
-                      <p className="text-gray-500 text-[10px] sm:text-xs md:text-sm">
-                        {slotDateFormat(item.slotDate)}
-                      </p>
-                    </div>
+              <div className='divide-y divide-gray-100 max-h-[440px] overflow-y-auto'>
+                {dashData?.latestAppointments && dashData.latestAppointments.length > 0 ? (
+                  dashData.latestAppointments.map((item) => (
+                    <div className='flex items-center px-4 py-3 gap-3 hover:bg-gray-50 transition-colors' key={item._id}>
+                      <img className='rounded-full w-11 h-11 object-cover bg-gray-100 flex-shrink-0' src={item.docData.image} alt={item.docData.name} />
+                      <div className='flex-1 min-w-0'>
+                        <p className='text-gray-800 font-medium text-sm truncate'>{item.docData.name}</p>
+                        <p className='text-gray-500 text-xs'>{slotDateFormat(item.slotDate)}, {item.slotTime}</p>
+                        <p className='text-gray-500 text-xs truncate'>Patient: {item.userData?.name || 'Unknown'}</p>
+                      </div>
 
-                    {/* Status/Actions */}
-                    <div className="flex-shrink-0">
-                      {item.cancelled ? (
-                        <p className="text-red-500 text-[10px] sm:text-xs md:text-sm font-medium px-2 sm:px-3 py-1 bg-red-50 rounded-full whitespace-nowrap">
-                          Cancelled
-                        </p>
-                      ) : item.isCompleted ? (
-                        <p className="text-green-600 text-[10px] sm:text-xs md:text-sm font-medium px-2 sm:px-3 py-1 bg-green-50 rounded-full whitespace-nowrap">
-                          Completed
-                        </p>
-                      ) : (
-                        <img onClick={() => handleCancelAppointment(item._id)} className="w-7 sm:w-8 md:w-9 lg:w-10 cursor-pointer hover:scale-110 transition-transform" src={assets.cancel_icon} alt="Cancel" />
-                      )}
+                      <div className='flex-shrink-0'>
+                        {item.cancelled ? (
+                          <p className='text-red-500 text-xs font-medium px-2 py-1 bg-red-50 rounded-full'>Cancelled</p>
+                        ) : item.isCompleted ? (
+                          <p className='text-green-600 text-xs font-medium px-2 py-1 bg-green-50 rounded-full'>Completed</p>
+                        ) : (
+                          <img onClick={() => handleCancelAppointment(item._id)} className='w-8 cursor-pointer hover:scale-110 transition-transform' src={assets.cancel_icon} alt='Cancel' />
+                        )}
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className='text-center py-10'>
+                    <p className='text-gray-400 text-sm'>No appointments yet</p>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 sm:py-12">
-                  <p className="text-gray-400 text-xs sm:text-sm">No appointments yet</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    )
-  );
-};
+  )
+}
 
-export default Dashboard;
+export default Dashboard

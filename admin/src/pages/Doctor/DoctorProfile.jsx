@@ -6,6 +6,27 @@ import { useEffect } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 
+const dayOptions = [
+  { value: 0, label: 'Sun' },
+  { value: 1, label: 'Mon' },
+  { value: 2, label: 'Tue' },
+  { value: 3, label: 'Wed' },
+  { value: 4, label: 'Thu' },
+  { value: 5, label: 'Fri' },
+  { value: 6, label: 'Sat' }
+]
+
+const defaultSchedule = {
+  workingDays: [0, 1, 2, 3, 4, 5, 6],
+  startTime: '10:00',
+  endTime: '21:00',
+  breaks: [],
+  slotDuration: 30,
+  blockedDates: []
+}
+
+const todayKey = new Date().toISOString().slice(0, 10)
+
 const DoctorProfile = () => {
 
   const { dToken, profileData, setProfileData, getProfileData, backendUrl } = useContext(DoctorContext)
@@ -19,6 +40,7 @@ const DoctorProfile = () => {
       address: profileData.address,
       fees: profileData.fees,
       available: profileData.available,
+      schedule: { ...defaultSchedule, ...(profileData.schedule || {}) },
     }   
     const { data } = await axios.post(backendUrl + '/api/doctor/update-profile', updateData, {headers: {dToken}})
     if(data.success){
@@ -39,6 +61,37 @@ const DoctorProfile = () => {
       getProfileData()
     }
   },[dToken])
+
+  const schedule = { ...defaultSchedule, ...(profileData?.schedule || {}) }
+
+  const updateSchedule = (changes) => {
+    setProfileData(prev => ({
+      ...prev,
+      schedule: { ...defaultSchedule, ...(prev.schedule || {}), ...changes }
+    }))
+  }
+
+  const toggleWorkingDay = (day) => {
+    const workingDays = schedule.workingDays.includes(day)
+      ? schedule.workingDays.filter(item => item !== day)
+      : [...schedule.workingDays, day].sort((a, b) => a - b)
+    updateSchedule({ workingDays })
+  }
+
+  const updateBreak = (index, field, value) => {
+    const breaks = [...(schedule.breaks || [])]
+    breaks[index] = { ...breaks[index], [field]: value }
+    updateSchedule({ breaks })
+  }
+
+  const addBreak = () => updateSchedule({ breaks: [...(schedule.breaks || []), { startTime: '13:00', endTime: '14:00' }] })
+  const removeBreak = (index) => updateSchedule({ breaks: schedule.breaks.filter((_, itemIndex) => itemIndex !== index) })
+  const addBlockedDate = (value) => {
+    if (!value || schedule.blockedDates.includes(value)) return
+    if (value < todayKey) return toast.warn('Past dates cannot be added')
+    updateSchedule({ blockedDates: [...schedule.blockedDates, value].sort() })
+  }
+  const removeBlockedDate = (value) => updateSchedule({ blockedDates: schedule.blockedDates.filter(item => item !== value) })
 
 
   return profileData && (
@@ -79,7 +132,86 @@ const DoctorProfile = () => {
 
         <div className='flex gap-1 pt-2'>
           <input onChange={() => isEdit && setProfileData(prev => ({...prev, available: !prev.available}))} checked={profileData.available} type="checkbox" name='' id='' />
-          <label htmlFor="">Available</label>
+          <label htmlFor="">Accepting appointments</label>
+        </div>
+
+        <div className='mt-6 border-t border-gray-100 pt-5'>
+          <div className='flex flex-col gap-1 mb-4'>
+            <p className='text-lg font-semibold text-gray-800'>Schedule</p>
+            <p className='text-sm text-gray-500'>Manage working days, appointment times, breaks, slot length, and blocked dates.</p>
+          </div>
+
+          <div className='grid gap-5'>
+            <div>
+              <p className='text-sm font-medium text-gray-700 mb-2'>Working days</p>
+              <div className='flex flex-wrap gap-2'>
+                {dayOptions.map(day => (
+                  <button
+                    type='button'
+                    key={day.value}
+                    disabled={!isEdit}
+                    onClick={() => toggleWorkingDay(day.value)}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium disabled:cursor-default ${schedule.workingDays.includes(day.value) ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200'}`}
+                  >
+                    {day.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+              <label className='text-sm font-medium text-gray-700'>
+                Start time
+                <input disabled={!isEdit} type='time' value={schedule.startTime} onChange={(e) => updateSchedule({ startTime: e.target.value })} className='mt-1 w-full border rounded-lg px-3 py-2 disabled:bg-gray-50' />
+              </label>
+              <label className='text-sm font-medium text-gray-700'>
+                End time
+                <input disabled={!isEdit} type='time' value={schedule.endTime} onChange={(e) => updateSchedule({ endTime: e.target.value })} className='mt-1 w-full border rounded-lg px-3 py-2 disabled:bg-gray-50' />
+              </label>
+              <label className='text-sm font-medium text-gray-700'>
+                Slot duration
+                <select disabled={!isEdit} value={schedule.slotDuration} onChange={(e) => updateSchedule({ slotDuration: Number(e.target.value) })} className='mt-1 w-full border rounded-lg px-3 py-2 disabled:bg-gray-50'>
+                  <option value={10}>10 minutes</option>
+                  <option value={15}>15 minutes</option>
+                  <option value={20}>20 minutes</option>
+                  <option value={30}>30 minutes</option>
+                  <option value={45}>45 minutes</option>
+                  <option value={60}>60 minutes</option>
+                </select>
+              </label>
+            </div>
+
+            <div>
+              <div className='flex items-center justify-between gap-3 mb-2'>
+                <p className='text-sm font-medium text-gray-700'>Break times</p>
+                {isEdit && <button type='button' onClick={addBreak} className='text-sm text-primary font-medium'>Add break</button>}
+              </div>
+              <div className='space-y-2'>
+                {schedule.breaks.length === 0 && <p className='text-sm text-gray-500'>No breaks configured.</p>}
+                {schedule.breaks.map((item, index) => (
+                  <div key={index} className='grid grid-cols-[1fr_1fr_auto] gap-2 items-center'>
+                    <input disabled={!isEdit} type='time' value={item.startTime} onChange={(e) => updateBreak(index, 'startTime', e.target.value)} className='border rounded-lg px-3 py-2 disabled:bg-gray-50' />
+                    <input disabled={!isEdit} type='time' value={item.endTime} onChange={(e) => updateBreak(index, 'endTime', e.target.value)} className='border rounded-lg px-3 py-2 disabled:bg-gray-50' />
+                    {isEdit && <button type='button' onClick={() => removeBreak(index)} className='px-3 py-2 rounded-lg border text-red-600'>Remove</button>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className='text-sm font-medium text-gray-700 mb-2'>Blocked dates</p>
+              {isEdit && <input type='date' min={todayKey} onChange={(e) => { addBlockedDate(e.target.value); e.target.value = '' }} className='border rounded-lg px-3 py-2 mb-3' />}
+              <div className='flex flex-wrap gap-2'>
+                {schedule.blockedDates.length === 0 && <p className='text-sm text-gray-500'>No blocked dates.</p>}
+                {schedule.blockedDates.map(date => (
+                  <span key={date} className='inline-flex items-center gap-2 rounded-full bg-red-50 text-red-700 px-3 py-1 text-sm'>
+                    {date}
+                    {isEdit && <button type='button' onClick={() => removeBlockedDate(date)} className='font-bold'>x</button>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
         {

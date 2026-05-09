@@ -1,11 +1,13 @@
 import { createContext } from "react";
+import { useLanguage } from "../i18n";
 
 
 export const AppContext = createContext()
 
 const AppContextProvider = (props) => {
 
-    const currency = 'Rs '
+    const { language, t, tc } = useLanguage()
+    const currency = language === 'ar' ? 'ج.م ' : 'EGP '
 
 
     const calculateAge = (dob) => {
@@ -16,7 +18,9 @@ const AppContextProvider = (props) => {
       return age
     }
 
-    const months = [ "", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    const months = language === 'ar'
+      ? [ "", "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+      : [ "", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
     const slotDateFormat = (slotDate) => {
     const dateArray = slotDate.split('_')
@@ -26,7 +30,10 @@ const AppContextProvider = (props) => {
     const value = {
        calculateAge,
        slotDateFormat,
-       currency
+       currency,
+       language,
+       t,
+       tc
     }
 
     return (

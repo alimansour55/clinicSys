@@ -9,6 +9,9 @@ import prescriptionModel from '../models/prescriptionModel.js'
 import counterModel from '../models/counterModel.js'
 import { PASSWORD_RESET_TEMPLATE } from "../config/EmailTemplates.js";
 import transporter from "../config/nodemailer.js";
+import { createJwtPayload } from '../middlewares/rbac.js'
+import { logAudit } from '../services/auditService.js'
+import { isSlotAllowedBySchedule } from '../services/scheduleService.js'
 
 
 
@@ -22,14 +25,63 @@ const getNextPatientId = async () => {
     return `PAT${counter.seq.toString().padStart(2, '0')}`;
 };
 
+const parseBoolean = (value) => value === true || value === 'true' || value === 'on' || value === '1'
+
+const normalizePhone = (phone = '') => String(phone).trim()
+
+const buildInsuranceData = async (body = {}, file, existingInsurance = {}, updatedBy = 'patient') => {
+  const enabled = parseBoolean(body.insuranceEnabled)
+
+  if (!enabled) {
+    return {
+      enabled: false,
+      fullName: '',
+      birthDate: '',
+      idNumber: '',
+      expiryDate: '',
+      medicalCardPhoto: existingInsurance.medicalCardPhoto || '',
+      updatedAt: Date.now(),
+      updatedBy
+    }
+  }
+
+  const insurance = {
+    enabled: true,
+    fullName: String(body.insuranceFullName || body.fullName || '').trim(),
+    birthDate: String(body.insuranceBirthDate || body.birthDate || '').trim(),
+    idNumber: String(body.insuranceIdNumber || body.idNumber || '').trim(),
+    expiryDate: String(body.insuranceExpiryDate || body.expiryDate || '').trim(),
+    medicalCardPhoto: existingInsurance.medicalCardPhoto || '',
+    updatedAt: Date.now(),
+    updatedBy
+  }
+
+  if (!insurance.fullName || !insurance.birthDate || !insurance.idNumber || !insurance.expiryDate) {
+    throw new Error('Please complete all insurance fields')
+  }
+
+  if (!file && !insurance.medicalCardPhoto) {
+    throw new Error('Please attach a photo of the medical card')
+  }
+
+  if (file) {
+    const upload = await cloudinary.uploader.upload(file.path, { resource_type: 'auto' })
+    insurance.medicalCardPhoto = upload.secure_url
+  }
+
+  return insurance
+}
+
 
 
 // API to register user
 const registerUser = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const body = req.body || {}
+        const { name, email, password, dob } = body;
+        const phone = normalizePhone(body.phone)
 
-        if (!name || !password || !email) {
+        if (!name || !password || !email || !phone || !dob) {
             return res.json({success: false, message: 'Missing Details'});
         }
 
@@ -46,6 +98,11 @@ const registerUser = async (req, res) => {
             return res.json({success: false, message: 'Email already registered'});
         }
 
+        const existingPhone = await userModel.findOne({ phone });
+        if (existingPhone) {
+            return res.json({success: false, message: 'Phone number already registered'});
+        }
+
         // Counter se ID lo
         const patientId = await getNextPatientId();
 
@@ -57,14 +114,17 @@ const registerUser = async (req, res) => {
         const userData = {
             name,
             email,
+            phone,
+            dob,
             password: hashedPassword,
-            patientId: patientId
+            patientId: patientId,
+            insurance: await buildInsuranceData(body, req.file, {}, 'patient')
         };
 
         const newUser = new userModel(userData);
         const user = await newUser.save();
 
-        const token = jwt.sign({id: user._id}, process.env.JWT_SECRET);
+        const token = jwt.sign(createJwtPayload({ id: user._id, role: 'patient', email: user.email }), process.env.JWT_SECRET);
 
         res.json({success: true, token});
 
@@ -81,19 +141,74 @@ const registerUser = async (req, res) => {
 const loginUser = async (req,res) => {
     try {
         
-      const { email, password} = req.body
-      const user = await userModel.findOne({email})
+      const body = req.body || {}
+      const { password} = body
+      const loginId = String(body.email || body.loginId || '').trim()
+
+      if (!loginId || !password) {
+        return res.json({ success: false, message: 'Email/phone and password are required' })
+      }
+
+      const user = await userModel.findOne({ $or: [{ email: loginId }, { phone: loginId }] })
 
       if(!user){
+       await logAudit({
+        action: 'login_failed',
+        status: 'failed',
+        reason: 'User does not exist',
+        entityType: 'user',
+        metadata: { loginId },
+        req
+       })
        return res.json({success:false, message:'User does not exist'})
+      }
+
+      if(user.isActive === false) {
+        await logAudit({
+          action: 'login_failed',
+          actorUserId: user._id,
+          actorRole: 'patient',
+          status: 'failed',
+          reason: 'Patient account is deactivated',
+          entityType: 'user',
+          entityId: user._id,
+          metadata: { loginId },
+          req
+        })
+        return res.json({success:false, message:'Patient account is deactivated'})
       }
 
       const isMatch = await bcrypt.compare(password,user.password)
 
       if(isMatch) {
-        const token = jwt.sign({id:user._id}, process.env.JWT_SECRET)
+        const token = jwt.sign(createJwtPayload({ id: user._id, role: 'patient', email: user.email }), process.env.JWT_SECRET)
+        await logAudit({
+          action: 'login_success',
+          actorUserId: user._id,
+          actorRole: 'patient',
+          status: 'success',
+          entityType: 'user',
+          entityId: user._id,
+          metadata: {
+            username: user.name,
+            loginId: user.patientId || user.email,
+            email: user.email
+          },
+          req
+        })
         res.json({success:true, token}) 
       } else {
+        await logAudit({
+          action: 'login_failed',
+          actorUserId: user._id,
+          actorRole: 'patient',
+          status: 'failed',
+          reason: 'Invalid credentials',
+          entityType: 'user',
+          entityId: user._id,
+          metadata: { loginId },
+          req
+        })
         res.json({success:false, message:'Invalid credentails'})
       }
 
@@ -268,14 +383,20 @@ const updateProfile = async (req,res) => {
   try {
     
     const userId = req.user.userId; 
-    const { name, phone, address, dob, gender } = req.body;
+    const body = req.body || {}
+    const { name, phone, address, dob, gender } = body;
     const imageFile = req.file
 
     if( !name || !phone || !dob || !gender ){
       return res.json({success: false, message:"Data Missing"})
     }
 
-    await userModel.findByIdAndUpdate(userId,{name, phone, address: JSON.parse(address),dob, gender})
+    const existingPhone = await userModel.findOne({ phone: normalizePhone(phone), _id: { $ne: userId } })
+    if (existingPhone) {
+      return res.json({ success: false, message: 'Phone number already registered' })
+    }
+
+    await userModel.findByIdAndUpdate(userId,{name, phone: normalizePhone(phone), address: JSON.parse(address),dob, gender})
 
     if(imageFile){
       
@@ -294,6 +415,110 @@ const updateProfile = async (req,res) => {
   }
 }
 
+const updateInsurance = async (req, res) => {
+  try {
+    const userId = req.user.userId
+    const user = await userModel.findById(userId).select('insurance')
+
+    if (!user) {
+      return res.json({ success: false, message: 'User not found' })
+    }
+
+    const insurance = await buildInsuranceData(req.body || {}, req.file, user.insurance || {}, 'patient')
+    const updatedUser = await userModel.findByIdAndUpdate(userId, { insurance }, { new: true }).select('-password -resetOtp -resetOtpExpireAt')
+
+    await logAudit({
+      action: 'insurance_update',
+      actorUserId: userId,
+      actorRole: 'patient',
+      status: 'success',
+      targetUserId: userId,
+      entityType: 'user',
+      entityId: userId,
+      metadata: { enabled: insurance.enabled },
+      req
+    })
+
+    res.json({ success: true, message: 'Insurance updated', userData: updatedUser, insurance: updatedUser.insurance })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const medicalHistoryFields = ['conditions', 'allergies', 'surgeries', 'familyHistory', 'socialHistory', 'notes']
+
+const normalizeMedicalHistory = (medicalHistory = {}) => {
+  return medicalHistoryFields.reduce((acc, field) => {
+    acc[field] = String(medicalHistory[field] || '').trim()
+    return acc
+  }, {})
+}
+
+// API to get current patient's medical history
+const getMedicalHistory = async (req, res) => {
+  try {
+    const userId = req.user.userId
+    const userData = await userModel.findById(userId).select('medicalHistory')
+
+    if (!userData) {
+      return res.json({ success: false, message: 'User not found' })
+    }
+
+    res.json({ success: true, medicalHistory: userData.medicalHistory || {} })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const saveMedicalHistory = async (req, res, message = 'Medical history saved') => {
+  try {
+    const userId = req.user.userId
+    const nextHistory = normalizeMedicalHistory(req.body.medicalHistory || req.body)
+
+    nextHistory.updatedAt = Date.now()
+    nextHistory.updatedBy = 'patient'
+
+    const userData = await userModel.findByIdAndUpdate(
+      userId,
+      { medicalHistory: nextHistory },
+      { new: true }
+    ).select('medicalHistory')
+
+    if (!userData) {
+      return res.json({ success: false, message: 'User not found' })
+    }
+
+    await logAudit({
+      action: 'medical_history_update',
+      actorUserId: userId,
+      actorRole: 'patient',
+      status: 'success',
+      targetUserId: userId,
+      entityType: 'user',
+      entityId: userId,
+      metadata: { changedFields: medicalHistoryFields },
+      req
+    })
+
+    res.json({ success: true, message, medicalHistory: userData.medicalHistory })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+// API to create/save current patient's medical history
+const createMedicalHistory = async (req, res) => {
+  return saveMedicalHistory(req, res, 'Medical history saved')
+}
+
+// API to update current patient's medical history
+const updateMedicalHistory = async (req, res) => {
+  return saveMedicalHistory(req, res, 'Medical history updated')
+}
+
 
 
 
@@ -306,46 +531,67 @@ const bookAppointment = async (req,res) => {
     const { docId, slotDate, slotTime } = req.body;
     const docData = await doctorModel.findById(docId).select('-password')
 
-    if(!docData.available){
-      return res.json({success: false, message: 'Doctor not available'})
+    const scheduleCheck = isSlotAllowedBySchedule(docData, slotDate, slotTime)
+    if(!scheduleCheck.allowed){
+      return res.json({success: false, message: scheduleCheck.reason})
     }
 
-
-    let slots_booked = docData.slots_booked
-
-    // checking for slot availablity
-    if(slots_booked[slotDate]){
-      if(slots_booked[slotDate].includes(slotTime)){
-        return res.json({success: false, message: 'Slot not available'})
-      } else {
-        slots_booked[slotDate].push(slotTime)
-      }
-    } else {
-      slots_booked[slotDate] = []
-      slots_booked[slotDate].push(slotTime)
-    }
 
     const userData = await userModel.findById(userId).select('-password')
+
+    if (!userData || userData.isActive === false) {
+      return res.json({ success: false, message: 'Patient account is deactivated' })
+    }
  
-    delete docData.slots_booked
+    const slotUpdate = await doctorModel.updateOne(
+      { _id: docId, [`slots_booked.${slotDate}`]: { $ne: slotTime } },
+      { $addToSet: { [`slots_booked.${slotDate}`]: slotTime } }
+    )
+
+    if (slotUpdate.modifiedCount === 0) {
+      return res.json({success: false, message: 'Slot not available'})
+    }
+
+    const appointmentDocData = docData.toObject()
+    delete appointmentDocData.slots_booked
     
     const appointmentData = {
       userId,
       docId,
       userData,
-      docData,
-      amount: docData.fees,
+      docData: appointmentDocData,
+      amount: Number(docData.fees),
+      originalAmount: Number(docData.fees),
       slotTime, 
       slotDate,
-      date: Date.now()
+      date: Date.now(),
+      appointmentStatus: 'Booked',
+      paymentStatus: 'Not Paid',
+      bookedBy: 'Patient'
     }
 
     const newAppointment = new appointmentModel(appointmentData)
 
     await newAppointment.save()
 
-    // save new slots data in docData
-    await doctorModel.findByIdAndUpdate(docId,{slots_booked})
+    await logAudit({
+      action: 'appointment_create',
+      status: 'success',
+      targetUserId: userId,
+      entityType: 'appointment',
+      entityId: newAppointment._id,
+      metadata: {
+        bookedBy: 'patient',
+        patientId: userId,
+        patientName: userData.name,
+        patientLoginId: userData.patientId,
+        doctorId: docId,
+        doctorName: docData.name,
+        slotDate,
+        slotTime
+      },
+      req
+    })
 
     res.json({success: true, message: 'Appointment Booked'})
   } catch (error) {
@@ -389,10 +635,20 @@ const cancelAppointment = async (req,res) => {
 
    // verify appointment user
    if(appointmentData.userId !== userId){
+     await logAudit({
+      action: 'cancel_appointment',
+      status: 'failed',
+      reason: 'Patient attempted to cancel another patient appointment',
+      targetUserId: appointmentData.userId,
+      entityType: 'appointment',
+      entityId: appointmentId,
+      metadata: { appointmentOwnerId: appointmentData.userId },
+      req
+     })
      return res.json({success: false, message: 'Unauthorized action'})
    }
 
-   await appointmentModel.findByIdAndUpdate(appointmentId, {cancelled: true})
+   await appointmentModel.findByIdAndUpdate(appointmentId, {cancelled: true, appointmentStatus: 'Cancelled', statusUpdatedAt: Date.now()})
 
    // releasing doctor slot
    const { docId, slotDate, slotTime } = appointmentData
@@ -403,6 +659,22 @@ const cancelAppointment = async (req,res) => {
    slots_booked[slotDate] = slots_booked[slotDate].filter(e => e !== slotTime)
 
    await doctorModel.findByIdAndUpdate(docId, {slots_booked})
+
+   await logAudit({
+     action: 'appointment_cancel',
+     status: 'success',
+     targetUserId: userId,
+     entityType: 'appointment',
+     entityId: appointmentId,
+     metadata: {
+       cancelledBy: 'patient',
+       patientId: userId,
+       doctorId: docId,
+       slotDate,
+       slotTime
+     },
+     req
+   })
 
    res.json({success: true, message:'Appointment Cancelled'})
 
@@ -450,4 +722,4 @@ const getUserPrescription = async (req, res) => {
 
 
 
-export { registerUser, loginUser, getProfile, updateProfile, bookAppointment, listAppointment, cancelAppointment, getUserPrescription }
+export { registerUser, loginUser, getProfile, updateProfile, updateInsurance, getMedicalHistory, createMedicalHistory, updateMedicalHistory, bookAppointment, listAppointment, cancelAppointment, getUserPrescription, buildInsuranceData, getNextPatientId }

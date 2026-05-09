@@ -1,18 +1,22 @@
 import { createContext, useEffect, useState } from "react";
 import axios from 'axios'
 import { toast } from "react-toastify";
+import { useLanguage } from "../i18n";
 
 export const AppContext = createContext()
 
 const AppContextProvider = (props) => {
 
-  const currencySymbol = 'Rs '
   const backendUrl = import.meta.env.VITE_BACKEND_URL
+  const { language, t, tc } = useLanguage()
+  const currencySymbol = language === 'ar' ? 'ج.م ' : 'EGP '
   
   const [doctors, setDoctors] = useState([])
+  const [clinics, setClinics] = useState([])
   const [token, setToken] = useState(localStorage.getItem('token') ? localStorage.getItem('token') : false)
   const [userData, setUserData] = useState(false)
   const [appointments, setAppointments] = useState([])
+  const [siteSettings, setSiteSettings] = useState(null)
 
   // UTILITY FUNCTIONS 
   const calculateAge = (dob) => {
@@ -22,7 +26,9 @@ const AppContextProvider = (props) => {
     return age
   }
 
-  const months = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const months = language === 'ar'
+    ? ["", "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+    : ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
   const slotDateFormat = (slotDate) => {
     const dateArray = slotDate.split('_')
@@ -42,6 +48,31 @@ const AppContextProvider = (props) => {
     } catch (error) {
       console.log(error)
       toast.error(error.message)
+    }
+  }
+
+  const getClinicsData = async () => {
+    try {
+      const { data } = await axios.get(backendUrl + '/api/doctor/clinics')
+      if (data.success) {
+        setClinics(data.clinics)
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      console.log(error)
+      toast.error(error.message)
+    }
+  }
+
+  const getSiteSettings = async () => {
+    try {
+      const { data } = await axios.get(backendUrl + '/api/user/site-settings')
+      if (data.success) {
+        setSiteSettings(data.settings)
+      }
+    } catch (error) {
+      console.log(error)
     }
   }
 
@@ -125,6 +156,66 @@ const AppContextProvider = (props) => {
     }
   }
 
+  const getMedicalHistory = async () => {
+    try {
+      const { data } = await axios.get(backendUrl + '/api/user/medical-history', { headers: { token } })
+
+      if (data.success) {
+        return data.medicalHistory || {}
+      } else {
+        toast.error(data.message)
+        return null
+      }
+    } catch (error) {
+      console.log(error)
+      toast.error(error.message)
+      return null
+    }
+  }
+
+  const saveMedicalHistory = async (medicalHistory, method = 'put') => {
+    try {
+      const request = method === 'post' ? axios.post : axios.put
+      const { data } = await request(
+        backendUrl + '/api/user/medical-history',
+        { medicalHistory },
+        { headers: { token } }
+      )
+
+      if (data.success) {
+        toast.success(data.message)
+        await loadUserProfileData()
+        return data.medicalHistory
+      } else {
+        toast.error(data.message)
+        return null
+      }
+    } catch (error) {
+      console.log(error)
+      toast.error(error.message)
+      return null
+    }
+  }
+
+  const saveInsurance = async (formData) => {
+    try {
+      const { data } = await axios.post(backendUrl + '/api/user/update-insurance', formData, { headers: { token } })
+
+      if (data.success) {
+        toast.success(data.message)
+        setUserData(data.userData)
+        return data.insurance
+      }
+
+      toast.error(data.message)
+      return null
+    } catch (error) {
+      console.log(error)
+      toast.error(error.message)
+      return null
+    }
+  }
+
 
 
 
@@ -200,13 +291,18 @@ const AppContextProvider = (props) => {
   const value = {
     // State
     doctors,
+    clinics,
     token,
     setToken,
     userData,
     setUserData,
     appointments,
+    siteSettings,
     currencySymbol,
     backendUrl,
+    language,
+    t,
+    tc,
 
     // Utility Functions
     calculateAge,
@@ -214,10 +310,15 @@ const AppContextProvider = (props) => {
 
     // API Functions
     getDoctorsData,
+    getClinicsData,
+    getSiteSettings,
     loadUserProfileData,
     getUserAppointments,
     cancelAppointment,
     getUserPrescription,
+    getMedicalHistory,
+    saveMedicalHistory,
+    saveInsurance,
     
     sendPasswordResetOtp,
     verifyPasswordResetOtp,
@@ -227,6 +328,8 @@ const AppContextProvider = (props) => {
   //  EFFECTS 
   useEffect(() => {
     getDoctorsData()
+    getClinicsData()
+    getSiteSettings()
   }, [])
 
   useEffect(() => {

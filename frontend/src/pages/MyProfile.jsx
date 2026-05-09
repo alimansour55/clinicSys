@@ -4,11 +4,13 @@ import { AppContext } from '../context/AppContext'
 import { assets } from '../assets/assets'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import { useNavigate } from 'react-router-dom'
 
 
 const MyProfile = () => {
 
   const { userData, setUserData, token, backendUrl, loadUserProfileData } = useContext(AppContext)
+  const navigate = useNavigate()
 
   const [isEdit, setIsEdit] = useState(false)
   const [image, setImage] = useState(false)
@@ -130,6 +132,28 @@ const MyProfile = () => {
             <input className='max-w-28 bg-gray-100' type="date" onChange={(e) => setUserData(prev => ({...prev, dob:e.target.value}))} value={userData.dob} />
             : <p className='text-gray-400'>{userData.dob}</p>
           }
+        </div>
+      </div>
+
+      <div>
+        <p className='text-neutral-500 underline mt-3'>INSURANCE</p>
+        <div className='grid grid-cols-[1fr_3fr] gap-y-2.5 mt-3 text-neutral-700'>
+          <p className='font-medium'>Status:</p>
+          <p className={userData.insurance?.enabled ? 'text-green-700 font-semibold' : 'text-gray-400'}>
+            {userData.insurance?.enabled ? 'Added' : 'Not added'}
+          </p>
+          {userData.insurance?.enabled && (
+            <>
+              <p className='font-medium'>Full Name:</p>
+              <p className='text-blue-800'>{userData.insurance.fullName}</p>
+              <p className='font-medium'>ID Number:</p>
+              <p className='text-blue-800'>{userData.insurance.idNumber}</p>
+            </>
+          )}
+          <p></p>
+          <button onClick={() => navigate('/insurance')} className='w-fit text-primary underline font-medium'>
+            {userData.insurance?.enabled ? 'Edit insurance' : 'Add insurance'}
+          </button>
         </div>
       </div>
 

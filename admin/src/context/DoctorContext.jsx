@@ -38,7 +38,7 @@ const DoctorContextProvider = (props) => {
         appointmentId,
         diagnosis: formData.diagnosis,
         symptoms: formData.symptoms,
-        medicines: formData.medicines,
+        medicationItems: formData.medicationItems,
         instructions: formData.instructions,
         nextVisit: formData.nextVisit,
         labTests: formData.labTests, 
@@ -106,6 +106,24 @@ const DoctorContextProvider = (props) => {
    }
 
 
+    const updatePatientMedicalHistory = async (patientId, medicalHistory) => {
+    try {
+    const { data } = await axios.post( backendUrl + '/api/doctor/patient-medical-history', { patientId, medicalHistory }, { headers: { dToken } })
+
+    if (data.success) {
+      toast.success(data.message)
+      return true
+    } else {
+      toast.error(data.message)
+      return false
+    }
+    } catch (error) {
+    toast.error(error.message)
+    return false
+    }
+   }
+
+
 
     const getDashData = async () => {
         try {            
@@ -141,7 +159,7 @@ const DoctorContextProvider = (props) => {
        history, setHistory, getpatienthistory,
        dashData, setDashData, getDashData,
        profileData, setProfileData,
-       getProfileData, editPrescription
+       getProfileData, editPrescription, updatePatientMedicalHistory
     }
 
     return (

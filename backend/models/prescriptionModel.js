@@ -41,7 +41,14 @@ const prescriptionSchema = new mongoose.Schema({
     // Medical Details (Jo doctor form mein fill karega)
     diagnosis: { type: String, required: true },
     symptoms: { type: String, required: true },
-    medicines: { type: String, required: true },
+    medicines: { type: String, default: '' },
+    medicationItems: [{
+        name: { type: String, required: true },
+        dosage: { type: String, required: true },
+        frequency: { type: String, required: true },
+        duration: { type: String, required: true },
+        instructions: { type: String, default: '' }
+    }],
     instructions: { type: String, required: true },
     nextVisit: { type: String, required: true },
     labTests: { type: String, default: '' },     

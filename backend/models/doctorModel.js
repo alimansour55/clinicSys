@@ -14,6 +14,18 @@ const doctorSchema = new mongoose.Schema({
     address: {type:Object, required:true},
     phone: { type: String, required: true },
     date: {type:Number, required:true},
+    clinics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'clinic' }],
+    schedule: {
+        workingDays: { type: [Number], default: [0, 1, 2, 3, 4, 5, 6] },
+        startTime: { type: String, default: '10:00' },
+        endTime: { type: String, default: '21:00' },
+        breaks: [{
+            startTime: { type: String, default: '' },
+            endTime: { type: String, default: '' }
+        }],
+        slotDuration: { type: Number, default: 30 },
+        blockedDates: { type: [String], default: [] }
+    },
     slots_booked: {type:Object,default:{}}
 
 },{minimize:false})

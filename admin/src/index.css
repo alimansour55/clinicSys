@@ -3,7 +3,17 @@
 @import "tailwindcss";
 
 *{
-  font-family: Outfit;
+  font-family: Outfit, Arial, sans-serif;
+}
+
+html[dir="rtl"] * {
+  font-family: Manrope, Arial, sans-serif;
+}
+
+html[dir="rtl"] input,
+html[dir="rtl"] textarea,
+html[dir="rtl"] select {
+  text-align: right;
 }
 
 @theme {

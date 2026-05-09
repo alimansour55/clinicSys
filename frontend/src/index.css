@@ -3,7 +3,17 @@
 @import "tailwindcss";
 
 *{
-  font-family: Outfit;
+  font-family: Outfit, Arial, sans-serif;
+}
+
+html[dir="rtl"] * {
+  font-family: Manrope, Arial, sans-serif;
+}
+
+html[dir="rtl"] input,
+html[dir="rtl"] textarea,
+html[dir="rtl"] select {
+  text-align: right;
 }
 
 .active hr { 
@@ -11,7 +21,9 @@
 }
 
 @theme {
-  --color-primary: #5f6FFF;
+  --color-primary: #0e9384;
+  --color-primary-dark: #0b766c;
+  --color-primary-soft: #e6fffb;
 }
 
 ::-webkit-scrollbar{

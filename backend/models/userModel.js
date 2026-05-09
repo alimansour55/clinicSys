@@ -10,6 +10,28 @@ const userSchema = new mongoose.Schema({
     gender: {type:String, default:'Not Selected'},
     dob: {type:String, default:'Not Selected'},
     phone: {type:String, default:'000000000'},
+    insurance: {
+      enabled: { type: Boolean, default: false },
+      fullName: { type: String, default: '' },
+      birthDate: { type: String, default: '' },
+      idNumber: { type: String, default: '' },
+      expiryDate: { type: String, default: '' },
+      medicalCardPhoto: { type: String, default: '' },
+      updatedAt: { type: Number, default: 0 },
+      updatedBy: { type: String, default: '' }
+    },
+    isActive: {type: Boolean, default: true},
+    deactivatedAt: {type: Number, default: 0},
+    medicalHistory: {
+      conditions: { type: String, default: '' },
+      allergies: { type: String, default: '' },
+      surgeries: { type: String, default: '' },
+      familyHistory: { type: String, default: '' },
+      socialHistory: { type: String, default: '' },
+      notes: { type: String, default: '' },
+      updatedAt: { type: Number, default: 0 },
+      updatedBy: { type: String, default: '' }
+    },
 
     resetOtp: {type: String, default: ''},
     resetOtpExpireAt: {type: Number, default: 0}

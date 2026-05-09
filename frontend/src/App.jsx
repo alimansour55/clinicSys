@@ -14,10 +14,14 @@ import { ToastContainer, toast } from 'react-toastify';
 import EmailVerify from './pages/EmailVerify'
 import OtpVerify from './pages/OtpVerify'
 import ResetPassword from './pages/ResetPassword'
+import MedicalHistory from './pages/MedicalHistory'
+import Insurance from './pages/Insurance'
+import { LanguageDomSync } from './i18n'
 
 const App = () => {
   return (
     <div className='mx-4 sm:mx-[10%]'>
+      <LanguageDomSync />
       <ToastContainer />
       <Navbar />
       <Routes>
@@ -31,6 +35,8 @@ const App = () => {
         <Route path='/about' element={<About />} />
         <Route path='/contact' element={<Contact />} />
         <Route path='/my-profile' element={<MyProfile />} />
+        <Route path='/medical-history' element={<MedicalHistory />} />
+        <Route path='/insurance' element={<Insurance />} />
         <Route path='/my-appointments' element={<MyAppointments />} />
         <Route path='/appointment/:docId' element={<Appointment />} />
       </Routes>

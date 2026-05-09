@@ -16,7 +16,7 @@ const DoctorAppointments = () => {
 
   const [diagnosis, setDiagnosis] = useState("");
   const [symptoms, setSymptoms] = useState("");
-  const [medicines, setMedicines] = useState("");
+  const [medicationItems, setMedicationItems] = useState([{ name: "", dosage: "", frequency: "", duration: "", instructions: "" }]);
   const [instructions, setInstructions] = useState("");
   const [nextVisit, setNextVisit] = useState("");
   const [labTests, setLabTests] = useState("");
@@ -96,7 +96,7 @@ const DoctorAppointments = () => {
     setShowForm(true);
     setDiagnosis("");
     setSymptoms("");
-    setMedicines("");
+    setMedicationItems([{ name: "", dosage: "", frequency: "", duration: "", instructions: "" }]);
     setInstructions("");
     setNextVisit("");
     setLabTests("");
@@ -111,8 +111,12 @@ const DoctorAppointments = () => {
       if (!symptoms) {
         return toast.error("Please enter symptoms");
       }
-      if (!medicines) {
-        return toast.error("Please enter medicines");
+      const completeMedicationItems = medicationItems.filter((item) => item.name || item.dosage || item.frequency || item.duration || item.instructions);
+      if (completeMedicationItems.length === 0) {
+        return toast.error("Please add at least one medicine");
+      }
+      if (completeMedicationItems.some((item) => !item.name || !item.dosage || !item.frequency || !item.duration)) {
+        return toast.error("Please complete medicine name, dosage, frequency, and duration");
       }
       if (!instructions) {
         return toast.error("Please enter instructions");
@@ -126,7 +130,7 @@ const DoctorAppointments = () => {
 
       setSubmitting(true);
 
-      const formData = { diagnosis, symptoms, medicines, instructions, nextVisit, labTests, documentation};
+      const formData = { diagnosis, symptoms, medicationItems: completeMedicationItems, instructions, nextVisit, labTests, documentation};
 
       const success = await completeAppointment(
         selectedAppointment._id,
@@ -138,7 +142,7 @@ const DoctorAppointments = () => {
         setSelectedAppointment(null);
         setDiagnosis("");
         setSymptoms("");
-        setMedicines("");
+        setMedicationItems([{ name: "", dosage: "", frequency: "", duration: "", instructions: "" }]);
         setInstructions("");
         setNextVisit("");
         setLabTests("");
@@ -163,6 +167,18 @@ const DoctorAppointments = () => {
       status: "all",
       dateRange: "all",
     });
+  };
+
+  const updateMedicationItem = (index, field, value) => {
+    setMedicationItems((previous) => previous.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
+  };
+
+  const addMedicationItem = () => {
+    setMedicationItems((previous) => [...previous, { name: "", dosage: "", frequency: "", duration: "", instructions: "" }]);
+  };
+
+  const removeMedicationItem = (index) => {
+    setMedicationItems((previous) => previous.length === 1 ? previous : previous.filter((_, itemIndex) => itemIndex !== index));
   };
 
   if (showForm && selectedAppointment) {
@@ -267,20 +283,34 @@ const DoctorAppointments = () => {
               <div className="border-l-4 border-green-500 pl-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Pill className="w-5 h-5 text-green-500" />
-                  <label className="block text-gray-700 font-semibold text-sm sm:text-base">
-                    Prescribed Medicines
-                    <span className="text-red-500 ml-1">*</span>
-                  </label>
+                  <div className="flex-1 flex items-center justify-between gap-3">
+                    <label className="block text-gray-700 font-semibold text-sm sm:text-base">
+                      Prescribed Medicines
+                      <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <button type="button" onClick={addMedicationItem} className="px-3 py-1.5 text-xs sm:text-sm rounded-lg bg-green-50 text-green-700 border border-green-200 hover:bg-green-100">
+                      Add medicine
+                    </button>
+                  </div>
                 </div>
-                <textarea
-                  onChange={(e) => setMedicines(e.target.value)}
-                  value={medicines}
-                  className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 h-40 sm:h-48"
-                  placeholder="Medicine name, dosage, frequency, duration..."
-                />
-                <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">
-                  Format: Medicine - Dosage - Frequency - Duration
-                </p>
+                <div className="space-y-3">
+                  {medicationItems.map((item, index) => (
+                    <div key={index} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input value={item.name} onChange={(e) => updateMedicationItem(index, "name", e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Medicine name" />
+                        <input value={item.dosage} onChange={(e) => updateMedicationItem(index, "dosage", e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Dosage" />
+                        <input value={item.frequency} onChange={(e) => updateMedicationItem(index, "frequency", e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Frequency" />
+                        <input value={item.duration} onChange={(e) => updateMedicationItem(index, "duration", e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Duration" />
+                      </div>
+                      <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+                        <input value={item.instructions} onChange={(e) => updateMedicationItem(index, "instructions", e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Medicine instructions" />
+                        <button type="button" onClick={() => removeMedicationItem(index)} disabled={medicationItems.length === 1} className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm disabled:opacity-40">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Instructions */}

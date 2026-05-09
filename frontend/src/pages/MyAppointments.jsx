@@ -188,13 +188,40 @@ const MyAppointments = () => {
             )}
 
             {/* Medicines */}
-            {selectedPrescription.medicines && (
+            {(selectedPrescription.medicationItems?.length || selectedPrescription.medicines) && (
               <div className='bg-white border border-gray-300 rounded-lg sm:rounded-xl p-3.5 sm:p-4 md:p-5'>
                 <div className='flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3'>
                   <Pill className='w-4 h-4 sm:w-5 sm:h-5 text-green-600' />
                   <h3 className='font-medium text-sm sm:text-base text-gray-900'>Prescribed Medicines</h3>
                 </div>
-                <p className='text-xs sm:text-sm md:text-base text-gray-800 whitespace-pre-line bg-green-50 p-3 sm:p-4 rounded-lg break-words overflow-wrap-anywhere'>{selectedPrescription.medicines}</p>
+                {selectedPrescription.medicationItems?.length ? (
+                  <div className='overflow-x-auto'>
+                    <table className='w-full min-w-[620px] text-xs sm:text-sm border border-green-100 rounded-lg overflow-hidden'>
+                      <thead className='bg-green-50 text-gray-700'>
+                        <tr>
+                          <th className='text-left p-2'>Medicine</th>
+                          <th className='text-left p-2'>Dosage</th>
+                          <th className='text-left p-2'>Frequency</th>
+                          <th className='text-left p-2'>Duration</th>
+                          <th className='text-left p-2'>Instructions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedPrescription.medicationItems.map((item, index) => (
+                          <tr key={index} className='border-t border-green-100'>
+                            <td className='p-2 text-gray-800'>{item.name}</td>
+                            <td className='p-2 text-gray-800'>{item.dosage}</td>
+                            <td className='p-2 text-gray-800'>{item.frequency}</td>
+                            <td className='p-2 text-gray-800'>{item.duration}</td>
+                            <td className='p-2 text-gray-800'>{item.instructions || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className='text-xs sm:text-sm md:text-base text-gray-800 whitespace-pre-line bg-green-50 p-3 sm:p-4 rounded-lg break-words overflow-wrap-anywhere'>{selectedPrescription.medicines}</p>
+                )}
               </div>
             )}
 

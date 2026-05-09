@@ -5,13 +5,15 @@ import { toast } from "react-toastify";
 import { Search, X, ChevronDown, ChevronUp, SlidersHorizontal, ArrowLeft, FileText, Calendar, DollarSign, Clock, User, Stethoscope, Thermometer, Pill, Clipboard, Activity, CheckCircle2, AlertCircle, Edit2, Save, XCircle } from 'lucide-react';
 
 const PatientHistory = () => {
-  const { dToken, history, getpatienthistory, editPrescription } = useContext(DoctorContext);
+  const { dToken, history, getpatienthistory, editPrescription, updatePatientMedicalHistory } = useContext(DoctorContext);
   const { calculateAge, slotDateFormat, currency } = useContext(AppContext);
   
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
+  const [isHistoryEditing, setIsHistoryEditing] = useState(false);
+  const [patientHistoryData, setPatientHistoryData] = useState({});
   const [loading, setLoading] = useState(true);
 
   // Filter States
@@ -93,11 +95,21 @@ const PatientHistory = () => {
       diagnosis: item.diagnosis || '',
       symptoms: item.symptoms || '',
       medicines: item.medicines || '',
+      medicationItems: item.medicationItems?.length ? item.medicationItems : [{ name: '', dosage: '', frequency: '', duration: '', instructions: '' }],
       instructions: item.instructions || '',
       nextVisit: item.nextVisit || '',
       labTests: item.labTests || '',
       documentation: item.documentation || ''
     });
+    setPatientHistoryData({
+      conditions: item.patientMedicalHistory?.conditions || '',
+      allergies: item.patientMedicalHistory?.allergies || '',
+      surgeries: item.patientMedicalHistory?.surgeries || '',
+      familyHistory: item.patientMedicalHistory?.familyHistory || '',
+      socialHistory: item.patientMedicalHistory?.socialHistory || '',
+      notes: item.patientMedicalHistory?.notes || ''
+    });
+    setIsHistoryEditing(false);
   };
 
   const handleBack = () => {
@@ -146,6 +158,7 @@ const PatientHistory = () => {
       diagnosis: selectedPatient.diagnosis || '',
       symptoms: selectedPatient.symptoms || '',
       medicines: selectedPatient.medicines || '',
+      medicationItems: selectedPatient.medicationItems?.length ? selectedPatient.medicationItems : [{ name: '', dosage: '', frequency: '', duration: '', instructions: '' }],
       instructions: selectedPatient.instructions || '',
       nextVisit: selectedPatient.nextVisit || '',
       labTests: selectedPatient.labTests || '',
@@ -155,6 +168,39 @@ const PatientHistory = () => {
 
   const handleChange = (field, value) => {
     setEditData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleMedicationChange = (index, field, value) => {
+    setEditData(prev => ({
+      ...prev,
+      medicationItems: (prev.medicationItems || []).map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item)
+    }));
+  };
+
+  const addMedicationItem = () => {
+    setEditData(prev => ({
+      ...prev,
+      medicationItems: [...(prev.medicationItems || []), { name: '', dosage: '', frequency: '', duration: '', instructions: '' }]
+    }));
+  };
+
+  const removeMedicationItem = (index) => {
+    setEditData(prev => ({
+      ...prev,
+      medicationItems: (prev.medicationItems || []).length === 1 ? prev.medicationItems : prev.medicationItems.filter((_, itemIndex) => itemIndex !== index)
+    }));
+  };
+
+  const handleHistoryChange = (field, value) => {
+    setPatientHistoryData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleHistorySave = async () => {
+    const success = await updatePatientMedicalHistory(selectedPatient.userId, patientHistoryData);
+    if (success) {
+      await getpatienthistory();
+      setIsHistoryEditing(false);
+    }
   };
 
   const handleSave = async () => {
@@ -256,6 +302,26 @@ const PatientHistory = () => {
             </div>
           </div>
 
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
+              Insurance
+            </h3>
+            {selectedPatient.patientInsurance?.enabled ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700">
+                <p><span className="font-semibold">Full Name:</span> {selectedPatient.patientInsurance.fullName}</p>
+                <p><span className="font-semibold">Birth Date:</span> {selectedPatient.patientInsurance.birthDate}</p>
+                <p><span className="font-semibold">ID Number:</span> {selectedPatient.patientInsurance.idNumber}</p>
+                <p><span className="font-semibold">Expiry Date:</span> {selectedPatient.patientInsurance.expiryDate}</p>
+                {selectedPatient.patientInsurance.medicalCardPhoto && (
+                  <a className="text-blue-600 underline font-semibold" href={selectedPatient.patientInsurance.medicalCardPhoto} target="_blank" rel="noreferrer">View medical card</a>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No insurance information is available for this patient.</p>
+            )}
+          </div>
+
 
           {/* Appointment Details */}
           <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
@@ -325,6 +391,42 @@ const PatientHistory = () => {
           </div>
 
           {/* Medical Details */}
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
+                <Clipboard className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
+                Patient Medical History
+              </h3>
+              {isHistoryEditing ? (
+                <div className="flex gap-2">
+                  <button onClick={handleHistorySave} className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold">Save</button>
+                  <button onClick={() => setIsHistoryEditing(false)} className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-semibold">Cancel</button>
+                </div>
+              ) : (
+                <button onClick={() => setIsHistoryEditing(true)} className="px-4 py-2 rounded-lg bg-emerald-50 text-emerald-700 text-sm font-semibold border border-emerald-200">Edit History</button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                ['conditions', 'Conditions'],
+                ['allergies', 'Allergies'],
+                ['surgeries', 'Surgeries'],
+                ['familyHistory', 'Family History'],
+                ['socialHistory', 'Social History'],
+                ['notes', 'Notes']
+              ].map(([field, label]) => (
+                <div key={field} className="rounded-lg border border-gray-200 p-3">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">{label}</p>
+                  {isHistoryEditing ? (
+                    <textarea value={patientHistoryData[field] || ''} onChange={(e) => handleHistoryChange(field, e.target.value)} rows={3} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+                  ) : (
+                    <p className="text-sm text-gray-700 whitespace-pre-line">{patientHistoryData[field] || 'Not recorded'}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -385,17 +487,54 @@ const PatientHistory = () => {
                   <label className="text-sm sm:text-base font-semibold text-gray-700">Prescribed Medicines</label>
                 </div>
                 {isEditing ? (
-                  <textarea
-                    value={editData.medicines}
-                    onChange={(e) => handleChange('medicines', e.target.value)}
-                    rows={4}
-                    className="w-full p-2 sm:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm sm:text-base"
-                    placeholder="List medicines with dosage"
-                  />
+                  <div className="space-y-3">
+                    <button type="button" onClick={addMedicationItem} className="px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-200 text-sm font-medium">Add medicine</button>
+                    {(editData.medicationItems || []).map((item, index) => (
+                      <div key={index} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <input value={item.name} onChange={(e) => handleMedicationChange(index, 'name', e.target.value)} className="border rounded-lg px-3 py-2 text-sm" placeholder="Medicine name" />
+                          <input value={item.dosage} onChange={(e) => handleMedicationChange(index, 'dosage', e.target.value)} className="border rounded-lg px-3 py-2 text-sm" placeholder="Dosage" />
+                          <input value={item.frequency} onChange={(e) => handleMedicationChange(index, 'frequency', e.target.value)} className="border rounded-lg px-3 py-2 text-sm" placeholder="Frequency" />
+                          <input value={item.duration} onChange={(e) => handleMedicationChange(index, 'duration', e.target.value)} className="border rounded-lg px-3 py-2 text-sm" placeholder="Duration" />
+                        </div>
+                        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+                          <input value={item.instructions} onChange={(e) => handleMedicationChange(index, 'instructions', e.target.value)} className="border rounded-lg px-3 py-2 text-sm" placeholder="Instructions" />
+                          <button type="button" onClick={() => removeMedicationItem(index)} disabled={(editData.medicationItems || []).length === 1} className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm disabled:opacity-40">Remove</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  <p className="p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200 text-sm sm:text-base text-gray-800 whitespace-pre-line">
-                    {selectedPatient.medicines || 'Not specified'}
-                  </p>
+                  selectedPatient.medicationItems?.length ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border border-green-100 rounded-lg overflow-hidden">
+                        <thead className="bg-green-50 text-gray-700">
+                          <tr>
+                            <th className="text-left p-2">Medicine</th>
+                            <th className="text-left p-2">Dosage</th>
+                            <th className="text-left p-2">Frequency</th>
+                            <th className="text-left p-2">Duration</th>
+                            <th className="text-left p-2">Instructions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedPatient.medicationItems.map((item, index) => (
+                            <tr key={index} className="border-t border-green-100">
+                              <td className="p-2">{item.name}</td>
+                              <td className="p-2">{item.dosage}</td>
+                              <td className="p-2">{item.frequency}</td>
+                              <td className="p-2">{item.duration}</td>
+                              <td className="p-2">{item.instructions || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200 text-sm sm:text-base text-gray-800 whitespace-pre-line">
+                      {selectedPatient.medicines || 'Not specified'}
+                    </p>
+                  )
                 )}
               </div>
 

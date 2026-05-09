@@ -239,15 +239,42 @@ const AppointmentHistory = () => {
               )}
 
               {/* Medicines */}
-              {selectedAppointment.medicines && (
+              {(selectedAppointment.medicationItems?.length || selectedAppointment.medicines) && (
                 <div className="border-l-4 border-green-600 pl-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Pill className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                     <label className="text-sm sm:text-base font-semibold text-gray-700">Prescribed Medicines</label>
                   </div>
-                  <p className="p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200 text-sm sm:text-base text-gray-800 whitespace-pre-line">
-                    {selectedAppointment.medicines}
-                  </p>
+                  {selectedAppointment.medicationItems?.length ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border border-green-100 rounded-lg overflow-hidden">
+                        <thead className="bg-green-50 text-gray-700">
+                          <tr>
+                            <th className="text-left p-2">Medicine</th>
+                            <th className="text-left p-2">Dosage</th>
+                            <th className="text-left p-2">Frequency</th>
+                            <th className="text-left p-2">Duration</th>
+                            <th className="text-left p-2">Instructions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedAppointment.medicationItems.map((item, index) => (
+                            <tr key={index} className="border-t border-green-100">
+                              <td className="p-2">{item.name}</td>
+                              <td className="p-2">{item.dosage}</td>
+                              <td className="p-2">{item.frequency}</td>
+                              <td className="p-2">{item.duration}</td>
+                              <td className="p-2">{item.instructions || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200 text-sm sm:text-base text-gray-800 whitespace-pre-line">
+                      {selectedAppointment.medicines}
+                    </p>
+                  )}
                 </div>
               )}
 

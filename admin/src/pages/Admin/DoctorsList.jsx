@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { AdminContext } from '../../context/AdminContext'
-import { ArrowLeft, Edit2, User, Info, FileText, CheckCircle, Save, X, Lock, Camera, Users } from 'lucide-react'
+import { ArrowLeft, Edit2, User, Info, FileText, CheckCircle, Save, X, Lock, Camera, Users, Building2 } from 'lucide-react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 
@@ -234,6 +234,13 @@ const DoctorsList = () => {
                     <CheckCircle className='w-4 h-4' />
                     {displayData.speciality}
                   </span>
+
+                  {(selectedDoctor.clinics || []).map((clinic) => (
+                    <span key={clinic._id || clinic} className='inline-flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full'>
+                      <Building2 className='w-4 h-4' />
+                      {clinic.name || clinic}
+                    </span>
+                  ))}
                   
                   <span className={`inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full ${selectedDoctor.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                     {selectedDoctor.available ? 'Available' : 'Not Available'}
@@ -489,6 +496,9 @@ const DoctorsList = () => {
             <div className='p-2.5 sm:p-3 md:p-4'>
               <p className='text-neutral-800 text-xs sm:text-sm md:text-base font-medium truncate'>{item.name}</p>
               <p className='text-zinc-600 text-xs sm:text-xs md:text-sm truncate mt-0.5'>{item.speciality}</p>
+              <p className='text-blue-600 text-[11px] sm:text-xs truncate mt-0.5'>
+                {(item.clinics || []).length > 0 ? item.clinics.map((clinic) => clinic.name || clinic).join(', ') : 'No clinic assigned'}
+              </p>
               <div className='mt-2 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm'>
                 <input 
                   onChange={(e) => toggleAvailability(item._id, e)} 

@@ -2,18 +2,27 @@ import React, { useContext, useEffect, useState } from 'react'
 import { AppContext } from '../context/AppContext'
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, User, Mail, Lock } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Calendar, Eye, EyeOff, FileUp, Lock, Mail, Phone, User } from 'lucide-react'
 
 const Login = () => {
 
   const { backendUrl, token, setToken } = useContext(AppContext)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   
-  const [state, setState] = useState('Sign Up')
+  const [state, setState] = useState(searchParams.get('mode') === 'login' ? 'Login' : 'Sign Up')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [dob, setDob] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [insuranceEnabled, setInsuranceEnabled] = useState(false)
+  const [insuranceFullName, setInsuranceFullName] = useState('')
+  const [insuranceBirthDate, setInsuranceBirthDate] = useState('')
+  const [insuranceIdNumber, setInsuranceIdNumber] = useState('')
+  const [insuranceExpiryDate, setInsuranceExpiryDate] = useState('')
+  const [insuranceCardPhoto, setInsuranceCardPhoto] = useState(null)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -26,7 +35,30 @@ const Login = () => {
       
       if(state === 'Sign Up'){
 
-        const { data } = await axios.post(backendUrl + '/api/user/register', {name, password, email})
+        if (insuranceEnabled) {
+          const formData = new FormData()
+          formData.append('name', name)
+          formData.append('email', email)
+          formData.append('phone', phone)
+          formData.append('dob', dob)
+          formData.append('password', password)
+          formData.append('insuranceEnabled', insuranceEnabled)
+          formData.append('insuranceFullName', insuranceFullName)
+          formData.append('insuranceBirthDate', insuranceBirthDate)
+          formData.append('insuranceIdNumber', insuranceIdNumber)
+          formData.append('insuranceExpiryDate', insuranceExpiryDate)
+          if (insuranceCardPhoto) formData.append('insuranceCardPhoto', insuranceCardPhoto)
+          const { data } = await axios.post(backendUrl + '/api/user/register', formData)
+          if(data.success) {
+            localStorage.setItem('token', data.token)
+            setToken(data.token)
+          } else {
+            toast.error(data.message)
+          }
+          return
+        }
+
+        const { data } = await axios.post(backendUrl + '/api/user/register', { name, email, phone, dob, password, insuranceEnabled: false })
         if(data.success) {
           localStorage.setItem('token', data.token)
           setToken(data.token)
@@ -36,7 +68,7 @@ const Login = () => {
 
       } else {
 
-        const { data } = await axios.post(backendUrl + '/api/user/login', { password, email})
+        const { data } = await axios.post(backendUrl + '/api/user/login', { password, loginId: email})
         if(data.success) {
           localStorage.setItem('token', data.token)
           setToken(data.token)
@@ -59,6 +91,10 @@ const Login = () => {
     }
   },[token])
 
+  useEffect(() => {
+    setState(searchParams.get('mode') === 'login' ? 'Login' : 'Sign Up')
+  }, [searchParams])
+
   return (
     <div className='min-h-[80vh] flex items-center justify-center px-4 py-8'>
       <form onSubmit={onSubmitHandler} className='w-full max-w-md p-6 sm:p-8 border rounded-xl shadow-lg bg-white'>
@@ -75,7 +111,7 @@ const Login = () => {
         {state === 'Sign Up' && (
           <div className='mb-4'>
             <label className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
-              Full Name
+              Full Name *
             </label>
             <div className='relative'>
               <User size={16} className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
@@ -94,20 +130,97 @@ const Login = () => {
         {/* Email Field */}
         <div className='mb-4'>
           <label className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
-            Email
+            {state === 'Sign Up' ? 'Email *' : 'Email or Phone'}
           </label>
           <div className='relative'>
             <Mail size={16} className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
             <input 
               className='w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all' 
-              type="email" 
+              type={state === 'Sign Up' ? 'email' : 'text'} 
               onChange={(e) => setEmail(e.target.value)} 
               value={email}
-              placeholder='Enter your email'
+              placeholder={state === 'Sign Up' ? 'Enter your email' : 'Enter email or phone number'}
               required 
             />
           </div>
         </div>
+
+        {state === 'Sign Up' && (
+          <>
+            <div className='mb-4'>
+              <label className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
+                Phone Number *
+              </label>
+              <div className='relative'>
+                <Phone size={16} className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
+                <input
+                  className='w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
+                  type='tel'
+                  onChange={(e) => setPhone(e.target.value)}
+                  value={phone}
+                  placeholder='Enter your phone number'
+                  required
+                />
+              </div>
+            </div>
+
+            <div className='mb-4'>
+              <label className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
+                Birth Date *
+              </label>
+              <div className='relative'>
+                <Calendar size={16} className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
+                <input
+                  className='w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
+                  type='date'
+                  onChange={(e) => setDob(e.target.value)}
+                  value={dob}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className='mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4'>
+              <label className='flex items-center gap-2 text-sm font-semibold text-gray-800 cursor-pointer'>
+                <input type='checkbox' checked={insuranceEnabled} onChange={(e) => setInsuranceEnabled(e.target.checked)} className='w-4 h-4 accent-primary' />
+                Add Insurance
+              </label>
+
+              {insuranceEnabled && (
+                <div className='mt-4 space-y-3'>
+                  <div>
+                    <label className='block text-xs font-medium text-gray-700 mb-1'>Full Name *</label>
+                    <input value={insuranceFullName} onChange={(e) => setInsuranceFullName(e.target.value)} className='w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20' required={insuranceEnabled} />
+                  </div>
+                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                    <div>
+                      <label className='block text-xs font-medium text-gray-700 mb-1'>Birth Date *</label>
+                      <input type='date' value={insuranceBirthDate} onChange={(e) => setInsuranceBirthDate(e.target.value)} className='w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20' required={insuranceEnabled} />
+                    </div>
+                    <div>
+                      <label className='block text-xs font-medium text-gray-700 mb-1'>ID Number *</label>
+                      <input value={insuranceIdNumber} onChange={(e) => setInsuranceIdNumber(e.target.value)} className='w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20' required={insuranceEnabled} />
+                    </div>
+                  </div>
+                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                    <div>
+                      <label className='block text-xs font-medium text-gray-700 mb-1'>Expiry Date *</label>
+                      <input type='date' value={insuranceExpiryDate} onChange={(e) => setInsuranceExpiryDate(e.target.value)} className='w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20' required={insuranceEnabled} />
+                    </div>
+                    <div>
+                      <label className='block text-xs font-medium text-gray-700 mb-1'>Photo of Medical Card *</label>
+                      <label className='flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2 text-sm text-gray-600 cursor-pointer hover:border-primary'>
+                        <FileUp className='w-4 h-4' />
+                        <span className='truncate'>{insuranceCardPhoto ? insuranceCardPhoto.name : 'Attach file'}</span>
+                        <input type='file' accept='image/*,.pdf' onChange={(e) => setInsuranceCardPhoto(e.target.files?.[0] || null)} hidden required={insuranceEnabled} />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
         
         {/* Password Field */}
         <div className='mb-4'>

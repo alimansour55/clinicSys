@@ -1,8 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { AdminContext } from "../../context/AdminContext";
 import { toast } from 'react-toastify'
 import axios from 'axios'
-import { Plus, RotateCcw, Upload, UserPlus, Eye, EyeOff, Loader2, } from 'lucide-react'
+import { Building2, Plus, RotateCcw, Upload, UserPlus, Eye, EyeOff, Loader2, Check } from 'lucide-react'
 import { AppContext } from "../../context/AppContext";
 
 const AddDoctor = () => {
@@ -19,10 +19,27 @@ const AddDoctor = () => {
   const [address1, setAddress1] = useState('')
   const [address2, setAddress2] = useState('')
   const [phone, setPhone] = useState()
+  const [selectedClinics, setSelectedClinics] = useState([])
   const [isLoading, setIsLoading] = useState(false)
 
-  const { backendUrl, aToken } = useContext(AdminContext)
+  const { backendUrl, aToken, clinics, getClinics } = useContext(AdminContext)
   const { currency } = useContext(AppContext)
+
+  useEffect(() => {
+    if (aToken) {
+      getClinics()
+    }
+    // Context methods are recreated on render in this app; depend on the token to match existing admin pages.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aToken])
+
+  const toggleClinic = (clinicId) => {
+    setSelectedClinics((previous) =>
+      previous.includes(clinicId)
+        ? previous.filter((id) => id !== clinicId)
+        : [...previous, clinicId]
+    )
+  }
 
   const onSubmitHandler = async (event) => {
     event.preventDefault()
@@ -44,6 +61,7 @@ const AddDoctor = () => {
       formData.append('speciality', speciality)
       formData.append('degree', degree)
       formData.append('address', JSON.stringify({line1: address1, line2: address2}))
+      formData.append('clinicIds', JSON.stringify(selectedClinics))
       
 
       const { data } = await axios.post(backendUrl + '/api/admin/add-doctor', formData, {headers: {aToken}})
@@ -74,6 +92,7 @@ const AddDoctor = () => {
     setFees('')
     setExperience('1 Year')
     setSpeciality('General physician')
+    setSelectedClinics([])
   }
   
   return (
@@ -309,6 +328,46 @@ const AddDoctor = () => {
                 </div>
 
               </div>
+            </div>
+
+            <div className="mt-4 sm:mt-6 lg:mt-8">
+              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                Assign Clinics
+              </label>
+              <div className="border-2 border-gray-200 rounded-xl p-3 sm:p-4 bg-gray-50">
+                {clinics.length === 0 ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Building2 className="w-4 h-4" />
+                    Add clinics first from Clinic Management
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {clinics.map((clinic) => {
+                      const checked = selectedClinics.includes(clinic._id)
+
+                      return (
+                        <button
+                          type="button"
+                          key={clinic._id}
+                          onClick={() => toggleClinic(clinic._id)}
+                          className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 cursor-pointer transition ${
+                            checked ? 'bg-indigo-50 border-primary text-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <span className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${
+                            checked ? 'bg-primary border-primary text-white' : 'border-gray-300'
+                          }`}>
+                            {checked && <Check className="w-3.5 h-3.5" />}
+                          </span>
+                          <Building2 className="w-4 h-4 text-primary flex-shrink-0" />
+                          <span className="text-sm font-medium truncate">{clinic.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1.5">Selected clinics appear on the patient website and can be changed later from Clinic Management.</p>
             </div>
 
             {/* About Doctor - Full Width */}
