@@ -3,10 +3,11 @@ import { DoctorContext } from "../../context/DoctorContext";
 import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
 import { toast } from "react-toastify";
-import { Search, X, ChevronDown, ChevronUp, SlidersHorizontal, ArrowLeft, Stethoscope, Thermometer, Pill, Calendar, FileText, Clipboard, Activity, FileCheck,} from "lucide-react";
+import { Search, X, ChevronDown, ChevronUp, SlidersHorizontal, ArrowLeft, Stethoscope, Thermometer, Pill, Calendar, FileText, Clipboard, Activity, FileCheck, Phone, Video, ExternalLink, MapPin, Building2, Home} from "lucide-react";
+import { emptyHomeVisitAddress, formatHomeVisitAddress, supportedHomeVisitAreas } from "../../utils/homeVisitAreas";
 
 const DoctorAppointments = () => {
-  const { dToken, appointments, getAppointments, completeAppointment, cancelAppointment} = useContext(DoctorContext);
+  const { dToken, appointments, getAppointments, completeAppointment, cancelAppointment, updateHomeVisitAddress} = useContext(DoctorContext);
   const { calculateAge, slotDateFormat, currency } = useContext(AppContext);
 
   const [showForm, setShowForm] = useState(false);
@@ -21,6 +22,7 @@ const DoctorAppointments = () => {
   const [nextVisit, setNextVisit] = useState("");
   const [labTests, setLabTests] = useState("");
   const [documentation, setDocumentation] = useState("");
+  const [homeAddressDrafts, setHomeAddressDrafts] = useState({});
 
   // Search and Filter States
   const [searchQuery, setSearchQuery] = useState("");
@@ -29,6 +31,12 @@ const DoctorAppointments = () => {
     status: "all",
     dateRange: "all",
   });
+
+  const getAppointmentMode = (appointment) => appointment.appointmentType || "Clinic";
+  const isRemoteAppointment = (appointment) => ["Voice Call", "Video Call"].includes(getAppointmentMode(appointment));
+  const isHomeVisit = (appointment) => getAppointmentMode(appointment) === "Home Visit";
+  const getHomeAddressDraft = (appointment) => homeAddressDrafts[appointment._id] || { ...emptyHomeVisitAddress, ...(appointment.homeVisitAddress || {}) };
+  const setHomeAddressDraft = (appointmentId, patch) => setHomeAddressDrafts((prev) => ({ ...prev, [appointmentId]: { ...(prev[appointmentId] || {}), ...patch } }));
 
   useEffect(() => {
   const fetchData = async () => {
@@ -231,7 +239,23 @@ const DoctorAppointments = () => {
                       Age: {calculateAge(selectedAppointment.userData.dob)}{" "}
                       years
                     </span>
+                    <span className={`inline-flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm border shadow-sm ${isRemoteAppointment(selectedAppointment) ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-white text-gray-700 border-gray-200"}`}>
+                      {getAppointmentMode(selectedAppointment) === "Video Call" ? <Video className="h-4 w-4" /> : getAppointmentMode(selectedAppointment) === "Voice Call" ? <Phone className="h-4 w-4" /> : isHomeVisit(selectedAppointment) ? <Home className="h-4 w-4" /> : <Building2 className="h-4 w-4" />}
+                      {getAppointmentMode(selectedAppointment)}
+                    </span>
+                    {isRemoteAppointment(selectedAppointment) && selectedAppointment.teleconsultationLink && (
+                      <a href={selectedAppointment.teleconsultationLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 bg-blue-600 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm text-white shadow-sm">
+                        Start call <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
                   </div>
+                  {isHomeVisit(selectedAppointment) && (
+                    <div className="mt-3 rounded-lg border border-emerald-100 bg-white/80 p-3 text-sm text-emerald-800">
+                      <p className="font-semibold">Home visit address</p>
+                      <p className="mt-1">{formatHomeVisitAddress(selectedAppointment.homeVisitAddress) || "Address needs confirmation"}</p>
+                      {selectedAppointment.homeVisitAddress?.notes && <p className="mt-1">{selectedAppointment.homeVisitAddress.notes}</p>}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -733,6 +757,22 @@ const DoctorAppointments = () => {
                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
                       {currency} {item.amount}
                     </span>
+                    <span className={`text-xs px-2 py-1 rounded ${item.paymentStatus === "Paid" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                      {item.paymentStatus || "Not Paid"}{item.paymentMethod ? ` - ${item.paymentMethod}` : ""}
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded ${isRemoteAppointment(item) ? "bg-sky-100 text-sky-700" : "bg-gray-100 text-gray-700"}`}>
+                      {getAppointmentMode(item)}
+                    </span>
+                    {isRemoteAppointment(item) && item.teleconsultationLink && (
+                      <a href={item.teleconsultationLink} target="_blank" rel="noreferrer" className="text-xs bg-blue-600 text-white px-2 py-1 rounded">
+                        Start call
+                      </a>
+                    )}
+                    {isHomeVisit(item) && (
+                      <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">
+                        {formatHomeVisitAddress(item.homeVisitAddress) || "Home address missing"}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex justify-end">
@@ -779,11 +819,40 @@ const DoctorAppointments = () => {
                 </p>
                 <p className="hidden lg:block text-xs xl:text-sm">
                   {slotDateFormat(item.slotDate)}, {item.slotTime}
-                </p>
-                <p className="hidden lg:block">
-                  {currency} {item.amount}
+                  <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${isRemoteAppointment(item) ? "bg-sky-50 text-sky-700" : "bg-gray-100 text-gray-700"}`}>
+                    {getAppointmentMode(item) === "Video Call" ? <Video className="h-3 w-3" /> : getAppointmentMode(item) === "Voice Call" ? <Phone className="h-3 w-3" /> : isHomeVisit(item) ? <Home className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
+                    {getAppointmentMode(item)}
+                  </span>
+                  {isRemoteAppointment(item) && item.teleconsultationLink && (
+                    <a href={item.teleconsultationLink} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                      Start call
+                    </a>
+                  )}
                 </p>
                 <div className="hidden lg:block">
+                  <p>{currency} {item.amount}</p>
+                  <p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${item.paymentStatus === "Paid" ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+                    {item.paymentStatus || "Not Paid"}{item.paymentMethod ? ` - ${item.paymentMethod}` : ""}
+                  </p>
+                  {item.refundStatus && item.refundStatus !== "Not Refunded" && (
+                    <p className="mt-1 text-[11px] text-blue-700">{item.refundStatus}</p>
+                  )}
+                </div>
+                <div className="hidden lg:block">
+                  {isHomeVisit(item) && (() => {
+                    const addressDraft = getHomeAddressDraft(item);
+                    return (
+                      <div className="mb-2 rounded-lg border border-emerald-100 bg-emerald-50 p-2">
+                        <p className="mb-1 text-[11px] font-bold text-emerald-800">Home address</p>
+                        <select value={addressDraft.area} onChange={(e) => setHomeAddressDraft(item._id, { area: e.target.value })} className="mb-1 w-full rounded border px-2 py-1 text-[11px]">
+                          <option value="">Area</option>
+                          {supportedHomeVisitAreas.map((area) => <option key={area} value={area}>{area}</option>)}
+                        </select>
+                        <input value={addressDraft.street} onChange={(e) => setHomeAddressDraft(item._id, { street: e.target.value })} className="mb-1 w-full rounded border px-2 py-1 text-[11px]" placeholder="Street" />
+                        <button type="button" onClick={() => updateHomeVisitAddress(item._id, addressDraft)} className="rounded bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white">Save</button>
+                      </div>
+                    );
+                  })()}
                   {item.cancelled ? (
                     <p className="text-red-500 text-xs font-medium px-2 py-1 bg-red-50 rounded-full inline-block">
                       Cancelled

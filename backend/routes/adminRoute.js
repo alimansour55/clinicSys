@@ -6,7 +6,8 @@ import { changeAvailability } from '../controllers/doctorController.js'
 import { authorizePermission } from '../middlewares/rbac.js'
 import { getAuditLogs } from '../controllers/auditLogController.js'
 import { assignDoctorsToClinic, createClinic, deleteClinic, getClinics, updateClinic } from '../controllers/clinicController.js'
-import { getPublicSiteSettings, updateHomeHeroSettings } from '../controllers/siteSettingController.js'
+import { getPublicSiteSettings, updateFooterSettings, updateHomeBannerSettings, updateHomeHeroSettings, updateHomeServiceCardsSettings } from '../controllers/siteSettingController.js'
+import { deleteRating, getAllDoctorRatings, getDoctorRatings } from '../controllers/ratingController.js'
 
 const adminRouter = express.Router()
 
@@ -34,7 +35,13 @@ adminRouter.post('/delete-clinic', authAdmin, authorizePermission('manage clinic
 adminRouter.post('/assign-clinic-doctors', authAdmin, authorizePermission('manage clinics'), assignDoctorsToClinic)
 adminRouter.get('/site-settings', authAdmin, authorizePermission('manage site content'), getPublicSiteSettings)
 adminRouter.post('/site-settings/home-hero', authAdmin, authorizePermission('manage site content'), upload.fields([{ name: 'heroImage', maxCount: 1 }, { name: 'groupImage', maxCount: 1 }]), updateHomeHeroSettings)
+adminRouter.post('/site-settings/home-banner', authAdmin, authorizePermission('manage site content'), upload.fields([{ name: 'bannerImage', maxCount: 1 }]), updateHomeBannerSettings)
+adminRouter.post('/site-settings/home-service-cards', authAdmin, authorizePermission('manage site content'), upload.fields([{ name: 'teleconsultationImage', maxCount: 1 }, { name: 'homeVisitImage', maxCount: 1 }]), updateHomeServiceCardsSettings)
+adminRouter.post('/site-settings/footer', authAdmin, authorizePermission('manage site content'), updateFooterSettings)
 adminRouter.post('/cancel-appointment', authAdmin, authorizePermission('manage appointments'), appointmentCancel)
+adminRouter.get('/ratings', authAdmin, authorizePermission('manage doctors'), getAllDoctorRatings)
+adminRouter.get('/doctor-ratings/:docId', authAdmin, authorizePermission('manage doctors'), getDoctorRatings)
+adminRouter.post('/delete-rating', authAdmin, authorizePermission('manage doctors'), deleteRating)
 adminRouter.get('/dashboard', authAdmin, adminDashboard)
 
 export default adminRouter

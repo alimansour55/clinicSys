@@ -1,15 +1,22 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { AppContext } from '../context/AppContext'
-import { ArrowLeft, Calendar, Clock, FileText, Banknote,User,Stethoscope,Pill,FlaskConical,MapPin,BriefcaseMedical,Award,FilePlus,Thermometer,Clipboard} from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, FileText, Banknote,User,Stethoscope,Pill,FlaskConical,MapPin,BriefcaseMedical,Award,FilePlus,Thermometer,Clipboard, Star, Phone, Video, ExternalLink, Home} from 'lucide-react'
+import { StarRow, formatRatingDate } from '../components/DoctorRating'
+import { formatHomeVisitAddress } from '../utils/homeVisitAreas'
 
 const MyAppointments = () => {
   
-  const { appointments, calculateAge, slotDateFormat, currencySymbol, getUserAppointments, cancelAppointment, getUserPrescription, token } = useContext(AppContext)
+  const { appointments, calculateAge, slotDateFormat, currencySymbol, getUserAppointments, cancelAppointment, getUserPrescription, createDoctorRating, token } = useContext(AppContext)
 
   const [selectedPrescription, setSelectedPrescription] = useState(null)
   const [showPrescription, setShowPrescription] = useState(false)
   const [loading, setLoading] = useState(true)
   const [prescriptionLoading, setPrescriptionLoading] = useState(false)
+  const [ratingDrafts, setRatingDrafts] = useState({})
+  const [ratingLoadingId, setRatingLoadingId] = useState('')
+
+  const getAppointmentMode = (appointment) => appointment.appointmentType || 'Clinic'
+  const isRemoteAppointment = (appointment) => ['Voice Call', 'Video Call'].includes(getAppointmentMode(appointment))
 
   const viewPrescription = async (appointmentId) => {
     setPrescriptionLoading(true)  
@@ -25,6 +32,28 @@ const MyAppointments = () => {
   const closePrescription = () => {
     setSelectedPrescription(null)
     setShowPrescription(false)
+  }
+
+  const setDraftValue = (appointmentId, field, value) => {
+    setRatingDrafts((previous) => ({
+      ...previous,
+      [appointmentId]: {
+        rating: 0,
+        comment: '',
+        ...(previous[appointmentId] || {}),
+        [field]: value
+      }
+    }))
+  }
+
+  const submitRating = async (appointmentId) => {
+    const draft = ratingDrafts[appointmentId] || {}
+    setRatingLoadingId(appointmentId)
+    const saved = await createDoctorRating(appointmentId, draft.rating, draft.comment)
+    if (saved) {
+      setRatingDrafts((previous) => ({ ...previous, [appointmentId]: { rating: 0, comment: '' } }))
+    }
+    setRatingLoadingId('')
   }
 
   useEffect(() => {
@@ -340,14 +369,49 @@ return (
               <p className='text-neutral-800 font-semibold text-base md:text-lg'>{item.docData.name}</p>
               <p className='text-sm md:text-base text-zinc-600 mt-1'>{item.docData.speciality}</p>
               
-              <p className='text-zinc-700 font-medium mt-3 md:mt-4 text-sm md:text-base'>Address:</p>
-              <p className='text-xs md:text-sm text-zinc-600'>{item.docData.address.line1}</p>
-              <p className='text-xs md:text-sm text-zinc-600'>{item.docData.address.line2}</p>
+              <p className='text-zinc-700 font-medium mt-3 md:mt-4 text-sm md:text-base'>{isRemoteAppointment(item) ? 'Consultation:' : item.appointmentType === 'Home Visit' ? 'Home visit address:' : 'Address:'}</p>
+              {item.appointmentType === 'Home Visit' ? (
+                <div className='mt-1 rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-xs md:text-sm text-emerald-800'>
+                  <p className='flex items-center gap-1.5 font-semibold'><Home className='h-4 w-4' />Home Visit</p>
+                  <p className='mt-1'>{formatHomeVisitAddress(item.homeVisitAddress) || 'Home visit address will be confirmed.'}</p>
+                  {item.homeVisitAddress?.notes && <p className='mt-1 text-emerald-700'>{item.homeVisitAddress.notes}</p>}
+                </div>
+              ) : isRemoteAppointment(item) ? (
+                <div className='mt-1 flex flex-wrap items-center gap-2'>
+                  <span className='inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700'>
+                    {getAppointmentMode(item) === 'Video Call' ? <Video className='h-3.5 w-3.5' /> : <Phone className='h-3.5 w-3.5' />}
+                    {getAppointmentMode(item)}
+                  </span>
+                  {item.teleconsultationLink && (
+                    <a href={item.teleconsultationLink} target='_blank' rel='noreferrer' className='inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white'>
+                      Join call <ExternalLink className='h-3.5 w-3.5' />
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <p className='text-xs md:text-sm text-zinc-600'>{item.clinicLocation || item.docData.address?.line1}</p>
+                  <p className='text-xs md:text-sm text-zinc-600'>{item.docData.address?.line2}</p>
+                </>
+              )}
               
               <p className='text-xs md:text-sm text-zinc-600 mt-3'>
                 <span className='text-sm md:text-base text-neutral-700 font-medium'>Date & Time: </span> 
                 {slotDateFormat(item.slotDate)} | {item.slotTime}
               </p>
+              <div className='mt-3 flex flex-wrap gap-2 text-xs'>
+                <span className={`rounded-full px-3 py-1 font-semibold ${item.paymentStatus === 'Paid' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                  {item.paymentStatus || 'Not Paid'}
+                </span>
+                <span className='rounded-full bg-gray-100 px-3 py-1 text-gray-700'>
+                  {item.paymentMethod || 'No method selected'}
+                </span>
+                {item.refundStatus && item.refundStatus !== 'Not Refunded' && (
+                  <span className='rounded-full bg-blue-50 px-3 py-1 text-blue-700'>
+                    {item.refundStatus}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Action Buttons */}
@@ -383,6 +447,49 @@ return (
                       'View Prescription'
                     )}
                   </button>
+                  {item.myRating ? (
+                    <div className='w-full sm:w-48 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-left'>
+                      <div className='flex items-center gap-2'>
+                        <StarRow value={item.myRating.rating} />
+                        <span className='text-xs font-semibold text-gray-800'>{item.myRating.rating}/5</span>
+                      </div>
+                      <p className='mt-1 text-[11px] text-gray-500'>{formatRatingDate(item.myRating.createdAt)}</p>
+                      {item.myRating.comment && <p className='mt-2 line-clamp-3 text-xs text-gray-700'>{item.myRating.comment}</p>}
+                    </div>
+                  ) : (
+                    <div className='w-full sm:w-64 rounded-lg border border-yellow-200 bg-yellow-50 p-3'>
+                      <p className='text-sm font-semibold text-gray-900'>Rate your experience</p>
+                      <div className='mt-2 flex gap-1 text-yellow-400'>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type='button'
+                            onClick={() => setDraftValue(item._id, 'rating', star)}
+                            className='rounded p-0.5 hover:bg-yellow-100'
+                            aria-label={`Rate ${star}`}
+                          >
+                            <Star className={`h-5 w-5 ${(ratingDrafts[item._id]?.rating || 0) >= star ? 'fill-current' : 'fill-none'}`} />
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        value={ratingDrafts[item._id]?.comment || ''}
+                        onChange={(event) => setDraftValue(item._id, 'comment', event.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                        className='mt-2 w-full rounded-lg border border-yellow-200 bg-white p-2 text-xs outline-none focus:ring-2 focus:ring-yellow-300'
+                        placeholder='Add a friendly comment'
+                      />
+                      <button
+                        type='button'
+                        onClick={() => submitRating(item._id)}
+                        disabled={!ratingDrafts[item._id]?.rating || ratingLoadingId === item._id}
+                        className='mt-2 w-full rounded-lg bg-yellow-400 px-3 py-2 text-xs font-bold text-yellow-950 disabled:cursor-not-allowed disabled:opacity-60'
+                      >
+                        {ratingLoadingId === item._id ? 'Saving...' : 'Submit rating'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

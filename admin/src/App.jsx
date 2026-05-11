@@ -26,7 +26,10 @@ import AuditLogs from './pages/Admin/AuditLogs';
 import Clinics from './pages/Admin/Clinics';
 import Patients from './pages/Admin/Patients';
 import HomeHeroSettings from './pages/Admin/HomeHeroSettings';
-import { Building2, CalendarDays, ClipboardList, LayoutTemplate, ShieldCheck, Stethoscope, UserPlus, UserRound, UsersRound } from 'lucide-react';
+import HomeBannerSettings from './pages/Admin/HomeBannerSettings';
+import HomeServiceCardsSettings from './pages/Admin/HomeServiceCardsSettings';
+import FooterSettings from './pages/Admin/FooterSettings';
+import { Building2, CalendarDays, ClipboardList, LayoutTemplate, PanelBottom, ShieldCheck, Stethoscope, UserPlus, UserRound, UsersRound } from 'lucide-react';
 import { LanguageDomSync, useLanguage } from './i18n';
 
 const AdminOptionsBar = () => {
@@ -38,6 +41,9 @@ const AdminOptionsBar = () => {
     { label: t('Appointments'), path: '/all-appointments', icon: <ClipboardList className='w-4 h-4' /> },
     { label: t('Clinics'), path: '/clinics', icon: <Building2 className='w-4 h-4' /> },
     { label: t('Home Hero'), path: '/home-hero-settings', icon: <LayoutTemplate className='w-4 h-4' /> },
+    { label: t('Home Banner'), path: '/home-banner-settings', icon: <LayoutTemplate className='w-4 h-4' /> },
+    { label: t('Service Cards'), path: '/home-service-cards-settings', icon: <LayoutTemplate className='w-4 h-4' /> },
+    { label: t('Footer'), path: '/footer-settings', icon: <PanelBottom className='w-4 h-4' /> },
     { label: t('Add Doctor'), path: '/add-doctor', icon: <UserPlus className='w-4 h-4' /> },
     { label: t('Receptionists'), path: '/receptionist-list', icon: <UsersRound className='w-4 h-4' /> },
     { label: t('Audit'), path: '/audit-logs', icon: <ShieldCheck className='w-4 h-4' /> }
@@ -107,6 +113,9 @@ const App = () => {
           <Route path='/patients' element={<Patients />} />
           <Route path='/clinics' element={<Clinics />} />
           <Route path='/home-hero-settings' element={<HomeHeroSettings />} />
+          <Route path='/home-banner-settings' element={<HomeBannerSettings />} />
+          <Route path='/home-service-cards-settings' element={<HomeServiceCardsSettings />} />
+          <Route path='/footer-settings' element={<FooterSettings />} />
           <Route path='/add-receptionist' element={<AddReceptionist />} />
           <Route path='/receptionist-list' element={<ReceptionistList />} />
           <Route path='/audit-logs' element={<AuditLogs />} />

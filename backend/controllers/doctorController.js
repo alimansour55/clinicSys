@@ -7,6 +7,21 @@ import userModel from "../models/userModel.js"
 import { createJwtPayload } from "../middlewares/rbac.js"
 import { logAudit } from "../services/auditService.js"
 import { sanitizeSchedule } from "../services/scheduleService.js"
+import { normalizeHomeVisitAddress, validateHomeVisitAddress } from "../services/homeVisitService.js"
+import { attachRatingSummariesToDoctors } from "./ratingController.js"
+
+const normalizeDoctorLocations = (locations) => {
+   if (!locations) return []
+   const list = Array.isArray(locations) ? locations : (() => {
+      try {
+         const parsed = JSON.parse(locations)
+         return Array.isArray(parsed) ? parsed : String(locations).split(',')
+      } catch {
+         return String(locations).split(',')
+      }
+   })()
+   return [...new Set(list.map((location) => String(location || '').trim()).filter(Boolean))]
+}
 
 const changeAvailability = async (req,res) => {
     try {
@@ -25,7 +40,8 @@ const changeAvailability = async (req,res) => {
 const doctorList = async (req,res) => {
    try {      
      const doctors = await doctorModel.find({}).select(['-password', '-email']).populate('clinics')
-     res.json({success:true, doctors})
+     const doctorsWithRatings = await attachRatingSummariesToDoctors(doctors)
+     res.json({success:true, doctors: doctorsWithRatings})
    } catch (error) {
       console.log(error)
       res.json({success:false, message:error.message})
@@ -523,9 +539,10 @@ const doctordashboard = async (req,res) => {
 const doctorProfile = async (req,res) => {
    try {      
     const { docId } = req.doctor
-    const profileData = await doctorModel.findById(docId).select('-password')
+    const profileData = await doctorModel.findById(docId).select('-password').lean()
+    const [profileDataWithRatings] = await attachRatingSummariesToDoctors(profileData ? [profileData] : [])
 
-    res.json({ success: true, profileData })
+    res.json({ success: true, profileData: profileDataWithRatings })
 
    } catch (error) {
       console.log(error)
@@ -539,8 +556,8 @@ const doctorProfile = async (req,res) => {
 const updateDoctorprofile = async (req,res) => {
   try {
    const { docId } = req.doctor; 
-   const { fees, address, available, schedule } = req.body;
-   const updateData = { fees, address, available }
+   const { fees, address, available, schedule, locations } = req.body;
+   const updateData = { fees, address, available, locations: normalizeDoctorLocations(locations) }
 
    if (schedule) {
       updateData.schedule = sanitizeSchedule(schedule)
@@ -599,5 +616,44 @@ const updatePatientMedicalHistory = async (req, res) => {
    }
 }
 
+const updateAppointmentHomeVisitAddress = async (req, res) => {
+   try {
+      const docId = req.doctor?.docId || req.user?.docId || req.user?.userId
+      const { appointmentId } = req.body
+      const homeVisitAddress = normalizeHomeVisitAddress(req.body.homeVisitAddress || {})
+      const addressError = validateHomeVisitAddress(homeVisitAddress)
 
-export { changeAvailability, doctorList, loginDoctor, appointmentsDoctor, appointmentComplete, appointmentCancel, doctordashboard, doctorProfile, updateDoctorprofile, patienthistory, editPrescription, updatePatientMedicalHistory}
+      if (!appointmentId || addressError) {
+         return res.json({ success: false, message: addressError || 'Appointment is required' })
+      }
+
+      const appointment = await appointmentModel.findById(appointmentId)
+      if (!appointment || appointment.docId !== docId) {
+         return res.json({ success: false, message: 'Appointment not found' })
+      }
+      if (appointment.appointmentType !== 'Home Visit') {
+         return res.json({ success: false, message: 'Only home visit appointments have a visit address' })
+      }
+
+      const updatedAddress = { ...homeVisitAddress, updatedBy: 'Doctor', updatedAt: Date.now() }
+      await appointmentModel.findByIdAndUpdate(appointmentId, { homeVisitAddress: updatedAddress })
+
+      await logAudit({
+         action: 'home_visit_address_update',
+         status: 'success',
+         targetUserId: appointment.userId,
+         entityType: 'appointment',
+         entityId: appointmentId,
+         metadata: { doctorId: docId, area: updatedAddress.area },
+         req
+      })
+
+      res.json({ success: true, message: 'Home visit address updated', homeVisitAddress: updatedAddress })
+   } catch (error) {
+      console.log(error)
+      res.json({ success: false, message: error.message })
+   }
+}
+
+
+export { changeAvailability, doctorList, loginDoctor, appointmentsDoctor, appointmentComplete, appointmentCancel, doctordashboard, doctorProfile, updateDoctorprofile, patienthistory, editPrescription, updatePatientMedicalHistory, updateAppointmentHomeVisitAddress}

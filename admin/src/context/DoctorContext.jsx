@@ -150,6 +150,35 @@ const DoctorContextProvider = (props) => {
             toast.error(error.message)
         }
     }
+
+    const getDoctorRatings = async () => {
+        try {
+            const { data } = await axios.get(backendUrl + '/api/doctor/ratings', { headers: {dToken}})
+            if(data.success) return data
+
+            toast.error(data.message)
+            return { summary: { averageRating: 0, ratingCount: 0 }, ratings: [] }
+        } catch (error) {
+            toast.error(error.message)
+            return { summary: { averageRating: 0, ratingCount: 0 }, ratings: [] }
+        }
+    }
+
+    const updateHomeVisitAddress = async (appointmentId, homeVisitAddress) => {
+        try {
+            const { data } = await axios.post(backendUrl + '/api/doctor/home-visit-address', { appointmentId, homeVisitAddress }, { headers: { dToken } })
+            if (data.success) {
+                toast.success(data.message)
+                getAppointments()
+                return true
+            }
+            toast.error(data.message)
+            return false
+        } catch (error) {
+            toast.error(error.message)
+            return false
+        }
+    }
     
     const value = {
        dToken, setDToken,
@@ -159,7 +188,7 @@ const DoctorContextProvider = (props) => {
        history, setHistory, getpatienthistory,
        dashData, setDashData, getDashData,
        profileData, setProfileData,
-       getProfileData, editPrescription, updatePatientMedicalHistory
+       getProfileData, getDoctorRatings, editPrescription, updatePatientMedicalHistory, updateHomeVisitAddress
     }
 
     return (

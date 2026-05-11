@@ -4,6 +4,8 @@ import authUser from '../middlewares/authUser.js'
 import upload from '../middlewares/multer.js'
 import { authorizePermission } from '../middlewares/rbac.js'
 import { getPublicSiteSettings } from '../controllers/siteSettingController.js'
+import { confirmBookingPaymentIntent, confirmPaymentIntent, createBookingPaymentIntent, createPaymentIntent } from '../controllers/paymentController.js'
+import { createRating, getDoctorRatings } from '../controllers/ratingController.js'
 
 const userRouter = express.Router()
 
@@ -17,6 +19,7 @@ const optionalUpload = (fieldName) => (req, res, next) => {
 userRouter.post('/register', optionalUpload('insuranceCardPhoto'), registerUser)
 userRouter.post('/login', loginUser)
 userRouter.get('/site-settings', getPublicSiteSettings)
+userRouter.get('/doctor-ratings/:docId', getDoctorRatings)
 
 userRouter.post('/send-reset-otp', sendPasswordResetOtp)
 userRouter.post('/verify-reset-otp', verifyPasswordResetOtp)
@@ -30,8 +33,13 @@ userRouter.get('/medical-history', authUser, authorizePermission('view own medic
 userRouter.post('/medical-history', authUser, authorizePermission('update own medical history'), createMedicalHistory)
 userRouter.put('/medical-history', authUser, authorizePermission('update own medical history'), updateMedicalHistory)
 userRouter.post('/book-appointment', authUser, authorizePermission('create appointments'), bookAppointment)
+userRouter.post('/create-booking-payment-intent', authUser, authorizePermission('create appointments'), createBookingPaymentIntent)
+userRouter.post('/confirm-booking-payment-intent', authUser, authorizePermission('create appointments'), confirmBookingPaymentIntent)
+userRouter.post('/create-payment-intent', authUser, authorizePermission('create appointments'), createPaymentIntent)
+userRouter.post('/confirm-payment-intent', authUser, authorizePermission('create appointments'), confirmPaymentIntent)
 userRouter.get('/appointments', authUser, authorizePermission('view own appointments'), listAppointment)
 userRouter.post('/cancel-appointment', authUser, authorizePermission('cancel own appointments'), cancelAppointment)
 userRouter.post('/get-prescription', authUser, authorizePermission('view own prescriptions'), getUserPrescription)  
+userRouter.post('/ratings', authUser, authorizePermission('view own appointments'), createRating)
   
 export default userRouter

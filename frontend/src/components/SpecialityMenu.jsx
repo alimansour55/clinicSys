@@ -1,125 +1,234 @@
-import React, { useContext, useMemo, useState, useRef, useEffect } from "react";
-import { specialityData } from "../assets/assets";
-import { Link } from "react-router-dom";
-import { Building2 } from "lucide-react";
+import React, { useContext, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Building2, ChevronLeft, ChevronRight, Home, MapPin, Video } from "lucide-react";
 import { AppContext } from "../context/AppContext";
+import { RatingBadge } from "./DoctorRating";
 
 const SpecialityMenu = () => {
-  const { clinics, t, tc } = useContext(AppContext);
-  const [activeDot, setActiveDot] = useState(0); 
-  const scrollRef = useRef(null);
+  const navigate = useNavigate();
+  const doctorsRef = useRef(null);
+  const clinicsRef = useRef(null);
+  const { doctors, clinics, siteSettings, t, tc } = useContext(AppContext);
+  const [selectedSpeciality, setSelectedSpeciality] = useState("All Specialities");
 
-  const clinicMenu = useMemo(() => {
-    const iconBySpeciality = specialityData.reduce((items, speciality) => {
-      items[speciality.speciality] = speciality.image;
-      return items;
-    }, {});
+  const clinicNames = useMemo(() => clinics.map((clinic) => clinic.name).filter(Boolean), [clinics]);
 
-    const sourceClinics = clinics.length > 0
-      ? clinics.map((clinic) => ({ speciality: clinic.name, image: iconBySpeciality[clinic.name] }))
-      : specialityData;
+  const visibleDoctors = useMemo(() => {
+    if (selectedSpeciality === "All Specialities") return doctors;
 
-    return sourceClinics;
-  }, [clinics]);
+    return doctors.filter((doctor) => {
+      const doctorClinics = (doctor.clinics || []).map((clinic) => clinic.name || clinic);
+      return doctor.speciality === selectedSpeciality || doctorClinics.includes(selectedSpeciality);
+    });
+  }, [doctors, selectedSpeciality]);
 
-  const handleScroll = () => {
-    if (scrollRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-      const maxScroll = scrollWidth - clientWidth;
-      
-      // divide scroll into 3 sections
-      if (scrollLeft >= maxScroll - 10) {
-        setActiveDot(2);
-      } else if (scrollLeft >= maxScroll * 0.6) {
-        setActiveDot(1);
-      } else {
-        setActiveDot(0);
-      }
-    }
+  const getDoctorLocation = (doctor) => {
+    const locations = doctor.locations?.length
+      ? doctor.locations
+      : (doctor.clinics || []).map((clinic) => clinic.name || clinic);
+    return locations.filter(Boolean).join(", ") || [doctor.address?.line1, doctor.address?.line2].filter(Boolean).join(", ");
   };
 
-  useEffect(() => {
-    const element = scrollRef.current;
-    if (element) {
-      element.addEventListener("scroll", handleScroll);
-      return () => element.removeEventListener("scroll", handleScroll);
-    }
-  }, []);
+  const handleSpecialityClick = (speciality) => {
+    setSelectedSpeciality(speciality);
+    requestAnimationFrame(() => {
+      doctorsRef.current?.scrollTo({ left: 0, behavior: "smooth" });
+    });
+  };
+
+  const scrollDoctors = (direction) => {
+    const scrollAmount = doctorsRef.current?.clientWidth || 680;
+    doctorsRef.current?.scrollBy({
+      left: direction === "next" ? scrollAmount : -scrollAmount,
+      behavior: "smooth",
+    });
+  };
+
+  const scrollRail = (ref, direction) => {
+    const scrollAmount = ref.current?.clientWidth || 420;
+    ref.current?.scrollBy({
+      left: direction === "next" ? scrollAmount : -scrollAmount,
+      behavior: "smooth",
+    });
+  };
+
+  const bookDoctor = (doctorId) => {
+    navigate(`/appointment/${doctorId}`);
+    window.scrollTo(0, 0);
+  };
+
+  const serviceCards = {
+    teleconsultationTitle: "Teleconsultation",
+    teleconsultationDescription: "Schedule a voice or video call with a specialist doctor.",
+    teleconsultationButtonText: "Book",
+    showTeleconsultation: true,
+    homeVisitTitle: "Home Visit",
+    homeVisitDescription: "Book a doctor visit at your home in supported Cairo and Giza areas.",
+    homeVisitButtonText: "Book",
+    showHomeVisit: true,
+    ...(siteSettings?.homeServiceCards || {})
+  };
+
+  const openService = (type) => {
+    navigate(`/doctors?consultation=${type}`);
+    window.scrollTo(0, 0);
+  };
 
   return (
-    <div className="flex flex-col items-center gap-4 py-16 text-gray-800" id="speciality">
-      
-      {/* Header */}
-      <div className="max-w-6xl mx-auto text-center mb-6 md:mb-10 px-4">
-        <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3">
-          {t('Find by Speciality')}
+    <section className="py-14 text-gray-800" id="speciality">
+      <div className="mb-6 px-1 sm:px-0">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
+          {t("Find by Speciality")}
         </h1>
-        <p className="text-gray-600 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
-          {t('Browse through our extensive list of trusted specialists')}
+        <p className="mt-2 text-sm sm:text-base text-gray-600">
+          {t("Browse through our extensive list of trusted specialists")}
         </p>
       </div>
 
-      {/* Mobile View */}
-      <div className="md:hidden w-full">
-        <div ref={scrollRef} className="flex gap-6 py-6 px-5 overflow-x-auto scrollbar-hide">
-          {clinicMenu.map((item, index) => (
-            <Link key={index} to={`/doctors/${item.speciality}`} onClick={() => window.scrollTo(0, 0)} className="flex flex-col items-center flex-shrink-0" >
-              <div className="flex flex-col items-center min-w-[90px] sm:min-w-[100px] p-3 rounded-xl transition-all duration-300 active:scale-95">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 mb-3 flex items-center justify-center">
-                  {item.image ? (
-                    <img className="w-full h-full object-contain" src={item.image} alt={tc(item.speciality)} />
-                  ) : (
-                    <span className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-blue-50 text-primary flex items-center justify-center border border-blue-100">
-                      <Building2 className="w-8 h-8 sm:w-10 sm:h-10" />
-                    </span>
-                  )}
-                </div>
-                <p className="text-center text-xs sm:text-sm font-medium text-gray-700 leading-tight px-1">
-                  {tc(item.speciality)}
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {/* SIMPLE 3 Indicators */}
-        <div className="flex justify-center gap-1.5 mt-2">
-          {[0, 1, 2].map((index) => (
-            <div
-              key={index}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                index === activeDot ? "bg-primary w-6" : "bg-gray-300 w-1.5"
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-
-
-      {/* Desktop Grid */}
-      <div className="hidden md:block">
-        <div className="flex flex-wrap justify-center gap-6 lg:gap-8 pt-5 max-w-6xl mx-auto">
-          {clinicMenu.map((item, index) => (
-            <Link
-              key={index}
-              to={`/doctors/${item.speciality}`}
-              onClick={() => window.scrollTo(0, 0)}
-              className="flex flex-col items-center text-sm cursor-pointer hover:-translate-y-2 transition-all duration-500">
-
-              {item.image ? (
-                <img className="w-24 h-24 object-contain mb-3" src={item.image} alt={tc(item.speciality)} />
-              ) : (
-                <span className="w-24 h-24 mb-3 rounded-full bg-blue-50 text-primary flex items-center justify-center border border-blue-100">
-                  <Building2 className="w-10 h-10" />
+      <div className="rounded-2xl border border-gray-100 bg-white/90 p-4 shadow-sm sm:p-5">
+        <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {serviceCards.showTeleconsultation && (
+            <div className="min-h-28 overflow-hidden rounded-xl border border-sky-200 bg-sky-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-5">
+              <div className="flex min-w-0 gap-3">
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-sky-600 shadow-sm">
+                  {serviceCards.teleconsultationImage ? <img src={serviceCards.teleconsultationImage} alt="" className="h-full w-full object-cover" /> : <Video className="h-6 w-6" />}
                 </span>
-              )}
-              <p className="text-center w-28">{tc(item.speciality)}</p>
-              
-            </Link>
-          ))}
+                <div className="min-w-0">
+                  <p className="font-bold text-gray-900">{serviceCards.teleconsultationTitle}</p>
+                  <p className="mt-1 text-sm text-gray-600">{serviceCards.teleconsultationDescription}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => openService("tele")}
+                className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 sm:mt-0 sm:w-auto"
+              >
+                {serviceCards.teleconsultationButtonText}
+              </button>
+            </div>
+          )}
+          {serviceCards.showHomeVisit && (
+            <div className="min-h-28 overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-5">
+              <div className="flex min-w-0 gap-3">
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-emerald-600 shadow-sm">
+                  {serviceCards.homeVisitImage ? <img src={serviceCards.homeVisitImage} alt="" className="h-full w-full object-cover" /> : <Home className="h-6 w-6" />}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-bold text-gray-900">{serviceCards.homeVisitTitle}</p>
+                  <p className="mt-1 text-sm text-gray-600">{serviceCards.homeVisitDescription}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => openService("home")}
+                className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 sm:mt-0 sm:w-auto"
+              >
+                {serviceCards.homeVisitButtonText}
+              </button>
+            </div>
+          )}
         </div>
+
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+              <Building2 className="h-5 w-5" />
+            </span>
+            <p className="font-bold text-gray-900">Clinic sections</p>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => scrollRail(clinicsRef, "prev")} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600" aria-label="Previous clinics">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={() => scrollRail(clinicsRef, "next")} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600" aria-label="Next clinics">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div ref={clinicsRef} className="mb-7 overflow-x-auto pb-2 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-max gap-3">
+            {clinicNames.length ? clinicNames.map((clinicName) => {
+              const isActive = selectedSpeciality === clinicName;
+
+              return (
+                <button
+                  key={clinicName}
+                  type="button"
+                  onClick={() => handleSpecialityClick(clinicName)}
+                  className={`h-12 rounded-lg border px-4 text-sm font-medium transition whitespace-nowrap ${
+                    isActive
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      : "border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200"
+                  }`}
+                >
+                  {tc(clinicName)}
+                </button>
+              );
+            }) : (
+              <span className="rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">No clinics added yet</span>
+            )}
+          </div>
+        </div>
+
+        {visibleDoctors.length > 0 ? (
+          <div className="relative min-h-[310px]">
+            <button
+              type="button"
+              onClick={() => scrollDoctors("prev")}
+              className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600"
+              aria-label="Previous doctors"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollDoctors("next")}
+              className="absolute right-0 top-1/2 z-10 flex h-11 w-11 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600"
+              aria-label="Next doctors"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+
+            <div
+              ref={doctorsRef}
+              className="grid auto-cols-[166px] grid-flow-col grid-rows-2 gap-4 overflow-x-auto scroll-smooth pb-3 pr-2 [scrollbar-width:none] sm:auto-cols-[184px] md:auto-cols-[188px] [&::-webkit-scrollbar]:hidden"
+            >
+              {visibleDoctors.map((doctor) => (
+                <button
+                  key={doctor._id}
+                  type="button"
+                  onClick={() => bookDoctor(doctor._id)}
+                  className="group h-[256px] overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg"
+                >
+                  <div className="relative mx-3 mt-3 h-[150px] overflow-hidden rounded-lg bg-blue-50">
+                    <img
+                      src={doctor.image}
+                      alt={doctor.name}
+                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                    />
+                    <RatingBadge summary={doctor.ratingSummary} className="absolute left-2 top-2" />
+                  </div>
+
+                  <div className="px-3 py-3">
+                    <p className="truncate text-sm font-bold text-gray-800">{doctor.name}</p>
+                    <p className="mt-1 truncate text-sm text-gray-600">{tc(doctor.speciality)}</p>
+                    <p className="mt-2 flex items-center gap-1.5 truncate text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 shrink-0 text-blue-500" />
+                      <span className="truncate">{getDoctorLocation(doctor) || "Clinic location"}</span>
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-gray-300 py-10 text-center text-sm text-gray-500">
+            No doctors available in this section yet.
+          </div>
+        )}
       </div>
-    </div>
+    </section>
   );
 };
 

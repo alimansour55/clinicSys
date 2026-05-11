@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { AdminContext } from "../../context/AdminContext";
 import { toast } from 'react-toastify'
 import axios from 'axios'
-import { Building2, Plus, RotateCcw, Upload, UserPlus, Eye, EyeOff, Loader2, Check } from 'lucide-react'
+import { Building2, Plus, RotateCcw, Upload, UserPlus, Eye, EyeOff, Loader2, Check, MapPin, X } from 'lucide-react'
 import { AppContext } from "../../context/AppContext";
 
 const AddDoctor = () => {
@@ -20,6 +20,7 @@ const AddDoctor = () => {
   const [address2, setAddress2] = useState('')
   const [phone, setPhone] = useState()
   const [selectedClinics, setSelectedClinics] = useState([])
+  const [locations, setLocations] = useState([''])
   const [isLoading, setIsLoading] = useState(false)
 
   const { backendUrl, aToken, clinics, getClinics } = useContext(AdminContext)
@@ -40,6 +41,13 @@ const AddDoctor = () => {
         : [...previous, clinicId]
     )
   }
+
+  const updateLocation = (index, value) => {
+    setLocations((previous) => previous.map((location, itemIndex) => itemIndex === index ? value : location))
+  }
+
+  const addLocation = () => setLocations((previous) => [...previous, ''])
+  const removeLocation = (index) => setLocations((previous) => previous.filter((_, itemIndex) => itemIndex !== index))
 
   const onSubmitHandler = async (event) => {
     event.preventDefault()
@@ -62,6 +70,7 @@ const AddDoctor = () => {
       formData.append('degree', degree)
       formData.append('address', JSON.stringify({line1: address1, line2: address2}))
       formData.append('clinicIds', JSON.stringify(selectedClinics))
+      formData.append('locations', JSON.stringify(locations.map((location) => location.trim()).filter(Boolean)))
       
 
       const { data } = await axios.post(backendUrl + '/api/admin/add-doctor', formData, {headers: {aToken}})
@@ -93,6 +102,7 @@ const AddDoctor = () => {
     setExperience('1 Year')
     setSpeciality('General physician')
     setSelectedClinics([])
+    setLocations([''])
   }
   
   return (
@@ -328,6 +338,35 @@ const AddDoctor = () => {
                 </div>
 
               </div>
+            </div>
+
+            <div className="mt-4 sm:mt-6 lg:mt-8">
+              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                Clinic Locations
+              </label>
+              <div className="border-2 border-gray-200 rounded-xl p-3 sm:p-4 bg-gray-50 space-y-3">
+                {locations.map((location, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <input
+                      value={location}
+                      onChange={(event) => updateLocation(index, event.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white"
+                      placeholder="e.g., Mohandseen, Nasr City"
+                    />
+                    {locations.length > 1 && (
+                      <button type="button" onClick={() => removeLocation(index)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 text-red-600 hover:bg-red-50">
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" onClick={addLocation} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">
+                  <Plus className="w-4 h-4" />
+                  Add another location
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1.5">Patients will see these locations on doctor cards and choose one before booking.</p>
             </div>
 
             <div className="mt-4 sm:mt-6 lg:mt-8">

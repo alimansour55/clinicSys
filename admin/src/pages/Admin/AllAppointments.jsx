@@ -2,7 +2,8 @@ import React, { useContext, useEffect, useState, useMemo } from 'react'
 import { AdminContext } from '../../context/AdminContext'
 import { AppContext } from '../../context/AppContext'
 import { assets } from '../../assets/assets'
-import { Search, X, ChevronDown, ChevronUp, SlidersHorizontal, FileText } from 'lucide-react'
+import { Search, X, ChevronDown, ChevronUp, SlidersHorizontal, FileText, Home, Phone, Video } from 'lucide-react'
+import { formatHomeVisitAddress } from '../../utils/homeVisitAreas'
 
 const AllAppointments = () => {
 
@@ -87,6 +88,10 @@ const AllAppointments = () => {
       dateRange: 'all',
     });
   };
+
+  const getAppointmentMode = (item) => item.appointmentType || 'Clinic'
+  const isRemoteAppointment = (item) => ['Voice Call', 'Video Call'].includes(getAppointmentMode(item))
+  const isHomeVisit = (item) => getAppointmentMode(item) === 'Home Visit'
 
   return (
     <div className='w-full p-3 sm:p-5 md:p-6 lg:p-8'>
@@ -330,7 +335,14 @@ const AllAppointments = () => {
                     <span className='text-xs bg-gray-100 px-2 py-1 rounded'>{slotDateFormat(item.slotDate)}</span>
                     <span className='text-xs bg-gray-100 px-2 py-1 rounded'>{item.slotTime}</span>
                     <span className='text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded'>{currency} {item.amount}</span>
+                    <span className={`text-xs px-2 py-1 rounded ${item.paymentStatus === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {item.paymentStatus || 'Not Paid'}{item.paymentMethod ? ` - ${item.paymentMethod}` : ''}
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded ${isHomeVisit(item) ? 'bg-emerald-100 text-emerald-700' : isRemoteAppointment(item) ? 'bg-sky-100 text-sky-700' : 'bg-gray-100 text-gray-700'}`}>
+                      {getAppointmentMode(item)}
+                    </span>
                   </div>
+                  {isHomeVisit(item) && <p className='mb-3 text-xs text-emerald-700'>{formatHomeVisitAddress(item.homeVisitAddress)}</p>}
 
                   <div className='flex items-center gap-2 mb-3 pb-3 border-b border-gray-200'>
                     <img className='w-8 h-8 rounded-full bg-gray-200 object-cover' src={item.docData.image} alt="" />
@@ -362,12 +374,27 @@ const AllAppointments = () => {
                 </div>
                 <p className='hidden lg:block truncate'>{item.userData.patientId}</p>
                 <p className='hidden lg:block'>{calculateAge(item.userData.dob)}</p>
-                <p className='hidden lg:block text-xs xl:text-sm'>{slotDateFormat(item.slotDate)}, {item.slotTime}</p>
+                <p className='hidden lg:block text-xs xl:text-sm'>
+                  {slotDateFormat(item.slotDate)}, {item.slotTime}
+                  <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${isHomeVisit(item) ? 'bg-emerald-50 text-emerald-700' : isRemoteAppointment(item) ? 'bg-sky-50 text-sky-700' : 'bg-gray-100 text-gray-700'}`}>
+                    {getAppointmentMode(item) === 'Video Call' ? <Video className='h-3 w-3' /> : getAppointmentMode(item) === 'Voice Call' ? <Phone className='h-3 w-3' /> : isHomeVisit(item) ? <Home className='h-3 w-3' /> : null}
+                    {getAppointmentMode(item)}
+                  </span>
+                  {isHomeVisit(item) && <span className='mt-1 block text-[11px] text-emerald-700'>{formatHomeVisitAddress(item.homeVisitAddress)}</span>}
+                </p>
                 <div className='hidden lg:flex items-center gap-2'>
                   <img className='w-8 rounded-full bg-gray-200 object-cover' src={item.docData.image} alt="" /> 
                   <p className='truncate'>{item.docData.name}</p>
                 </div>
-                <p className='hidden lg:block'>{currency} {item.amount}</p>
+                <div className='hidden lg:block'>
+                  <p>{currency} {item.amount}</p>
+                  <p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${item.paymentStatus === 'Paid' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                    {item.paymentStatus || 'Not Paid'}{item.paymentMethod ? ` - ${item.paymentMethod}` : ''}
+                  </p>
+                  {item.refundStatus && item.refundStatus !== 'Not Refunded' && (
+                    <p className='mt-1 text-[11px] text-blue-700'>{item.refundStatus}</p>
+                  )}
+                </div>
                 <div className='hidden lg:block'>
                   {item.cancelled ? (
                     <p className='text-red-500 text-xs font-medium px-2 py-1 bg-red-50 rounded-full inline-block'>Cancelled</p>

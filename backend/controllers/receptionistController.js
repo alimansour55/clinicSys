@@ -8,11 +8,28 @@ import userModel from '../models/userModel.js'
 import { createJwtPayload } from '../middlewares/rbac.js'
 import { logAudit } from '../services/auditService.js'
 import { isSlotAllowedBySchedule } from '../services/scheduleService.js'
-import { buildInsuranceData, getNextPatientId } from './userController.js'
+import { buildTeleconsultationLink, normalizeAppointmentType } from '../services/appointmentModeService.js'
+import { normalizeHomeVisitAddress, validateHomeVisitAddress } from '../services/homeVisitService.js'
+import { buildInsuranceData, getNextPatientId, isPastDate } from './userController.js'
+import { refundAppointmentPayment } from './paymentController.js'
+import { attachRatingSummariesToDoctors } from './ratingController.js'
 
 const validAppointmentStatuses = ['Booked', 'Checked In', 'In Progress', 'Finished', 'Cancelled']
 const validPaymentStatuses = ['Paid', 'Not Paid']
 const validPaymentMethods = ['Cash', 'Visa', 'Insurance', 'Free']
+
+const normalizeDoctorLocations = (locations) => {
+  if (!locations) return []
+  const list = Array.isArray(locations) ? locations : (() => {
+    try {
+      const parsed = JSON.parse(locations)
+      return Array.isArray(parsed) ? parsed : String(locations).split(',')
+    } catch {
+      return String(locations).split(',')
+    }
+  })()
+  return [...new Set(list.map((location) => String(location || '').trim()).filter(Boolean))]
+}
 
 const addReceptionist = async (req, res) => {
   try {
@@ -214,7 +231,8 @@ const receptionistAppointments = async (req, res) => {
 const receptionistDoctors = async (req, res) => {
   try {
     const doctors = await doctorModel.find({}).select('-password')
-    res.json({ success: true, doctors })
+    const doctorsWithRatings = await attachRatingSummariesToDoctors(doctors)
+    res.json({ success: true, doctors: doctorsWithRatings })
   } catch (error) {
     console.log(error)
     res.json({ success: false, message: error.message })
@@ -239,6 +257,10 @@ const createPatientForReceptionist = async (req, res) => {
 
     if (!name || !email || !password || !phone || !dob) {
       return res.json({ success: false, message: 'Name, email, phone, birth date, and password are required' })
+    }
+
+    if (!isPastDate(dob)) {
+      return res.json({ success: false, message: 'Birth date must be in the past' })
     }
 
     if (!validator.isEmail(email)) {
@@ -326,10 +348,17 @@ const updatePatientInsurance = async (req, res) => {
 const bookAppointmentForPatient = async (req, res) => {
   try {
     const { patientId, docId, slotDate, slotTime } = req.body
+    const clinicLocation = String(req.body.clinicLocation || '').trim()
+    const appointmentType = normalizeAppointmentType(req.body.appointmentType)
+    const homeVisitAddress = normalizeHomeVisitAddress(req.body.homeVisitAddress || {})
     const receptionistId = req.receptionist.receptionistId
 
     if (!patientId || !docId || !slotDate || !slotTime) {
       return res.json({ success: false, message: 'Missing appointment details' })
+    }
+    if (appointmentType === 'Home Visit') {
+      const addressError = validateHomeVisitAddress(homeVisitAddress)
+      if (addressError) return res.json({ success: false, message: addressError })
     }
 
     const docData = await doctorModel.findById(docId).select('-password')
@@ -364,7 +393,11 @@ const bookAppointmentForPatient = async (req, res) => {
     const appointmentDocData = docData.toObject()
     delete appointmentDocData.slots_booked
 
+    const appointmentId = new appointmentModel()._id
+    const teleconsultationLink = ['Voice Call', 'Video Call'].includes(appointmentType) ? buildTeleconsultationLink({ appointmentId, docId, userId: patientId, slotDate, slotTime }) : ''
+
     const appointmentData = {
+      _id: appointmentId,
       userId: patientId,
       docId,
       userData,
@@ -373,6 +406,10 @@ const bookAppointmentForPatient = async (req, res) => {
       originalAmount: Number(docData.fees),
       slotTime,
       slotDate,
+      clinicLocation: appointmentType === 'Clinic' ? clinicLocation : '',
+      appointmentType,
+      teleconsultationLink,
+      homeVisitAddress: appointmentType === 'Home Visit' ? { ...homeVisitAddress, updatedBy: 'Receptionist', updatedAt: Date.now() } : {},
       date: Date.now(),
       appointmentStatus: 'Booked',
       paymentStatus: 'Not Paid',
@@ -397,12 +434,42 @@ const bookAppointmentForPatient = async (req, res) => {
         doctorId: docId,
         doctorName: docData.name,
         slotDate,
-        slotTime
+        slotTime,
+        appointmentType
       },
       req
     })
 
     res.json({ success: true, message: 'Appointment Booked' })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const updateDoctorLocationsByReceptionist = async (req, res) => {
+  try {
+    const { docId } = req.body
+    if (!docId) {
+      return res.json({ success: false, message: 'Doctor is required' })
+    }
+
+    const locations = normalizeDoctorLocations(req.body.locations)
+    await doctorModel.findByIdAndUpdate(docId, { locations })
+
+    await logAudit({
+      action: 'doctor_locations_update',
+      actorUserId: req.receptionist?.receptionistId,
+      actorRole: 'receptionist',
+      status: 'success',
+      targetUserId: docId,
+      entityType: 'doctor',
+      entityId: docId,
+      metadata: { locations },
+      req
+    })
+
+    res.json({ success: true, message: 'Doctor locations updated', locations })
   } catch (error) {
     console.log(error)
     res.json({ success: false, message: error.message })
@@ -433,6 +500,12 @@ const updateAppointmentStatus = async (req, res) => {
       updateData.checkedInAt = Date.now()
     }
 
+    let refundMessage = ''
+    if (appointmentStatus === 'Cancelled' && appointment.paymentStatus === 'Paid' && appointment.paymentMethod === 'Visa') {
+      const refundResult = await refundAppointmentPayment({ appointment, appointmentId, requestedBy: 'receptionist', req })
+      refundMessage = refundResult.refunded ? ' Refund requested.' : ''
+    }
+
     await appointmentModel.findByIdAndUpdate(appointmentId, updateData)
 
     await logAudit({
@@ -460,7 +533,47 @@ const updateAppointmentStatus = async (req, res) => {
       }
     }
 
-    res.json({ success: true, message: 'Appointment status updated' })
+    res.json({ success: true, message: `Appointment status updated${refundMessage}` })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const updateAppointmentHomeVisitAddress = async (req, res) => {
+  try {
+    const { appointmentId } = req.body
+    const homeVisitAddress = normalizeHomeVisitAddress(req.body.homeVisitAddress || {})
+    const addressError = validateHomeVisitAddress(homeVisitAddress)
+
+    if (!appointmentId || addressError) {
+      return res.json({ success: false, message: addressError || 'Appointment is required' })
+    }
+
+    const appointment = await appointmentModel.findById(appointmentId)
+    if (!appointment) {
+      return res.json({ success: false, message: 'Appointment not found' })
+    }
+    if (appointment.appointmentType !== 'Home Visit') {
+      return res.json({ success: false, message: 'Only home visit appointments have a visit address' })
+    }
+
+    const updatedAddress = { ...homeVisitAddress, updatedBy: 'Receptionist', updatedAt: Date.now() }
+    await appointmentModel.findByIdAndUpdate(appointmentId, { homeVisitAddress: updatedAddress })
+
+    await logAudit({
+      action: 'home_visit_address_update',
+      actorUserId: req.receptionist?.receptionistId,
+      actorRole: 'receptionist',
+      status: 'success',
+      targetUserId: appointment.userId,
+      entityType: 'appointment',
+      entityId: appointmentId,
+      metadata: { area: updatedAddress.area },
+      req
+    })
+
+    res.json({ success: true, message: 'Home visit address updated', homeVisitAddress: updatedAddress })
   } catch (error) {
     console.log(error)
     res.json({ success: false, message: error.message })
@@ -583,6 +696,8 @@ export {
   updatePatientInsurance,
   bookAppointmentForPatient,
   updateAppointmentStatus,
+  updateAppointmentHomeVisitAddress,
   updatePayment,
-  checkInPatient
+  checkInPatient,
+  updateDoctorLocationsByReceptionist
 }

@@ -94,6 +94,22 @@ const ReceptionistContextProvider = (props) => {
     }
   };
 
+  const updateHomeVisitAddress = async (appointmentId, homeVisitAddress) => {
+    try {
+      const { data } = await axios.post(backendUrl + "/api/receptionist/home-visit-address", { appointmentId, homeVisitAddress }, { headers: { rToken } });
+      if (data.success) {
+        toast.success(data.message);
+        getReceptionistAppointments();
+        return true;
+      }
+      toast.error(data.message);
+      return false;
+    } catch (error) {
+      toast.error(error.message);
+      return false;
+    }
+  };
+
   const createReceptionistPatient = async (formData) => {
     try {
       const { data } = await axios.post(backendUrl + "/api/receptionist/patients", formData, { headers: { rToken } });
@@ -143,6 +159,34 @@ const ReceptionistContextProvider = (props) => {
     }
   };
 
+  const getDoctorRatings = async (docId) => {
+    try {
+      const { data } = await axios.get(backendUrl + `/api/receptionist/doctor-ratings/${docId}`, { headers: { rToken } });
+      if (data.success) return data;
+      toast.error(data.message);
+      return { summary: { averageRating: 0, ratingCount: 0 }, ratings: [] };
+    } catch (error) {
+      toast.error(error.message);
+      return { summary: { averageRating: 0, ratingCount: 0 }, ratings: [] };
+    }
+  };
+
+  const updateDoctorLocations = async (docId, locations) => {
+    try {
+      const { data } = await axios.post(backendUrl + "/api/receptionist/doctor-locations", { docId, locations }, { headers: { rToken } });
+      if (data.success) {
+        toast.success(data.message);
+        getReceptionistDoctors();
+        return data.locations || [];
+      }
+      toast.error(data.message);
+      return null;
+    } catch (error) {
+      toast.error(error.message);
+      return null;
+    }
+  };
+
   const value = {
     rToken,
     setRToken,
@@ -158,9 +202,12 @@ const ReceptionistContextProvider = (props) => {
     updateAppointmentStatus,
     checkInPatient,
     updatePayment,
+    updateHomeVisitAddress,
     createReceptionistPatient,
     updatePatientInsurance,
     bookAppointmentForPatient,
+    getDoctorRatings,
+    updateDoctorLocations,
   };
 
   return <ReceptionistContext.Provider value={value}>{props.children}</ReceptionistContext.Provider>;

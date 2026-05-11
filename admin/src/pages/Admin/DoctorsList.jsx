@@ -1,17 +1,20 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { AdminContext } from '../../context/AdminContext'
-import { ArrowLeft, Edit2, User, Info, FileText, CheckCircle, Save, X, Lock, Camera, Users, Building2 } from 'lucide-react'
+import { ArrowLeft, Edit2, User, Info, FileText, CheckCircle, Save, X, Lock, Camera, Users, Building2, MapPin, Plus } from 'lucide-react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import { RatingBadge, RatingsList, StarRow } from '../../components/DoctorRating'
 
 const DoctorsList = () => {
-  const { doctors, aToken, getAllDoctors, changeAvailability, backendUrl } = useContext(AdminContext)
+  const { doctors, aToken, getAllDoctors, changeAvailability, backendUrl, getDoctorRatings, deleteDoctorRating } = useContext(AdminContext)
   const [selectedDoctorId, setSelectedDoctorId] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
+  const [ratingsData, setRatingsData] = useState({ summary: { averageRating: 0, ratingCount: 0 }, ratings: [] })
+  const [ratingsLoading, setRatingsLoading] = useState(false)
 
   const [doctorsLoading, setDoctorsLoading] = useState(true)
 
@@ -37,6 +40,17 @@ const DoctorsList = () => {
 
   const selectedDoctor = doctors.find(d => d._id === selectedDoctorId)
 
+  useEffect(() => {
+    const loadRatings = async () => {
+      if (!selectedDoctorId) return
+      setRatingsLoading(true)
+      const data = await getDoctorRatings(selectedDoctorId)
+      setRatingsData(data)
+      setRatingsLoading(false)
+    }
+    loadRatings()
+  }, [selectedDoctorId])
+
   const startEditing = () => {
     setEditForm({
       name: selectedDoctor.name,
@@ -51,7 +65,8 @@ const DoctorsList = () => {
       address: selectedDoctor.address ? { 
         line1: selectedDoctor.address.line1 || '',
         line2: selectedDoctor.address.line2 || ''
-      } : { line1: '', line2: '' }
+      } : { line1: '', line2: '' },
+      locations: selectedDoctor.locations?.length ? [...selectedDoctor.locations] : ['']
     })
     setImageFile(null)
     setImagePreview(null)
@@ -74,6 +89,21 @@ const DoctorsList = () => {
       ...prev,
       address: { ...prev.address, [line]: value }
     }))
+  }
+
+  const handleLocationChange = (index, value) => {
+    setEditForm(prev => ({
+      ...prev,
+      locations: (prev.locations || ['']).map((location, itemIndex) => itemIndex === index ? value : location)
+    }))
+  }
+
+  const addLocation = () => {
+    setEditForm(prev => ({ ...prev, locations: [...(prev.locations || []), ''] }))
+  }
+
+  const removeLocation = (index) => {
+    setEditForm(prev => ({ ...prev, locations: (prev.locations || []).filter((_, itemIndex) => itemIndex !== index) }))
   }
 
   const handleImageChange = (e) => {
@@ -100,6 +130,7 @@ const DoctorsList = () => {
       formData.append('about', editForm.about)
       formData.append('fees', editForm.fees)
       formData.append('address', JSON.stringify(editForm.address))
+      formData.append('locations', JSON.stringify((editForm.locations || []).map((location) => location.trim()).filter(Boolean)))
 
       if (editForm.password?.trim()) {
         formData.append('password', editForm.password)
@@ -143,6 +174,14 @@ const DoctorsList = () => {
       await getAllDoctors()
     } catch (error) {
       console.error('Error:', error)
+    }
+  }
+
+  const handleDeleteRating = async (ratingId) => {
+    const deleted = await deleteDoctorRating(ratingId)
+    if (deleted && selectedDoctorId) {
+      const data = await getDoctorRatings(selectedDoctorId)
+      setRatingsData(data)
     }
   }
 
@@ -208,6 +247,7 @@ const DoctorsList = () => {
                 <img className='w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full border-4 border-white shadow-lg object-cover'
                   src={imagePreview || selectedDoctor.image}
                   alt={selectedDoctor.name} />
+                {!isEditing && <RatingBadge summary={selectedDoctor.ratingSummary || ratingsData.summary} className='absolute left-1 top-1' />}
                 {isEditing && (
                   <label className='absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 sm:p-2.5 rounded-full cursor-pointer shadow-lg transition'>
                     <Camera className='w-4 h-4 sm:w-5 sm:h-5' />
@@ -245,9 +285,23 @@ const DoctorsList = () => {
                   <span className={`inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full ${selectedDoctor.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                     {selectedDoctor.available ? 'Available' : 'Not Available'}
                   </span>
+                  <span className='inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full bg-yellow-100 text-yellow-800'>
+                    <StarRow value={ratingsData.summary?.averageRating || selectedDoctor.ratingSummary?.averageRating} />
+                    {ratingsData.summary?.ratingCount || selectedDoctor.ratingSummary?.ratingCount
+                      ? `${Number(ratingsData.summary?.averageRating || selectedDoctor.ratingSummary?.averageRating || 0).toFixed(1)} from ${ratingsData.summary?.ratingCount || selectedDoctor.ratingSummary?.ratingCount}`
+                      : 'No ratings'}
+                  </span>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className='bg-white rounded-xl border border-yellow-200 p-4 sm:p-6 mb-4 sm:mb-6'>
+            <h3 className='text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2'>
+              <StarRow value={ratingsData.summary?.averageRating || selectedDoctor.ratingSummary?.averageRating} />
+              Patient Ratings
+            </h3>
+            {ratingsLoading ? <p className='text-sm text-gray-500'>Loading ratings...</p> : <RatingsList ratings={ratingsData.ratings} canDelete onDelete={handleDeleteRating} />}
           </div>
 
           {/* Details Grid */}
@@ -334,6 +388,37 @@ const DoctorsList = () => {
                       />
                     ) : (
                       <p className='text-sm text-gray-900 font-medium'>{selectedDoctor?.address?.line2 || 'Not provided'}</p>
+                    )}
+                  </div>
+
+                  <div className='rounded-lg p-3 bg-blue-50 border border-blue-100'>
+                    <label className='text-xs sm:text-sm text-gray-600 mb-2 block font-medium'>Clinic Locations</label>
+                    {isEditing ? (
+                      <div className='space-y-2'>
+                        {(editForm.locations || ['']).map((location, index) => (
+                          <div key={index} className='flex items-center gap-2'>
+                            <MapPin className='w-4 h-4 text-blue-600 flex-shrink-0' />
+                            <input
+                              type='text'
+                              value={location}
+                              onChange={(e) => handleLocationChange(index, e.target.value)}
+                              placeholder='e.g., Mohandseen'
+                              className='w-full px-3 py-2 text-sm text-gray-900 font-medium border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white'
+                            />
+                            {(editForm.locations || []).length > 1 && (
+                              <button type='button' onClick={() => removeLocation(index)} className='px-2 py-2 rounded border border-red-200 text-red-600 hover:bg-red-50'>
+                                <X className='w-4 h-4' />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button type='button' onClick={addLocation} className='inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50'>
+                          <Plus className='w-3.5 h-3.5' />
+                          Add location
+                        </button>
+                      </div>
+                    ) : (
+                      <p className='text-sm text-gray-900 font-medium'>{selectedDoctor.locations?.length ? selectedDoctor.locations.join(', ') : 'Not provided'}</p>
                     )}
                   </div>
                 </div>
@@ -487,17 +572,20 @@ const DoctorsList = () => {
             onClick={() => setSelectedDoctorId(item._id)}
           >
             <div className='aspect-square w-full overflow-hidden bg-indigo-50'>
+              <div className='relative h-full w-full'>
               <img 
                 className='w-full h-full object-cover group-hover:scale-105 transition-transform duration-300' 
                 src={item.image} 
                 alt={item.name} 
               />
+              <RatingBadge summary={item.ratingSummary} className='absolute left-2 top-2' />
+              </div>
             </div>
             <div className='p-2.5 sm:p-3 md:p-4'>
               <p className='text-neutral-800 text-xs sm:text-sm md:text-base font-medium truncate'>{item.name}</p>
               <p className='text-zinc-600 text-xs sm:text-xs md:text-sm truncate mt-0.5'>{item.speciality}</p>
               <p className='text-blue-600 text-[11px] sm:text-xs truncate mt-0.5'>
-                {(item.clinics || []).length > 0 ? item.clinics.map((clinic) => clinic.name || clinic).join(', ') : 'No clinic assigned'}
+                {item.locations?.length ? item.locations.join(', ') : (item.clinics || []).length > 0 ? item.clinics.map((clinic) => clinic.name || clinic).join(', ') : 'No clinic assigned'}
               </p>
               <div className='mt-2 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm'>
                 <input 

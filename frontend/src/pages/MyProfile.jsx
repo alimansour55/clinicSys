@@ -6,6 +6,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useNavigate } from 'react-router-dom'
 
+const today = new Date().toISOString().split('T')[0]
 
 const MyProfile = () => {
 
@@ -129,7 +130,7 @@ const MyProfile = () => {
           {
             isEdit 
             ? 
-            <input className='max-w-28 bg-gray-100' type="date" onChange={(e) => setUserData(prev => ({...prev, dob:e.target.value}))} value={userData.dob} />
+            <input className='max-w-28 bg-gray-100' type="date" max={today} onChange={(e) => setUserData(prev => ({...prev, dob:e.target.value}))} value={userData.dob} />
             : <p className='text-gray-400'>{userData.dob}</p>
           }
         </div>

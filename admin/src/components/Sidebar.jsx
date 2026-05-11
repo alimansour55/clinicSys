@@ -3,7 +3,7 @@ import { AdminContext } from '../context/AdminContext'
 import { NavLink } from 'react-router-dom'
 import { assets } from '../assets/assets'
 import { DoctorContext } from '../context/DoctorContext'
-import { Building2, CalendarClock, CalendarPlus, ClipboardList, CreditCard, LayoutTemplate, ShieldCheck, UserCog, UserRound } from 'lucide-react'
+import { Building2, CalendarClock, CalendarPlus, ClipboardList, CreditCard, LayoutTemplate, PanelBottom, ShieldCheck, UserCog, UserRound } from 'lucide-react'
 import { ReceptionistContext } from '../context/ReceptionistContext'
 import { useLanguage } from '../i18n'
 
@@ -101,6 +101,28 @@ const Sidebar = () => {
             >
             <LayoutTemplate className='w-5 sm:w-5 md:w-6 flex-shrink-0 text-gray-800' />
             <p className='hidden md:block text-sm lg:text-base'>Home Hero</p>
+          </NavLink>
+
+          <NavLink
+            className={({ isActive }) =>
+              `flex items-center gap-2 md:gap-3 py-3 md:py-3.5 px-2 sm:px-3 md:px-6 cursor-pointer hover:bg-gray-50 transition-colors
+            ${isActive ? 'bg-[#F2F3FF] border-r-4 border-primary' : ''}`
+            }
+            to={'/home-banner-settings'}
+            >
+            <LayoutTemplate className='w-5 sm:w-5 md:w-6 flex-shrink-0 text-gray-800' />
+            <p className='hidden md:block text-sm lg:text-base'>Home Banner</p>
+          </NavLink>
+
+          <NavLink
+            className={({ isActive }) =>
+              `flex items-center gap-2 md:gap-3 py-3 md:py-3.5 px-2 sm:px-3 md:px-6 cursor-pointer hover:bg-gray-50 transition-colors
+            ${isActive ? 'bg-[#F2F3FF] border-r-4 border-primary' : ''}`
+            }
+            to={'/footer-settings'}
+            >
+            <PanelBottom className='w-5 sm:w-5 md:w-6 flex-shrink-0 text-gray-800' />
+            <p className='hidden md:block text-sm lg:text-base'>Footer</p>
           </NavLink>
 
           <NavLink

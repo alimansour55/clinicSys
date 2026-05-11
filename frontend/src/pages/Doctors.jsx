@@ -2,7 +2,8 @@ import React, { useContext, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
 import { specialityData } from '../assets/assets'
-import { Search, X } from 'lucide-react'
+import { MapPin, Search, X } from 'lucide-react'
+import { RatingBadge } from '../components/DoctorRating'
 
 const defaultClinicNames = [
   'General physician',
@@ -28,12 +29,19 @@ const Doctors = () => {
     return [...new Set(names.filter(Boolean))]
   }, [clinics])
 
+  const consultationMode = searchParams.get('consultation')
+  const teleconsultationMode = consultationMode === 'tele'
+  const homeVisitMode = consultationMode === 'home'
   const selectedSpeciality = specialityFilters.includes(speciality) ? speciality : ''
   const selectedClinic = searchParams.get('clinic') || (!selectedSpeciality ? speciality || '' : '')
 
   const buildDoctorPath = (nextSpeciality = selectedSpeciality, nextClinic = selectedClinic) => {
     const path = nextSpeciality ? `/doctors/${encodeURIComponent(nextSpeciality)}` : '/doctors'
-    const query = nextClinic ? `?clinic=${encodeURIComponent(nextClinic)}` : ''
+    const params = new URLSearchParams()
+    if (nextClinic) params.set('clinic', nextClinic)
+    if (teleconsultationMode) params.set('consultation', 'tele')
+    if (homeVisitMode) params.set('consultation', 'home')
+    const query = params.toString() ? `?${params.toString()}` : ''
     return `${path}${query}`
   }
 
@@ -62,15 +70,22 @@ const Doctors = () => {
 
   const clearFilters = () => {
     setSearchTerm('')
-    navigate('/doctors')
+    navigate(consultationMode ? `/doctors?consultation=${consultationMode}` : '/doctors')
+  }
+
+  const getDoctorLocation = (doctor) => {
+    const locations = doctor.locations?.length
+      ? doctor.locations
+      : (doctor.clinics || []).map((clinic) => clinic.name || clinic)
+    return locations.filter(Boolean).join(', ') || [doctor.address?.line1, doctor.address?.line2].filter(Boolean).join(', ')
   }
 
   return (
     <div>
       <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6'>
         <div>
-          <h1 className='text-xl sm:text-2xl font-bold text-gray-900'>Find Your Doctor</h1>
-          <p className='text-sm sm:text-base text-gray-600 mt-1'>Browse doctors by speciality, clinic, or name</p>
+          <h1 className='text-xl sm:text-2xl font-bold text-gray-900'>{teleconsultationMode ? 'Book a Teleconsultation' : homeVisitMode ? 'Book a Home Visit' : 'Find Your Doctor'}</h1>
+          <p className='text-sm sm:text-base text-gray-600 mt-1'>{teleconsultationMode ? 'Choose any doctor, then select voice or video call on the booking page' : homeVisitMode ? 'Choose any doctor, then add a supported Cairo or Giza visit address' : 'Browse doctors by speciality, clinic, or name'}</p>
         </div>
 
         {token && (
@@ -150,11 +165,14 @@ const Doctors = () => {
         <div className='w-full grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4'>
           {filterDoc.length > 0 ? filterDoc.map((item, index) => (
             <div
-              onClick={() => navigate(`/appointment/${item._id}`)}
+              onClick={() => navigate(`/appointment/${item._id}${consultationMode ? `?consultation=${consultationMode}` : ''}`)}
               className='border border-blue-200 rounded-xl overflow-hidden cursor-pointer hover:translate-y-[-10px] transition-all duration-500'
               key={index}
             >
-              <img className='bg-blue-50 w-full h-40 sm:h-56 object-cover' src={item.image} alt='' />
+              <div className='relative'>
+                <img className='bg-blue-50 w-full h-40 sm:h-56 object-cover' src={item.image} alt='' />
+                <RatingBadge summary={item.ratingSummary} className='absolute left-2 top-2' />
+              </div>
 
               <div className='p-3 sm:p-4'>
                 <div className={`flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm ${item.available ? 'text-green-500' : 'text-gray-500'} `}>
@@ -163,11 +181,10 @@ const Doctors = () => {
                 </div>
                 <p className='text-gray-900 text-sm sm:text-lg font-medium mt-2 line-clamp-2'>{item.name}</p>
                 <p className='text-gray-600 text-xs sm:text-sm mt-1'>{item.speciality}</p>
-                {(item.clinics || []).length > 0 && (
-                  <p className='text-gray-500 text-xs mt-1 line-clamp-1'>
-                    {(item.clinics || []).map((clinic) => clinic.name || clinic).join(', ')}
-                  </p>
-                )}
+                <p className='mt-2 flex items-center gap-1.5 text-gray-500 text-xs line-clamp-1'>
+                  <MapPin className='h-3.5 w-3.5 shrink-0 text-blue-500' />
+                  <span className='truncate'>{getDoctorLocation(item) || 'Clinic location'}</span>
+                </p>
               </div>
             </div>
           )) : (

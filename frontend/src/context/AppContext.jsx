@@ -156,6 +156,129 @@ const AppContextProvider = (props) => {
     }
   }
 
+  const getDoctorRatings = async (docId) => {
+    try {
+      const { data } = await axios.get(backendUrl + `/api/user/doctor-ratings/${docId}`)
+      if (data.success) return data
+
+      toast.error(data.message)
+      return { summary: { averageRating: 0, ratingCount: 0 }, ratings: [] }
+    } catch (error) {
+      console.log(error)
+      toast.error(error.message)
+      return { summary: { averageRating: 0, ratingCount: 0 }, ratings: [] }
+    }
+  }
+
+  const createDoctorRating = async (appointmentId, rating, comment) => {
+    try {
+      const { data } = await axios.post(
+        backendUrl + '/api/user/ratings',
+        { appointmentId, rating, comment },
+        { headers: { token } }
+      )
+
+      if (data.success) {
+        toast.success(data.message)
+        await getUserAppointments()
+        await getDoctorsData()
+        return data.rating
+      }
+
+      toast.error(data.message)
+      return null
+    } catch (error) {
+      console.log(error)
+      toast.error(error.message)
+      return null
+    }
+  }
+
+  const createPaymentIntent = async (appointmentId) => {
+    try {
+      const { data } = await axios.post(
+        backendUrl + '/api/user/create-payment-intent',
+        { appointmentId },
+        { headers: { token } }
+      )
+
+      if (data.success) return data
+
+      toast.error(data.message)
+      return null
+    } catch (error) {
+      console.log(error)
+      toast.error(error.message)
+      return null
+    }
+  }
+
+  const createBookingPaymentIntent = async (bookingDetails) => {
+    try {
+      const { data } = await axios.post(
+        backendUrl + '/api/user/create-booking-payment-intent',
+        bookingDetails,
+        { headers: { token } }
+      )
+
+      if (data.success) return data
+
+      toast.error(data.message)
+      return null
+    } catch (error) {
+      console.log(error)
+      toast.error(error.message)
+      return null
+    }
+  }
+
+  const confirmBookingStripePayment = async (paymentIntentId) => {
+    try {
+      const { data } = await axios.post(
+        backendUrl + '/api/user/confirm-booking-payment-intent',
+        { paymentIntentId },
+        { headers: { token } }
+      )
+
+      if (data.success) {
+        toast.success(data.message)
+        await getUserAppointments()
+        await getDoctorsData()
+        return data.appointment
+      }
+
+      toast.error(data.message)
+      return null
+    } catch (error) {
+      console.log(error)
+      toast.error(error.message)
+      return null
+    }
+  }
+
+  const confirmStripePayment = async (appointmentId, paymentIntentId) => {
+    try {
+      const { data } = await axios.post(
+        backendUrl + '/api/user/confirm-payment-intent',
+        { appointmentId, paymentIntentId },
+        { headers: { token } }
+      )
+
+      if (data.success) {
+        toast.success(data.message)
+        await getUserAppointments()
+        return data.appointment
+      }
+
+      toast.error(data.message)
+      return null
+    } catch (error) {
+      console.log(error)
+      toast.error(error.message)
+      return null
+    }
+  }
+
   const getMedicalHistory = async () => {
     try {
       const { data } = await axios.get(backendUrl + '/api/user/medical-history', { headers: { token } })
@@ -315,7 +438,13 @@ const AppContextProvider = (props) => {
     loadUserProfileData,
     getUserAppointments,
     cancelAppointment,
+    createBookingPaymentIntent,
+    confirmBookingStripePayment,
+    createPaymentIntent,
+    confirmStripePayment,
     getUserPrescription,
+    getDoctorRatings,
+    createDoctorRating,
     getMedicalHistory,
     saveMedicalHistory,
     saveInsurance,

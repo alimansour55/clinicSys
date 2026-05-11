@@ -1,23 +1,28 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, CreditCard, FileText, Search, X } from "lucide-react";
+import { CheckCircle2, CreditCard, ExternalLink, FileText, Home, Phone, Search, Video, X } from "lucide-react";
 import { ReceptionistContext } from "../../context/ReceptionistContext";
 import { AppContext } from "../../context/AppContext";
+import { emptyHomeVisitAddress, formatHomeVisitAddress, supportedHomeVisitAreas } from "../../utils/homeVisitAreas";
 
 const appointmentStatuses = ["Booked", "Checked In", "In Progress", "Finished", "Cancelled"];
 const paymentMethods = ["Cash", "Visa"];
 
 const ReceptionistAppointments = () => {
-  const { rToken, appointments, getReceptionistAppointments, updateAppointmentStatus, checkInPatient, updatePayment } = useContext(ReceptionistContext);
+  const { rToken, appointments, getReceptionistAppointments, updateAppointmentStatus, checkInPatient, updatePayment, updateHomeVisitAddress } = useContext(ReceptionistContext);
   const { calculateAge, slotDateFormat, currency } = useContext(AppContext);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentDrafts, setPaymentDrafts] = useState({});
+  const [homeAddressDrafts, setHomeAddressDrafts] = useState({});
 
   useEffect(() => {
     if (rToken) getReceptionistAppointments();
   }, [rToken]);
 
   const getStatus = (item) => item.appointmentStatus || (item.cancelled ? "Cancelled" : item.isCompleted ? "Finished" : "Booked");
+  const getAppointmentMode = (item) => item.appointmentType || "Clinic";
+  const isRemoteAppointment = (item) => ["Voice Call", "Video Call"].includes(getAppointmentMode(item));
+  const isHomeVisit = (item) => getAppointmentMode(item) === "Home Visit";
 
   const filteredAppointments = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -66,6 +71,9 @@ const ReceptionistAppointments = () => {
       paymentNote: draft.paymentNote
     });
   };
+
+  const getHomeAddressDraft = (item) => homeAddressDrafts[item._id] || { ...emptyHomeVisitAddress, ...(item.homeVisitAddress || {}) };
+  const setHomeAddressDraft = (appointmentId, patch) => setHomeAddressDrafts((prev) => ({ ...prev, [appointmentId]: { ...(prev[appointmentId] || {}), ...patch } }));
 
   return (
     <div className="w-full p-3 sm:p-5 md:p-6 lg:p-8">
@@ -125,12 +133,49 @@ const ReceptionistAppointments = () => {
                   <div>
                     <p className="font-medium text-gray-800">{item.docData.name}</p>
                     <p className="text-xs text-gray-500">{item.docData.speciality}</p>
+                    <p className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${isRemoteAppointment(item) ? "bg-sky-50 text-sky-700" : "bg-gray-100 text-gray-700"}`}>
+                      {getAppointmentMode(item) === "Video Call" ? <Video className="h-3 w-3" /> : getAppointmentMode(item) === "Voice Call" ? <Phone className="h-3 w-3" /> : isHomeVisit(item) ? <Home className="h-3 w-3" /> : null}
+                      {getAppointmentMode(item)}
+                    </p>
                   </div>
-                  <p>{slotDateFormat(item.slotDate)}, {item.slotTime}</p>
+                  <div>
+                    <p>{slotDateFormat(item.slotDate)}, {item.slotTime}</p>
+                    {isRemoteAppointment(item) && item.teleconsultationLink && (
+                      <a href={item.teleconsultationLink} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+                        Call room <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                    {!isRemoteAppointment(item) && item.clinicLocation && (
+                      <p className="mt-1 text-xs text-gray-500">{item.clinicLocation}</p>
+                    )}
+                    {isHomeVisit(item) && (
+                      <p className="mt-1 text-xs text-emerald-700">{formatHomeVisitAddress(item.homeVisitAddress) || "No home address"}</p>
+                    )}
+                  </div>
                   <select value={status} onChange={(e) => updateAppointmentStatus(item._id, e.target.value)} className={`rounded-lg px-3 py-2 text-xs font-semibold outline-none ${statusClass(status)}`}>
                     {appointmentStatuses.map((option) => <option key={option} value={option}>{option}</option>)}
                   </select>
                   <div className="space-y-2">
+                    {isHomeVisit(item) && (() => {
+                      const addressDraft = getHomeAddressDraft(item);
+                      return (
+                        <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-2">
+                          <p className="mb-2 text-xs font-bold text-emerald-800">Home visit address</p>
+                          <select value={addressDraft.area} onChange={(e) => setHomeAddressDraft(item._id, { area: e.target.value })} className="mb-2 w-full rounded-lg border px-2 py-1.5 text-xs">
+                            <option value="">Choose area</option>
+                            {supportedHomeVisitAreas.map((area) => <option key={area} value={area}>{area}</option>)}
+                          </select>
+                          <input value={addressDraft.street} onChange={(e) => setHomeAddressDraft(item._id, { street: e.target.value })} className="mb-2 w-full rounded-lg border px-2 py-1.5 text-xs" placeholder="Street name and number" />
+                          <div className="mb-2 grid grid-cols-3 gap-1">
+                            <input value={addressDraft.building} onChange={(e) => setHomeAddressDraft(item._id, { building: e.target.value })} className="rounded-lg border px-2 py-1.5 text-xs" placeholder="Building" />
+                            <input value={addressDraft.floor} onChange={(e) => setHomeAddressDraft(item._id, { floor: e.target.value })} className="rounded-lg border px-2 py-1.5 text-xs" placeholder="Floor" />
+                            <input value={addressDraft.apartment} onChange={(e) => setHomeAddressDraft(item._id, { apartment: e.target.value })} className="rounded-lg border px-2 py-1.5 text-xs" placeholder="Apt" />
+                          </div>
+                          <input value={addressDraft.notes} onChange={(e) => setHomeAddressDraft(item._id, { notes: e.target.value })} className="mb-2 w-full rounded-lg border px-2 py-1.5 text-xs" placeholder="Notes" />
+                          <button type="button" onClick={() => updateHomeVisitAddress(item._id, addressDraft)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white">Save address</button>
+                        </div>
+                      );
+                    })()}
                     <select value={draft.paymentStatus} onChange={(e) => setPaymentDraft(item._id, { paymentStatus: e.target.value })} className={`w-full rounded-lg px-3 py-2 text-xs font-semibold outline-none ${isPaid ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
                       <option value="Not Paid">Not Paid</option>
                       <option value="Paid">Paid</option>
@@ -147,6 +192,9 @@ const ReceptionistAppointments = () => {
                       Use insurance
                     </label>
                     <p className="text-xs font-semibold text-gray-700">Final: {currency}{finalAmount}</p>
+                    {item.refundStatus && item.refundStatus !== "Not Refunded" && (
+                      <p className="text-xs font-semibold text-blue-700">{item.refundStatus}</p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button onClick={() => checkInPatient(item._id)} disabled={status === "Checked In" || status === "Finished" || status === "Cancelled"} className="flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 disabled:opacity-40">

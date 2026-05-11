@@ -13,6 +13,8 @@ const emptyInsurance = {
   medicalCardPhoto: ''
 }
 
+const today = new Date().toISOString().split('T')[0]
+
 const Insurance = () => {
   const { token, userData, saveInsurance } = useContext(AppContext)
   const navigate = useNavigate()
@@ -93,7 +95,7 @@ const Insurance = () => {
               </div>
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1'>Birth Date *</label>
-                <input type='date' value={insurance.birthDate} onChange={(e) => setInsurance((prev) => ({ ...prev, birthDate: e.target.value }))} className='w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20' required />
+                <input type='date' max={today} value={insurance.birthDate} onChange={(e) => setInsurance((prev) => ({ ...prev, birthDate: e.target.value }))} className='w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20' required />
               </div>
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1'>ID Number *</label>

@@ -7,11 +7,15 @@ import doctorModel from '../models/doctorModel.js'
 import appointmentModel from '../models/appointmentModel.js'
 import prescriptionModel from '../models/prescriptionModel.js'
 import counterModel from '../models/counterModel.js'
+import ratingModel from '../models/ratingModel.js'
 import { PASSWORD_RESET_TEMPLATE } from "../config/EmailTemplates.js";
 import transporter from "../config/nodemailer.js";
 import { createJwtPayload } from '../middlewares/rbac.js'
 import { logAudit } from '../services/auditService.js'
 import { isSlotAllowedBySchedule } from '../services/scheduleService.js'
+import { buildTeleconsultationLink, normalizeAppointmentType } from '../services/appointmentModeService.js'
+import { normalizeHomeVisitAddress, validateHomeVisitAddress } from '../services/homeVisitService.js'
+import { refundAppointmentPayment } from './paymentController.js'
 
 
 
@@ -28,6 +32,16 @@ const getNextPatientId = async () => {
 const parseBoolean = (value) => value === true || value === 'true' || value === 'on' || value === '1'
 
 const normalizePhone = (phone = '') => String(phone).trim()
+
+const isPastDate = (value) => {
+  if (!value || typeof value !== 'string') return false
+  const date = new Date(`${value}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) return false
+
+  const today = new Date()
+  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()))
+  return date < todayUtc
+}
 
 const buildInsuranceData = async (body = {}, file, existingInsurance = {}, updatedBy = 'patient') => {
   const enabled = parseBoolean(body.insuranceEnabled)
@@ -60,6 +74,10 @@ const buildInsuranceData = async (body = {}, file, existingInsurance = {}, updat
     throw new Error('Please complete all insurance fields')
   }
 
+  if (!isPastDate(insurance.birthDate)) {
+    throw new Error('Insurance birth date must be in the past')
+  }
+
   if (!file && !insurance.medicalCardPhoto) {
     throw new Error('Please attach a photo of the medical card')
   }
@@ -83,6 +101,10 @@ const registerUser = async (req, res) => {
 
         if (!name || !password || !email || !phone || !dob) {
             return res.json({success: false, message: 'Missing Details'});
+        }
+
+        if (!isPastDate(dob)) {
+            return res.json({success: false, message: 'Birth date must be in the past'});
         }
 
         if (!validator.isEmail(email)) {
@@ -391,6 +413,10 @@ const updateProfile = async (req,res) => {
       return res.json({success: false, message:"Data Missing"})
     }
 
+    if (!isPastDate(dob)) {
+      return res.json({ success: false, message: 'Birth date must be in the past' })
+    }
+
     const existingPhone = await userModel.findOne({ phone: normalizePhone(phone), _id: { $ne: userId } })
     if (existingPhone) {
       return res.json({ success: false, message: 'Phone number already registered' })
@@ -518,10 +544,6 @@ const createMedicalHistory = async (req, res) => {
 const updateMedicalHistory = async (req, res) => {
   return saveMedicalHistory(req, res, 'Medical history updated')
 }
-
-
-
-
 //  API to book appointment
 const bookAppointment = async (req,res) => {
 
@@ -529,6 +551,18 @@ const bookAppointment = async (req,res) => {
     
     const userId = req.user.userId; 
     const { docId, slotDate, slotTime } = req.body;
+    const clinicLocation = String(req.body.clinicLocation || '').trim()
+    const paymentMethod = String(req.body.paymentMethod || 'Cash').trim()
+    const appointmentType = normalizeAppointmentType(req.body.appointmentType)
+    const homeVisitAddress = normalizeHomeVisitAddress(req.body.homeVisitAddress || {})
+
+    if (!['Cash', 'Visa'].includes(paymentMethod)) {
+      return res.json({ success: false, message: 'Please choose Cash or Visa payment method' })
+    }
+    if (appointmentType === 'Home Visit') {
+      const addressError = validateHomeVisitAddress(homeVisitAddress)
+      if (addressError) return res.json({ success: false, message: addressError })
+    }
     const docData = await doctorModel.findById(docId).select('-password')
 
     const scheduleCheck = isSlotAllowedBySchedule(docData, slotDate, slotTime)
@@ -555,7 +589,11 @@ const bookAppointment = async (req,res) => {
     const appointmentDocData = docData.toObject()
     delete appointmentDocData.slots_booked
     
+    const appointmentId = new appointmentModel()._id
+    const teleconsultationLink = ['Voice Call', 'Video Call'].includes(appointmentType) ? buildTeleconsultationLink({ appointmentId, docId, userId, slotDate, slotTime }) : ''
+
     const appointmentData = {
+      _id: appointmentId,
       userId,
       docId,
       userData,
@@ -564,9 +602,14 @@ const bookAppointment = async (req,res) => {
       originalAmount: Number(docData.fees),
       slotTime, 
       slotDate,
+      clinicLocation: appointmentType === 'Clinic' ? clinicLocation : '',
+      appointmentType,
+      teleconsultationLink,
+      homeVisitAddress: appointmentType === 'Home Visit' ? { ...homeVisitAddress, updatedBy: 'Patient', updatedAt: Date.now() } : {},
       date: Date.now(),
       appointmentStatus: 'Booked',
       paymentStatus: 'Not Paid',
+      paymentMethod,
       bookedBy: 'Patient'
     }
 
@@ -588,12 +631,13 @@ const bookAppointment = async (req,res) => {
         doctorId: docId,
         doctorName: docData.name,
         slotDate,
-        slotTime
+        slotTime,
+        appointmentType
       },
       req
     })
 
-    res.json({success: true, message: 'Appointment Booked'})
+    res.json({success: true, message: 'Appointment Booked', appointment: newAppointment})
   } catch (error) {
     console.log(error)
     res.json({success: false, message: error.message})
@@ -610,9 +654,21 @@ const listAppointment = async (req,res) => {
   try {
     
    const userId = req.user.userId;  
-   const appointments = await appointmentModel.find({userId})
+   const appointments = await appointmentModel.find({userId}).lean()
+   const ratings = await ratingModel.find({
+     userId,
+     appointmentId: { $in: appointments.map((item) => item._id.toString()) }
+   }).lean()
+   const ratingsByAppointment = ratings.reduce((acc, rating) => {
+     acc[rating.appointmentId] = rating
+     return acc
+   }, {})
+   const appointmentsWithRatings = appointments.map((appointment) => ({
+     ...appointment,
+     myRating: ratingsByAppointment[appointment._id.toString()] || null
+   }))
    
-   res.json({ success: true, appointments })
+   res.json({ success: true, appointments: appointmentsWithRatings })
 
   } catch (error) {
     console.log(error)
@@ -648,6 +704,12 @@ const cancelAppointment = async (req,res) => {
      return res.json({success: false, message: 'Unauthorized action'})
    }
 
+   let refundMessage = ''
+   if (appointmentData.paymentStatus === 'Paid' && appointmentData.paymentMethod === 'Visa') {
+     const refundResult = await refundAppointmentPayment({ appointment: appointmentData, appointmentId, requestedBy: 'patient', req })
+     refundMessage = refundResult.refunded ? ' Refund requested.' : ''
+   }
+
    await appointmentModel.findByIdAndUpdate(appointmentId, {cancelled: true, appointmentStatus: 'Cancelled', statusUpdatedAt: Date.now()})
 
    // releasing doctor slot
@@ -676,7 +738,7 @@ const cancelAppointment = async (req,res) => {
      req
    })
 
-   res.json({success: true, message:'Appointment Cancelled'})
+   res.json({success: true, message:`Appointment Cancelled${refundMessage}`})
 
 
   } catch (error) {
@@ -722,4 +784,4 @@ const getUserPrescription = async (req, res) => {
 
 
 
-export { registerUser, loginUser, getProfile, updateProfile, updateInsurance, getMedicalHistory, createMedicalHistory, updateMedicalHistory, bookAppointment, listAppointment, cancelAppointment, getUserPrescription, buildInsuranceData, getNextPatientId }
+export { registerUser, loginUser, getProfile, updateProfile, updateInsurance, getMedicalHistory, createMedicalHistory, updateMedicalHistory, bookAppointment, listAppointment, cancelAppointment, getUserPrescription, buildInsuranceData, getNextPatientId, isPastDate }

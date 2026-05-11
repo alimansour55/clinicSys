@@ -1,11 +1,19 @@
 import React, { useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
+import { RatingBadge } from './DoctorRating'
+import { MapPin } from 'lucide-react'
 
 const TopDoctors = () => {
 
    const navigate = useNavigate()
    const { doctors, t, tc } = useContext(AppContext)
+   const getDoctorLocation = (doctor) => {
+     const locations = doctor.locations?.length
+       ? doctor.locations
+       : (doctor.clinics || []).map((clinic) => clinic.name || clinic)
+     return locations.filter(Boolean).join(', ') || [doctor.address?.line1, doctor.address?.line2].filter(Boolean).join(', ')
+   }
 
   return (
     <div className='flex flex-col items-center gap-4 py-16 text-gray-800'>
@@ -28,7 +36,10 @@ const TopDoctors = () => {
               className='border border-blue-200 rounded-xl overflow-hidden cursor-pointer hover:translate-y-[-10px] transition-all duration-500' 
               key={index}
             >
-               <img className='bg-blue-50 w-full h-40 sm:h-56 object-cover' src={item.image} alt="" />
+               <div className='relative'>
+                 <img className='bg-blue-50 w-full h-40 sm:h-56 object-cover' src={item.image} alt="" />
+                 <RatingBadge summary={item.ratingSummary} className='absolute left-2 top-2' />
+               </div>
               
                <div className='p-3 sm:p-4'>
                 <div className={`flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm ${item.available ? 'text-green-500' : 'text-gray-500'}`}>
@@ -37,6 +48,10 @@ const TopDoctors = () => {
                 </div>
                  <p className='text-gray-900 text-sm sm:text-lg font-medium mt-2 line-clamp-2'>{item.name}</p>
                  <p className='text-gray-600 text-xs sm:text-sm mt-1'>{tc(item.speciality)}</p>
+                 <p className='mt-2 flex items-center gap-1.5 text-gray-500 text-xs sm:text-sm line-clamp-1'>
+                   <MapPin className='h-3.5 w-3.5 shrink-0 text-blue-500' />
+                   <span className='truncate'>{getDoctorLocation(item) || 'Clinic location'}</span>
+                 </p>
                </div>
             </div>   
         ))}

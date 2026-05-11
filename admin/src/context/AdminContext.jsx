@@ -334,6 +334,87 @@ const AdminContextProvider = (props) => {
       }
     }
 
+    const updateHomeBannerSettings = async (formData) => {
+      try {
+        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/home-banner', formData, {headers: {aToken}})
+        if(data.success) {
+          toast.success(data.message)
+          setSiteSettings(data.settings)
+          return true
+        }
+
+        toast.error(data.message)
+        return false
+      } catch (error) {
+        toast.error(error.message)
+        return false
+      }
+    }
+
+    const updateHomeServiceCardsSettings = async (formData) => {
+      try {
+        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/home-service-cards', formData, {headers: {aToken}})
+        if(data.success) {
+          toast.success(data.message)
+          setSiteSettings(data.settings)
+          return true
+        }
+
+        toast.error(data.message)
+        return false
+      } catch (error) {
+        toast.error(error.message)
+        return false
+      }
+    }
+
+    const updateFooterSettings = async (footerData) => {
+      try {
+        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/footer', footerData, {headers: {aToken}})
+        if(data.success) {
+          toast.success(data.message)
+          setSiteSettings(data.settings)
+          return true
+        }
+
+        toast.error(data.message)
+        return false
+      } catch (error) {
+        toast.error(error.message)
+        return false
+      }
+    }
+
+    const getDoctorRatings = async (docId) => {
+      try {
+        const { data } = await axios.get(backendUrl + `/api/admin/doctor-ratings/${docId}`, {headers: {aToken}})
+        if(data.success) return data
+
+        toast.error(data.message)
+        return { summary: { averageRating: 0, ratingCount: 0 }, ratings: [] }
+      } catch (error) {
+        toast.error(error.message)
+        return { summary: { averageRating: 0, ratingCount: 0 }, ratings: [] }
+      }
+    }
+
+    const deleteDoctorRating = async (ratingId) => {
+      try {
+        const { data } = await axios.post(backendUrl + '/api/admin/delete-rating', {ratingId}, {headers: {aToken}})
+        if(data.success) {
+          toast.success(data.message)
+          await getAllDoctors()
+          return true
+        }
+
+        toast.error(data.message)
+        return false
+      } catch (error) {
+        toast.error(error.message)
+        return false
+      }
+    }
+
     
 
     const value = {
@@ -351,7 +432,8 @@ const AdminContextProvider = (props) => {
        deleteAppointmentHistory,
        receptionists, getReceptionists, changeReceptionistStatus,
        clinics, allowedClinics, getClinics, createClinic, updateClinic, deleteClinic, assignDoctorsToClinic,
-       siteSettings, getSiteSettings, updateHomeHeroSettings
+       siteSettings, getSiteSettings, updateHomeHeroSettings, updateHomeBannerSettings, updateHomeServiceCardsSettings, updateFooterSettings,
+       getDoctorRatings, deleteDoctorRating
     }
 
     return (

@@ -5,6 +5,8 @@ import { AppContext } from '../../context/AppContext'
 import { useEffect } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import { RatingBadge, RatingsList, StarRow } from '../../components/DoctorRating'
+import { MapPin, Plus } from 'lucide-react'
 
 const dayOptions = [
   { value: 0, label: 'Sun' },
@@ -29,15 +31,18 @@ const todayKey = new Date().toISOString().slice(0, 10)
 
 const DoctorProfile = () => {
 
-  const { dToken, profileData, setProfileData, getProfileData, backendUrl } = useContext(DoctorContext)
+  const { dToken, profileData, setProfileData, getProfileData, getDoctorRatings, backendUrl } = useContext(DoctorContext)
   const { currency } = useContext(AppContext)
 
   const [isEdit, setIsEdit] = useState(false)
+  const [ratingsData, setRatingsData] = useState({ summary: { averageRating: 0, ratingCount: 0 }, ratings: [] })
+  const [ratingsLoading, setRatingsLoading] = useState(false)
 
   const updateProfile = async () => {
     try {
     const updateData = {
       address: profileData.address,
+      locations: (profileData.locations || []).map((location) => location.trim()).filter(Boolean),
       fees: profileData.fees,
       available: profileData.available,
       schedule: { ...defaultSchedule, ...(profileData.schedule || {}) },
@@ -59,6 +64,13 @@ const DoctorProfile = () => {
   useEffect(()=>{
     if(dToken){
       getProfileData()
+      const loadRatings = async () => {
+        setRatingsLoading(true)
+        const data = await getDoctorRatings()
+        setRatingsData(data)
+        setRatingsLoading(false)
+      }
+      loadRatings()
     }
   },[dToken])
 
@@ -93,13 +105,26 @@ const DoctorProfile = () => {
   }
   const removeBlockedDate = (value) => updateSchedule({ blockedDates: schedule.blockedDates.filter(item => item !== value) })
 
+  const locations = profileData.locations?.length ? profileData.locations : ['']
+  const updateLocation = (index, value) => {
+    setProfileData(prev => ({
+      ...prev,
+      locations: (prev.locations?.length ? prev.locations : ['']).map((location, itemIndex) => itemIndex === index ? value : location)
+    }))
+  }
+  const addLocation = () => setProfileData(prev => ({ ...prev, locations: [...(prev.locations || []), ''] }))
+  const removeLocation = (index) => setProfileData(prev => ({ ...prev, locations: (prev.locations || []).filter((_, itemIndex) => itemIndex !== index) }))
+
 
   return profileData && (
     <div>
       
      <div className='flex flex-col gap-4 m-5'>
       <div>
-        <img className='bg-primary/80 w-full sm:max-w-64 rounded-lg' src={profileData.image} alt="" />
+        <div className='relative w-full sm:max-w-64'>
+          <img className='bg-primary/80 w-full rounded-lg' src={profileData.image} alt="" />
+          <RatingBadge summary={profileData.ratingSummary || ratingsData.summary} className='absolute left-3 top-3' />
+        </div>
       </div>
 
       <div className='flex-1 border border-stone-100 rounded-lg p-8 py-7 bg-white'>
@@ -130,9 +155,45 @@ const DoctorProfile = () => {
           </p>
         </div>
 
+        <div className='mt-4 rounded-lg border border-blue-100 bg-blue-50 p-4'>
+          <p className='flex items-center gap-2 text-sm font-semibold text-gray-800'>
+            <MapPin className='h-4 w-4 text-blue-600' />
+            Clinic locations
+          </p>
+          {isEdit ? (
+            <div className='mt-3 space-y-2'>
+              {locations.map((location, index) => (
+                <div key={index} className='flex items-center gap-2'>
+                  <input className='w-full rounded-lg border px-3 py-2 text-sm' type='text' value={location} onChange={(e) => updateLocation(index, e.target.value)} placeholder='e.g., Mohandseen' />
+                  {locations.length > 1 && <button type='button' onClick={() => removeLocation(index)} className='rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600'>Remove</button>}
+                </div>
+              ))}
+              <button type='button' onClick={addLocation} className='inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700'>
+                <Plus className='h-4 w-4' />
+                Add location
+              </button>
+            </div>
+          ) : (
+            <p className='mt-2 text-sm text-gray-700'>{profileData.locations?.length ? profileData.locations.join(', ') : 'No extra locations added'}</p>
+          )}
+        </div>
+
         <div className='flex gap-1 pt-2'>
           <input onChange={() => isEdit && setProfileData(prev => ({...prev, available: !prev.available}))} checked={profileData.available} type="checkbox" name='' id='' />
           <label htmlFor="">Accepting appointments</label>
+        </div>
+
+        <div className='mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4'>
+          <p className='text-lg font-semibold text-gray-800'>Patient Ratings</p>
+          <div className='mt-2 flex items-center gap-2 text-sm text-gray-700'>
+            <StarRow value={ratingsData.summary?.averageRating || profileData.ratingSummary?.averageRating} />
+            {ratingsData.summary?.ratingCount || profileData.ratingSummary?.ratingCount
+              ? `${Number(ratingsData.summary?.averageRating || profileData.ratingSummary?.averageRating || 0).toFixed(1)} from ${ratingsData.summary?.ratingCount || profileData.ratingSummary?.ratingCount} ratings`
+              : 'No ratings yet'}
+          </div>
+          <div className='mt-4'>
+            {ratingsLoading ? <p className='text-sm text-gray-500'>Loading ratings...</p> : <RatingsList ratings={ratingsData.ratings} />}
+          </div>
         </div>
 
         <div className='mt-6 border-t border-gray-100 pt-5'>

@@ -11,6 +11,8 @@ import clinicModel from '../models/clinicModel.js'
 import { addReceptionist, allReceptionists, changeReceptionistStatus } from './receptionistController.js'
 import { createJwtPayload } from '../middlewares/rbac.js'
 import { logAudit } from '../services/auditService.js'
+import { refundAppointmentPayment } from './paymentController.js'
+import { attachRatingSummariesToDoctors } from './ratingController.js'
 
 const normalizeClinicIds = (clinicIds) => {
   if (!clinicIds) return []
@@ -22,6 +24,20 @@ const normalizeClinicIds = (clinicIds) => {
   } catch {
     return []
   }
+}
+
+const normalizeDoctorLocations = (locations) => {
+  if (!locations) return []
+  const list = Array.isArray(locations) ? locations : (() => {
+    try {
+      const parsed = JSON.parse(locations)
+      return Array.isArray(parsed) ? parsed : String(locations).split(',')
+    } catch {
+      return String(locations).split(',')
+    }
+  })()
+
+  return [...new Set(list.map((location) => String(location || '').trim()).filter(Boolean))]
 }
 
 const parseSlotDate = (slotDate) => {
@@ -70,6 +86,7 @@ const addDoctor = async (req,res) => {
     
     const { name, email, password, phone, speciality, degree, experience, about, fees, address } = req.body
     const clinicIds = normalizeClinicIds(req.body.clinicIds)
+    const locations = normalizeDoctorLocations(req.body.locations)
     const imageFile = req.file
 
     // checking for all data to add doctor
@@ -113,6 +130,7 @@ const addDoctor = async (req,res) => {
         about,
         fees,
         address:JSON.parse(address),
+        locations,
         clinics: clinicIds,
         date:Date.now()
     }
@@ -162,6 +180,7 @@ const updateDoctorByAdmin = async (req, res) => {
       about,
       fees,
       address,
+      locations,
     } = req.body
 
     const imageFile = req.file
@@ -208,6 +227,7 @@ const updateDoctorByAdmin = async (req, res) => {
     if (address) {
       addressObj = typeof address === 'string' ? JSON.parse(address) : address
     }
+    const nextLocations = locations ? normalizeDoctorLocations(locations) : doctor.locations
 
     // Update data
     const updatedData = {
@@ -221,6 +241,7 @@ const updateDoctorByAdmin = async (req, res) => {
       about: about || doctor.about,
       fees: fees || doctor.fees,
       address: addressObj,  // Object me save hoga
+      locations: nextLocations,
       image: imageUrl
     }
 
@@ -300,7 +321,8 @@ const loginAdmin = async (req, res) => {
 const allDoctors = async (req,res) => {
    try {
     const doctors = await doctorModel.find({}).select('-password').populate('clinics')
-    res.json({success: true, doctors})
+    const doctorsWithRatings = await attachRatingSummariesToDoctors(doctors)
+    res.json({success: true, doctors: doctorsWithRatings})
 
    } catch (error) {
       console.log(error)
@@ -499,6 +521,12 @@ const appointmentCancel = async (req,res) => {
 
    const appointmentData = await appointmentModel.findById(appointmentId)
 
+   let refundMessage = ''
+   if (appointmentData.paymentStatus === 'Paid' && appointmentData.paymentMethod === 'Visa') {
+    const refundResult = await refundAppointmentPayment({ appointment: appointmentData, appointmentId, requestedBy: 'admin', req })
+    refundMessage = refundResult.refunded ? ' Refund requested.' : ''
+   }
+
    await appointmentModel.findByIdAndUpdate(appointmentId, {cancelled: true, appointmentStatus: 'Cancelled', statusUpdatedAt: Date.now()})
 
    // releasing doctor slot
@@ -528,7 +556,7 @@ const appointmentCancel = async (req,res) => {
     req
    })
 
-   res.json({success: true, message:'Appointment Cancelled'})
+   res.json({success: true, message:`Appointment Cancelled${refundMessage}`})
 
 
   } catch (error) {
