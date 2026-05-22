@@ -1,5 +1,5 @@
-const SESSION_KEY = 'clinivo_public_site_settings_v2'
-const LOCAL_KEY = 'clinivo_public_site_settings_local_v2'
+const SESSION_KEY = 'clinivo_public_site_settings_v3'
+const LOCAL_KEY = 'clinivo_public_site_settings_local_v3'
 
 export function readCachedPublicSiteSettings () {
   if (typeof window === 'undefined') return null
