@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://clinic-sys-eight.vercel.app/api/$1"
+      "destination": "https://clinic-sys-m878-api.vercel.app/api/$1"
     },
     {
       "source": "/(.*)",
