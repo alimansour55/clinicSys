@@ -1,5 +1,5 @@
 import express from 'express'
-import { appointmentCancel, appointmentComplete, appointmentsDoctor, doctordashboard, doctorList, doctorProfile, editPrescription, loginDoctor, patienthistory, updateAppointmentHomeVisitAddress, updateDoctorprofile, updatePatientMedicalHistory } from '../controllers/doctorController.js'
+import { appointmentCancel, appointmentComplete, appointmentsDoctor, completeDoctorMfaLoginSetup, disableDoctorMfa, doctordashboard, doctorList, doctorProfile, editPrescription, enableDoctorMfa, getDoctorMfaStatus, loginDoctor, patienthistory, startDoctorMfaSetup, updateAppointmentHomeVisitAddress, updateDoctorprofile, updatePatientMedicalHistory, verifyDoctorMfaLogin } from '../controllers/doctorController.js'
 import authDoctor from '../middlewares/authDoctor.js'
 import { authorizePermission } from '../middlewares/rbac.js'
 import { getPublicClinics } from '../controllers/clinicController.js'
@@ -10,6 +10,12 @@ const doctorRouter = express.Router()
 doctorRouter.get('/list', doctorList)
 doctorRouter.get('/clinics', getPublicClinics)
 doctorRouter.post('/login', loginDoctor)
+doctorRouter.post('/mfa/verify-login', verifyDoctorMfaLogin)
+doctorRouter.post('/mfa/complete-login-setup', completeDoctorMfaLoginSetup)
+doctorRouter.get('/mfa/status', authDoctor, authorizePermission('view own profile'), getDoctorMfaStatus)
+doctorRouter.post('/mfa/setup', authDoctor, authorizePermission('update own profile'), startDoctorMfaSetup)
+doctorRouter.post('/mfa/enable', authDoctor, authorizePermission('update own profile'), enableDoctorMfa)
+doctorRouter.post('/mfa/disable', authDoctor, authorizePermission('update own profile'), disableDoctorMfa)
 doctorRouter.get('/appointments', authDoctor, authorizePermission('view assigned patients'), appointmentsDoctor)
 doctorRouter.post('/complete-appointment', authDoctor, authorizePermission('edit prescriptions'), appointmentComplete)
 doctorRouter.post('/cancel-appointment', authDoctor, authorizePermission('manage appointments'), appointmentCancel)

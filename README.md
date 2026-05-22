@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/-%F0%9F%8F%A5%20PRESCRIPTO-%235F6FFF?style=for-the-badge&labelColor=0a0a0a&color=5F6FFF" alt="Prescripto" height="50"/>
+<img src="https://img.shields.io/badge/-%F0%9F%8F%A5%20CLINIVO-%235F6FFF?style=for-the-badge&labelColor=0a0a0a&color=5F6FFF" alt="Clinivo" height="50"/>
 
-# Prescripto — Smart Healthcare Management System
+# Clinivo — Smart Clinic & Healthcare Management Platform
 
-### *Transforming the way clinics & hospitals manage appointments, prescriptions, and patient care.*
+### *Appointments, telemedicine, prescriptions, insurance, and operations — in one place.*
 
 <br/>
 
@@ -12,588 +12,601 @@
 [![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://mongodb.com)
 [![Express](https://img.shields.io/badge/Express_5-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![Vercel](https://img.shields.io/badge/Deployed_on_Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://vercel.com)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Stripe](https://img.shields.io/badge/Stripe-635BFF?style=flat-square&logo=stripe&logoColor=white)](https://stripe.com)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
 <br/>
 
-> **Built for modern clinics & hospitals** — A production-ready, full-stack appointment booking and prescription management platform with dedicated portals for Patients, Doctors, and Admins.
+> **Production-ready, full-stack clinic software** with dedicated experiences for **Patients**, **Doctors**, **Receptionists**, and **Admins** — bilingual (English / Arabic), configurable branding, and deep scheduling controls.
 
 </div>
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [🌟 Why Prescripto?](#-why-prescripto)
-- [✨ Features](#-features)
-- [📸 Screenshots](#-screenshots)
-- [🛠 Tech Stack](#-tech-stack)
-- [📁 Project Structure](#-project-structure)
-- [⚙️ Installation & Setup](#️-installation--setup)
-- [🔐 Environment Variables](#-environment-variables)
-- [🔌 API Reference](#-api-reference)
-- [🔮 Future Roadmap](#-future-roadmap)
-- [🙏 Acknowledgements](#-acknowledgements)
-- [🤝 Contributing](#-contributing)
-- [👨‍💻 Author](#-author)
-- [📄 License](#-license)
+- [Why Clinivo?](#why-clinivo)
+- [What's New](#whats-new)
+- [Features by Role](#features-by-role)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Testing](#testing)
+- [Installation & Setup](#installation--setup)
+- [Environment Variables](#environment-variables)
+- [API Overview](#api-overview)
+- [Roles & Authentication](#roles--authentication)
+- [Deployment Notes](#deployment-notes)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Author](#author)
+- [License](#license)
 
 ---
 
-## 🌟 Why Prescripto?
+## Why Clinivo?
 
-Most clinics and hospitals still rely on **manual appointment books, phone calls, and paper prescriptions**. Prescripto replaces all of that with a seamless digital platform — reducing no-shows, eliminating paperwork, and giving every stakeholder (patient, doctor, admin) their own intelligent portal.
+Clinics still lose time on phone bookings, paper prescriptions, and fragmented patient records. **Clinivo** replaces that with a single platform: patients book online, doctors run their day from a portal, reception handles walk-ins and payments, and admins control branding, security, and analytics.
 
-| Problem | Prescripto Solution |
+| Challenge | Clinivo solution |
 |---|---|
-| 📞 Patients call to book appointments | 🖥️ Self-service online booking, 24/7 |
-| 📄 Paper prescriptions get lost | 💊 Digital prescriptions, always accessible |
-| 🗂️ No patient history tracking | 📋 Complete history with edit trail |
-| ❌ No-shows waste doctor time | ⏰ OTP-verified accounts, slot-based booking |
-| 🔒 No data security | 🛡️ JWT auth + bcrypt encryption |
-| 📊 No admin oversight | 📈 Real-time dashboard with stats |
+| Phone-only booking | 24/7 self-service booking with live slot availability |
+| One doctor, one address | **Multi-location** schedules per clinic branch |
+| Only in-person visits | **Clinic**, **voice**, **video**, and **home visit** modes |
+| Paper prescriptions | Digital prescriptions with edit history |
+| No front-desk tooling | **Receptionist portal** — book, check-in, payments, insurance |
+| Weak security | JWT + RBAC, optional **MFA (TOTP)**, audit logs |
+| Static website | Admin **CMS** for hero, banner, logo, footer, and copy |
+| Language barriers | **English & Arabic** UI with per-role language policies |
+
+The product name is **white-label**: set `PUBLIC_APP_BRAND` / `VITE_APP_DISPLAY_NAME` and upload a logo in Admin → Site logo.
 
 ---
 
-## ✨ Features
+## What's New
 
-### 🧑‍⚕️ Patient Portal
-- **Account Management** — Register, login, update profile with photo
-- **Unique Patient ID** — Auto-generated immutable ID for every patient
-- **Doctor Discovery** — Browse doctors by 6 specialities with availability status
-- **Slot-Based Booking** — Real-time 30-minute slot availability (10 AM – 9 PM)
-- **Appointment Management** — View and cancel appointments
-- **Digital Prescriptions** — View complete prescriptions issued by doctors
-- **Secure Password Reset** — 3-step OTP flow via email (2-minute expiry + resend)
-- **Responsive Design** — Works perfectly on mobile, tablet, and desktop
+Recent major capabilities (beyond the original patient/doctor/admin scope):
 
-### 🩺 Doctor Portal
-- **Personalized Dashboard** — Earnings, appointment count, patient count at a glance
-- **Appointment Management** — View all appointments, complete or cancel them
-- **Prescription Writing** — Detailed digital prescription with:
-  - Diagnosis & Symptoms
-  - Medicines & Instructions
-  - Lab Tests & Documentation
-  - Next Visit date
-- **Prescription Editing** — Edit issued prescriptions with full edit history tracking
-- **Patient History** — View complete history of all treated patients
-- **Profile Management** — Update fees, address, and availability status
-
-### 🛡️ Admin Portal
-- **Platform Dashboard** — Total doctors, appointments, and patients overview
-- **Doctor Management** — Add, edit, or toggle availability of doctors
-- **Image Upload** — Doctor profile photos via Cloudinary
-- **Appointment Oversight** — View and cancel any appointment on the platform
-- **Appointment History** — View completed appointments, delete records
-- **Dual Login** — Admin and Doctor login from the same panel
+- **Receptionist role** — dashboard, appointments, patient registry, on-desk booking, check-in, payment status, insurance verification
+- **Multi-clinic & multi-location** — platform clinics, doctor branch locations, per-location availability
+- **Appointment modes** — Clinic, Voice Call, Video Call (Jitsi-compatible links), Home Visit (Cairo/Giza areas + admin pricing)
+- **Stripe payments** — online booking payment intents (EGP by default)
+- **Insurance** — patient insurance profiles, provider list, visit-level verification by staff
+- **MFA** — TOTP for admin, doctor, receptionist, and patient (policy-driven)
+- **Signup & account verification** — email/phone OTP during signup and post-registration verification
+- **Notifications** — in-app notification bell for patients and staff
+- **Ratings & reviews** — patients rate doctors; admin moderation
+- **Financial analytics** — admin platform analytics and per-doctor compensation views
+- **Audit logs** — admin activity trail
+- **Site CMS** — hero, banner, service cards, footer, languages, security policies
+- **Promo codes** — per-doctor discounts on bookings
+- **Auto-translation** — optional Google Translate or LibreTranslate for dynamic content
 
 ---
 
-## 📸 Screenshots
+## Features by Role
 
-### 🧑‍⚕️ Patient Portal
+### Patient portal (`frontend/` — port **5173**)
 
-<table>
-  <tr>
-    <td align="center">
-      <img src="./screenshots/register.PNG" alt="Register Page" width="400"/>
-      <br/><b>Register</b>
-    </td>
-    <td align="center">
-      <img src="./screenshots/login.PNG" alt="Login Page" width="400"/>
-      <br/><b>Login</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2">
-      <img src="./screenshots/herosection.PNG" alt="Home / Hero Section" width="820"/>
-      <br/><b>Home — Hero Section</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="./screenshots/browserdoctorbyspecliaity.PNG" alt="Browse Doctors" width="400"/>
-      <br/><b>Browse Doctors by Speciality</b>
-    </td>
-    <td align="center">
-      <img src="./screenshots/appointmentbooking.PNG" alt="Book Appointment" width="400"/>
-      <br/><b>Appointment Booking</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="./screenshots/myappointment.PNG" alt="My Appointments" width="400"/>
-      <br/><b>My Appointments</b>
-    </td>
-    <td align="center">
-      <img src="./screenshots/Digitalprescription.PNG" alt="Prescription View" width="400"/>
-      <br/><b>Digital Prescription</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2">
-      <img src="./screenshots/profile.PNG" alt="Patient Profile" width="820"/>
-      <br/><b>Patient Profile</b>
-    </td>
-  </tr>
-</table>
+- Register / login with **email & phone verification** (signup OTP + account verify flows)
+- **MFA** setup (TOTP) when required by security policy
+- Browse doctors by speciality, fees, experience, ratings, and availability
+- Book **Clinic** (with **location picker**), **Voice Call**, **Video Call**, or **Home Visit**
+- Flexible **doctor-defined schedules** (working days, breaks, slot duration, blocked dates)
+- **Stripe** checkout for online-paid appointments
+- **Promo codes**, insurance-covered visits, medical history, insurance card upload
+- **My appointments**, cancel, view prescriptions, **rate doctors**
+- **Medical history** and **insurance** pages
+- **English / Arabic** with Eastern Arabic numerals where applicable
+- **In-app notifications**
 
----
+### Doctor portal (`admin/` — doctor login)
 
-### 🩺 Doctor Portal
+- Dashboard: earnings, appointments, patients
+- Appointments: complete, cancel, write/edit **digital prescriptions**
+- **Availability**: main schedule + **per-location branch schedules**
+- **Home visit** schedule and service areas
+- Profile: fees, modes (voice/video/home), promo codes, clinic locations
+- **Patient history** and medical record updates
+- **Financial analysis** (compensation vs. revenue)
+- **MFA** and own ratings view
 
-<table>
-  <tr>
-    <td align="center">
-      <img src="./screenshots/doctorlogin.PNG" alt="Doctor Login" width="400"/>
-      <br/><b>Doctor Login</b>
-    </td>
-    <td align="center">
-      <img src="./screenshots/doctordashbaord.PNG" alt="Doctor Dashboard" width="400"/>
-      <br/><b>Doctor Dashboard</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="./screenshots/appointmentlist.PNG" alt="Doctor Appointments" width="400"/>
-      <br/><b>Appointments List</b>
-    </td>
-    <td align="center">
-      <img src="./screenshots/patienthistory.PNG" alt="Patient History" width="400"/>
-      <br/><b>Patient History</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2">
-      <img src="./screenshots/doctorprofile.PNG" alt="Doctor Profile" width="820"/>
-      <br/><b>Doctor Profile</b>
-    </td>
-  </tr>
-</table>
+### Receptionist portal (`admin/` — receptionist login)
+
+- Dashboard and appointment list with status workflow (**Booked → Checked In → In Progress → Finished**)
+- **Book appointments** for walk-in / phone patients (create patient if needed)
+- **Check-in**, update status, **payment** (Cash / Visa / Insurance / Free)
+- **Insurance verification** at visit time
+- Patient search, profile, insurance updates
+- View doctors, clinics, ratings; manage doctor **clinic locations** (where permitted)
+- **Home visit address** updates on appointments
+- Profile and **MFA**
+
+### Admin portal (`admin/` — admin login)
+
+- Platform dashboard and **financial analytics**
+- **Users** hub: patients, doctors, receptionists — create, edit, reset password, MFA policy
+- **Clinics** — create branches, assign doctors
+- Appointments: all / active / finished, cancel, history cleanup
+- Doctors: add/edit, availability, compensation settings, ratings moderation
+- Receptionists: add/edit, activate/deactivate
+- **Audit logs**
+- **Site CMS**: logo, home hero, banner, service cards, footer, insurance providers, home-visit pricing, **language policies**, **security settings**
+- **MFA** for admin account
 
 ---
 
-### 🛡️ Admin Portal
+## Architecture
 
-<table>
-  <tr>
-    <td align="center">
-      <img src="./screenshots/Adminlogin.PNG" alt="Admin Login" width="400"/>
-      <br/><b>Admin Login</b>
-    </td>
-    <td align="center">
-      <img src="./screenshots/admindashboard.PNG" alt="Admin Dashboard" width="400"/>
-      <br/><b>Admin Dashboard</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="./screenshots/adddoctor.PNG" alt="Add Doctor" width="400"/>
-      <br/><b>Add Doctor</b>
-    </td>
-    <td align="center">
-      <img src="./screenshots/doctorlist.PNG" alt="Doctors List" width="400"/>
-      <br/><b>Doctors List</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="./screenshots/allappointment.PNG" alt="All Appointments" width="400"/>
-      <br/><b>All Appointments</b>
-    </td>
-    <td align="center">
-      <img src="./screenshots/appointmenthistory.PNG" alt="Appointment History" width="400"/>
-      <br/><b>Appointment History</b>
-    </td>
-  </tr>
-</table>
+```mermaid
+flowchart TB
+  subgraph clients [Client apps]
+    FE[Patient portal<br/>React + Vite :5173]
+    AD[Staff panel<br/>React + Vite :5174]
+  end
+
+  subgraph api [Backend API]
+    BE[Express 5 :4000]
+    RBAC[JWT + RBAC]
+    SVC[Services<br/>schedule, pricing, MFA, notifications, translate]
+  end
+
+  subgraph data [Data & integrations]
+    DB[(MongoDB)]
+    CL[Cloudinary]
+    EM[Email SMTP / Microsoft OAuth]
+    TW[Twilio SMS / Verify]
+    ST[Stripe]
+    JIT[Jitsi-compatible teleconsultation URL]
+  end
+
+  FE --> BE
+  AD --> BE
+  BE --> RBAC --> SVC
+  SVC --> DB
+  BE --> CL
+  BE --> EM
+  BE --> TW
+  BE --> ST
+  BE --> JIT
+```
+
+**Monorepo layout:** three apps sharing one API — `frontend/`, `admin/`, `backend/`.
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
-### Frontend & Admin Panel
+### Frontend & staff panel
 
-| Technology | Version | Role |
-|---|---|---|
-| **React** | 19.2.0 | UI Framework |
-| **Vite** | 7.x | Lightning-fast build tool |
-| **Tailwind CSS** | 4.x | Utility-first styling |
-| **React Router DOM** | 7.9.6 | Client-side routing |
-| **Axios** | 1.13.2 | HTTP client |
-| **Lucide React** | 0.555+ | Beautiful icons |
-| **React Toastify** | 11.0.5 | Toast notifications |
+| Technology | Role |
+|---|---|
+| **React 19** | UI |
+| **Vite 7** | Dev server & build |
+| **Tailwind CSS 4** | Styling |
+| **React Router 7** | Routing |
+| **Axios** | HTTP |
+| **Lucide React** | Icons |
+| **React Toastify** | Notifications |
+| **Stripe.js** | Patient online payments |
+| **qrcode** | MFA setup QR codes |
 
 ### Backend
 
-| Technology | Version | Role |
-|---|---|---|
-| **Node.js + Express** | 5.1.0 | REST API server |
-| **MongoDB + Mongoose** | 8.20.0 | NoSQL database & ODM |
-| **JWT** | 9.0.2 | Stateless authentication |
-| **Bcrypt** | 6.0.0 | Password hashing |
-| **Multer** | 2.0.2 | File upload middleware |
-| **Cloudinary** | 2.8.0 | Cloud image storage |
-| **Nodemailer** | 7.0.12 | Transactional email (OTP) |
-| **Validator** | 13.x | Input validation |
-| **Dotenv** | 17.x | Environment config |
+| Technology | Role |
+|---|---|
+| **Node.js + Express 5** | REST API |
+| **MongoDB + Mongoose 8** | Database |
+| **JWT + custom RBAC** | Auth & permissions |
+| **Bcrypt** | Password hashing |
+| **Cloudinary** | Image uploads |
+| **Nodemailer** | Email (Gmail, SMTP, or Microsoft OAuth) |
+| **Stripe** | Payment intents & refunds |
+| **Twilio** | SMS & phone OTP (optional) |
+| **Validator** | Input validation |
 
-### Infrastructure & Deployment
+### Infrastructure (typical)
 
 | Service | Purpose |
 |---|---|
-| **Vercel** | Frontend, Admin & Backend hosting |
-| **MongoDB Atlas** | Cloud database |
-| **Cloudinary** | Image CDN |
-| **Gmail SMTP** | Email delivery |
+| **MongoDB Atlas** | Database |
+| **Cloudinary** | Media CDN |
+| **Stripe** | Payments |
+| **Twilio** | SMS / Verify (optional) |
+| **Vercel / VPS** | Hosting (frontend, admin, API) |
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-Prescripto/
+clinicSys/
 │
-├── 📦 frontend/                        # Patient-facing app (Port: 5173)
+├── frontend/                 # Patient portal (Vite :5173)
 │   └── src/
-│       ├── assets/                     # Images, SVGs, speciality data
-│       ├── components/
-│       │   ├── Navbar.jsx              # Sticky responsive navbar
-│       │   ├── Footer.jsx              # Footer with contact info
-│       │   ├── Header.jsx              # Hero section
-│       │   ├── Banner.jsx              # CTA banner
-│       │   ├── TopDoctors.jsx          # Featured doctors grid
-│       │   ├── RelatedDoctors.jsx      # Same-speciality suggestions
-│       │   ├── SpecialityMenu.jsx      # Scrollable speciality filter
-│       │   └── CountdownTimer.jsx      # OTP resend countdown
-│       ├── context/
-│       │   └── AppContext.jsx          # Global state + all API calls
-│       └── pages/
-│           ├── Home.jsx
-│           ├── Doctors.jsx             # Browse & filter doctors
-│           ├── Appointment.jsx         # Book appointment page
-│           ├── Login.jsx               # Sign up / Login
-│           ├── MyProfile.jsx           # Patient profile editor
-│           ├── About.jsx
-│           ├── Contact.jsx
-│           ├── EmailVerify.jsx         # Password reset: Step 1
-│           ├── OtpVerify.jsx           # Password reset: Step 2
-│           └── ResetPassword.jsx       # Password reset: Step 3
+│       ├── components/       # Navbar, Footer, TopDoctors, notifications, MFA, etc.
+│       ├── context/          # AppContext — API + site settings
+│       ├── pages/            # Home, Doctors, Appointment, Login, Insurance, …
+│       ├── utils/            # schedule, promo, insurance, i18n helpers
+│       └── i18n.jsx          # English / Arabic translations
 │
-├── 📦 admin/                           # Admin + Doctor panel (Port: 5174)
+├── admin/                    # Staff panel — Admin, Doctor, Receptionist (:5174)
 │   └── src/
-│       ├── components/
-│       │   ├── Navbar.jsx
-│       │   └── Sidebar.jsx             # Role-based sidebar (Admin/Doctor)
-│       ├── context/
-│       │   ├── AdminContext.jsx        # Admin state + API calls
-│       │   ├── DoctorContext.jsx       # Doctor state + API calls
-│       │   └── AppContext.jsx          # Shared utilities
+│       ├── components/       # Navbar, Sidebar, NotificationBell, MFA, …
+│       ├── context/          # AdminContext, DoctorContext, ReceptionistContext
 │       └── pages/
-│           ├── Login.jsx               # Shared login for Admin & Doctor
-│           ├── Admin/
-│           │   ├── Dashboard.jsx       # Stats + latest bookings
-│           │   ├── AppointmentHistory.jsx
-│           │   ├── AddDoctor.jsx
-│           │   └── DoctorsList.jsx
-│           └── Doctor/
-│               ├── DoctorDashboard.jsx
-│               ├── DoctorAppointments.jsx
-│               ├── DoctorProfile.jsx
-│               └── PatientHistory.jsx
+│           ├── Admin/        # Dashboard, users, clinics, CMS, analytics, audit
+│           ├── Doctor/       # Appointments, availability, prescriptions, finance
+│           └── Receptionist/ # Desk booking, patients, check-in, payments
 │
-└── 📦 backend/                         # Express REST API (Port: 4000)
-    ├── config/
-    │   ├── mongodb.js                  # Mongoose connection
-    │   ├── cloudinary.js               # Cloudinary SDK config
-    │   ├── nodemailer.js               # Gmail transporter
-    │   └── EmailTemplates.js           # HTML OTP email template
-    ├── middlewares/
-    │   ├── authUser.js                 # Verify user JWT
-    │   ├── authDoctor.js               # Verify doctor JWT (dToken)
-    │   ├── authAdmin.js                # Verify admin JWT (aToken)
-    │   └── multer.js                   # Disk storage for uploads
-    ├── models/
-    │   ├── userModel.js                # Patient schema (patientId, OTP, etc.)
-    │   ├── doctorModel.js              # Doctor schema (slots_booked, etc.)
-    │   ├── appointmentModel.js         # Appointment schema
-    │   ├── prescriptionModel.js        # Prescription + edit history schema
-    │   └── counterModel.js             # Auto-increment for Patient IDs
-    ├── controllers/                    # Route handlers / business logic
-    ├── routes/
-    │   ├── userRoute.js
-    │   ├── doctorRoute.js
-    │   └── adminRoute.js
-    └── server.js                       # App entry point
+├── backend/                  # Express API (:4000)
+│   ├── config/               # MongoDB, Cloudinary, email, Stripe, brand
+│   ├── controllers/          # Route handlers
+│   ├── middlewares/          # auth*, multer, rbac
+│   ├── models/               # user, doctor, appointment, clinic, site settings, …
+│   ├── routes/               # admin, doctor, user, receptionist, notifications, audit
+│   ├── services/             # schedule, MFA, pricing, notifications, translate, …
+│   └── server.js
+│
+├── MULTI_CLINIC_LOCATIONS_GUIDE.md   # Doctor multi-location how-to
+└── IMPLEMENTATION_SUMMARY.md         # Multi-location implementation notes
 ```
 
 ---
 
-## ⚙️ Installation & Setup
+## Testing
 
-### Prerequisites
-- Node.js `>= 18.x`
-- MongoDB Atlas account
-- Cloudinary account
-- Gmail account (with App Password enabled)
-
----
-
-### Step 1 — Clone the Repository
+Vitest is configured for **backend**, **frontend**, and **admin**. From the repo root:
 
 ```bash
-git clone https://github.com/ARQUM21/Prescripto.git
-cd Prescripto
+npm test                 # all three packages (unit tests)
+npm run test:integration # backend in-memory MongoDB checks
+npm run test:all         # unit + backend integration
 ```
+
+See **[TESTING.md](./TESTING.md)** for per-package commands, `.env.test`, DB helpers, and how to add new tests.
 
 ---
 
-### Step 2 — Backend Setup
+## Installation & Setup
+
+### Prerequisites
+
+- **Node.js** ≥ 18
+- **MongoDB** (local or Atlas)
+- **Cloudinary** account (doctor/patient images, CMS assets)
+- **Email** — Gmail app password, custom SMTP, or Microsoft OAuth (see env vars)
+- Optional: **Stripe**, **Twilio**, translation API keys
+
+### 1. Clone
+
+```bash
+git clone <your-repo-url>
+cd clinicSys
+```
+
+### 2. Backend
 
 ```bash
 cd backend
 npm install
 ```
 
-Create `.env` in `backend/` directory — see the [Environment Variables](#-environment-variables) section below.
+Create `backend/.env` — see [Environment Variables](#environment-variables).
 
 ```bash
-npm run server        # Development with auto-restart
-# OR
-npm start             # Production
+npm run server    # development (nodemon)
+# npm start       # production
 ```
 
-✅ API running at: `http://localhost:4000`
+API: `http://localhost:4000` → `GET /` returns `API WORKING`.
 
----
-
-### Step 3 — Frontend Setup
+### 3. Patient frontend
 
 ```bash
 cd ../frontend
 npm install
 ```
 
-Create `.env` in `frontend/`:
+Create `frontend/.env`:
+
 ```env
 VITE_BACKEND_URL=http://localhost:4000
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+VITE_APP_DISPLAY_NAME=Clinivo
 ```
 
 ```bash
 npm run dev
 ```
 
-✅ Patient portal at: `http://localhost:5173`
+Patient portal: `http://localhost:5173`
 
----
-
-### Step 4 — Admin Panel Setup
+### 4. Staff panel (admin / doctor / receptionist)
 
 ```bash
 cd ../admin
 npm install
 ```
 
-Create `.env` in `admin/`:
+Create `admin/.env`:
+
 ```env
 VITE_BACKEND_URL=http://localhost:4000
+VITE_APP_DISPLAY_NAME=Clinivo
 ```
 
 ```bash
 npm run dev
 ```
 
-✅ Admin panel at: `http://localhost:5174`
+Staff panel: `http://localhost:5174` — single login screen; role determined by credentials.
+
+### Default ports
+
+| App | Port |
+|---|---|
+| Backend API | 4000 |
+| Patient frontend | 5173 |
+| Staff panel | 5174 |
 
 ---
 
-## 🔐 Environment Variables
+## Environment Variables
 
-Create a `.env` file inside the `backend/` folder:
+### Backend — required
 
 ```env
-# ─── Server ───────────────────────────────────────────────
 PORT=4000
+MONGODB_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/<db>
 
-# ─── Database ─────────────────────────────────────────────
-MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net
+JWT_SECRET=your_long_random_secret
 
-# ─── Authentication ───────────────────────────────────────
-JWT_SECRET=your_strong_random_jwt_secret_key
-
-# ─── Admin Credentials ────────────────────────────────────
-ADMIN_EMAIL=admin@yourclinicdomain.com
+ADMIN_EMAIL=admin@yourclinic.com
 ADMIN_PASSWORD=your_secure_admin_password
 
-# ─── Cloudinary (Image Storage) ───────────────────────────
-CLOUDINARY_NAME=your_cloudinary_cloud_name
-CLOUDINARY_API_KEY=your_cloudinary_api_key
-CLOUDINARY_SECRET_KEY=your_cloudinary_api_secret
+CLOUDINARY_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_SECRET_KEY=your_api_secret
 
-# ─── Email / OTP (Gmail) ──────────────────────────────────
-SENDER_EMAIL=your_gmail@gmail.com
-APP_PASSWORD=your_16_digit_gmail_app_password
+SENDER_EMAIL=your_sender@example.com
+# One of the email setups below must work:
+APP_PASSWORD=your_gmail_app_password          # if EMAIL_SERVICE=gmail (default)
+# — or —
+EMAIL_SERVICE=outlook                         # Microsoft OAuth (see below)
+MICROSOFT_CLIENT_ID=
+MICROSOFT_CLIENT_SECRET=
+MICROSOFT_REFRESH_TOKEN=
+# — or —
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
 ```
 
-> **Gmail App Password Setup:**
-> Google Account → Security → 2-Step Verification → App Passwords → Generate for "Mail"
+### Backend — optional (enable features)
+
+```env
+# Branding (emails & defaults)
+PUBLIC_APP_BRAND=Clinivo
+APP_DISPLAY_NAME=Clinivo
+
+# Stripe (online patient payments)
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_CURRENCY=egp
+
+# Teleconsultation (video/voice room base URL)
+TELECONSULTATION_BASE_URL=https://meet.ffmuc.net
+# JITSI_SERVER_URL=...   # alias
+
+# Twilio — SMS & phone verification
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+TWILIO_VERIFY_SERVICE_SID=
+
+# Account / signup OTP timing
+ACCOUNT_VERIFY_OTP_MINUTES=10
+
+# Translation (doctor about text, places, etc.)
+GOOGLE_TRANSLATE_API_KEY=
+LIBRETRANSLATE_URL=https://libretranslate.com
+LIBRETRANSLATE_API_KEY=
+
+# Microsoft OAuth device flow helper
+# npm run microsoft:auth  (in backend/)
+```
+
+### Frontend / admin
+
+```env
+VITE_BACKEND_URL=http://localhost:4000
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...    # frontend only
+VITE_APP_DISPLAY_NAME=Clinivo              # optional display name before CMS loads
+```
+
+> **Never commit `.env` files.** Add them to `.gitignore` and inject secrets in CI/CD or your host's dashboard.
+
+**Gmail app password:** Google Account → Security → 2-Step Verification → App passwords.
+
+**Microsoft mail:** set `EMAIL_SERVICE=outlook`, configure OAuth vars, run `npm run microsoft:auth` in `backend/` to obtain a refresh token.
 
 ---
 
-## 🔌 API Reference
+## API Overview
 
-**Base URL:** `https://your-backend.vercel.app`
+**Base URL:** `http://localhost:4000` (or your deployed API)
 
----
+| Prefix | Audience | Purpose |
+|---|---|---|
+| `/api/user` | Public + patients | Auth, signup verify, profile, medical history, booking, payments, ratings, site settings |
+| `/api/doctor` | Public + doctors | Doctor list, login, MFA, appointments, prescriptions, profile, availability |
+| `/api/admin` | Admins | Users, clinics, appointments, CMS, analytics, audit, ratings moderation |
+| `/api/receptionist` | Receptionists | Desk booking, patients, check-in, payments, insurance verify |
+| `/api/notifications` | Any authenticated role | List, unread count, mark read |
+| `/api/audit-logs` | Admins | Activity log (also mounted under admin routes) |
 
-### 👤 User Routes &nbsp;`/api/user`
+### Auth headers
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/register` | ❌ | Register new patient |
-| `POST` | `/login` | ❌ | Patient login |
-| `POST` | `/send-reset-otp` | ❌ | Send OTP to email |
-| `POST` | `/verify-reset-otp` | ❌ | Verify 6-digit OTP |
-| `POST` | `/reset-password` | ❌ | Set new password |
-| `GET` | `/get-profile` | ✅ token | Fetch patient profile |
-| `POST` | `/update-profile` | ✅ token | Update profile + photo |
-| `POST` | `/book-appointment` | ✅ token | Book appointment |
-| `GET` | `/appointments` | ✅ token | List appointments |
-| `POST` | `/cancel-appointment` | ✅ token | Cancel appointment |
-| `POST` | `/get-prescription` | ✅ token | Get prescription |
+| Role | Header | Login route |
+|---|---|---|
+| Patient | `token` | `POST /api/user/login` |
+| Doctor | `dtoken` | `POST /api/doctor/login` |
+| Admin | `atoken` | `POST /api/admin/login` |
+| Receptionist | `rtoken` | `POST /api/receptionist/login` |
 
----
+MFA-enabled accounts receive a short-lived MFA token first, then complete setup via `/mfa/verify-login` and related routes.
 
-### 🩺 Doctor Routes &nbsp;`/api/doctor`
+### Representative endpoints
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/list` | ❌ | All doctors list |
-| `POST` | `/login` | ❌ | Doctor login |
-| `GET` | `/appointments` | ✅ dToken | Doctor's appointments |
-| `POST` | `/complete-appointment` | ✅ dToken | Complete + write prescription |
-| `POST` | `/cancel-appointment` | ✅ dToken | Cancel appointment |
-| `GET` | `/patient-history` | ✅ dToken | All treated patients |
-| `POST` | `/edit-prescription` | ✅ dToken | Edit prescription |
-| `GET` | `/dashboard` | ✅ dToken | Dashboard stats |
-| `GET` | `/profile` | ✅ dToken | Doctor profile |
-| `POST` | `/update-profile` | ✅ dToken | Update profile |
+<details>
+<summary><b>Patient — <code>/api/user</code></b></summary>
 
----
+| Method | Endpoint | Notes |
+|---|---|---|
+| POST | `/register` | New patient |
+| POST | `/login` | Returns token or MFA challenge |
+| POST | `/signup-verify/*` | Email/phone codes before register |
+| POST | `/verify-account/*` | Post-registration verification |
+| GET | `/site-settings` | Public branding & CMS snapshot |
+| GET | `/insurance-providers` | Accepted providers |
+| POST | `/book-appointment` | Book slot |
+| POST | `/create-booking-payment-intent` | Stripe |
+| GET | `/appointments` | Own appointments |
+| POST | `/cancel-appointment` | Cancel |
+| GET/POST/PUT | `/medical-history` | Patient history |
+| POST | `/ratings` | Rate doctor |
+| POST | `/send-reset-otp` … `/reset-password` | Password reset |
 
-### 🛡️ Admin Routes &nbsp;`/api/admin`
+</details>
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/login` | ❌ | Admin login |
-| `POST` | `/add-doctor` | ✅ aToken | Add new doctor |
-| `POST` | `/update-doctor` | ✅ aToken | Edit doctor |
-| `POST` | `/all-doctors` | ✅ aToken | All doctors |
-| `POST` | `/change-availability` | ✅ aToken | Toggle availability |
-| `GET` | `/appointments` | ✅ aToken | All appointments |
-| `GET` | `/appointment-history` | ✅ aToken | Completed appointments |
-| `POST` | `/delete-appointment-history` | ✅ aToken | Delete history |
-| `POST` | `/cancel-appointment` | ✅ aToken | Cancel appointment |
-| `GET` | `/dashboard` | ✅ aToken | Platform stats |
+<details>
+<summary><b>Doctor — <code>/api/doctor</code></b></summary>
 
----
+| Method | Endpoint | Notes |
+|---|---|---|
+| GET | `/list` | Public doctor directory |
+| GET | `/clinics` | Public clinic list |
+| POST | `/login` | Doctor auth |
+| GET | `/appointments` | Assigned appointments |
+| POST | `/complete-appointment` | Complete + prescription |
+| POST | `/edit-prescription` | Edit with history |
+| GET | `/patient-history` | Treated patients |
+| GET/POST | `/profile`, `/update-profile` | Profile & schedule |
 
-## 🔮 Future Roadmap
+</details>
 
-Prescripto is architected with scalability in mind. Here is the planned evolution for clinics and hospitals who want enterprise-grade capabilities:
+<details>
+<summary><b>Admin — <code>/api/admin</code></b></summary>
 
-### 🏗️ Phase 1 — Core Enhancements
-- [ ] **Online Payments** — Stripe / JazzCash / Easypaisa for appointment fees
-- [ ] **SMS Notifications** — Appointment reminders via Twilio SMS
-- [ ] **Email Confirmations** — Auto booking confirmation emails
-- [ ] **Doctor Search & Filters** — Search by name, fee range, rating, experience
-- [ ] **Ratings & Reviews** — Patients can rate and review doctors
+| Method | Endpoint | Notes |
+|---|---|---|
+| POST | `/login` | Admin auth (+ MFA) |
+| GET | `/dashboard` | Stats |
+| GET | `/financial-analytics` | Revenue & compensation |
+| GET/POST | `/patients`, `/users`, `/all-doctors` | User management |
+| GET/POST | `/clinics`, `/create-clinic`, … | Clinic branches |
+| GET | `/appointments`, `/appointment-history` | Oversight |
+| POST | `/site-settings/*` | CMS & policies |
+| GET | `/audit-logs` | Compliance trail |
 
-### 🏥 Phase 2 — Hospital-Grade Features
-- [ ] **Multi-Branch Support** — One admin managing multiple clinic locations
-- [ ] **Department Management** — Organize doctors by hospital departments
-- [ ] **Bed / Room Management** — Track inpatient availability
-- [ ] **Lab Test Module** — Order tests, upload results, share with patients
-- [ ] **Medical Records Vault** — Upload X-rays, MRIs, and reports securely
-- [ ] **Pharmacy Integration** — Send prescriptions directly to hospital pharmacy
+</details>
 
-### 📊 Phase 3 — Analytics & Intelligence
-- [ ] **Advanced Analytics Dashboard** — Revenue, peak hours, doctor performance
-- [ ] **Patient Demographics** — Age, gender, location-based insights
-- [ ] **No-Show Prediction** — ML model to reduce appointment no-shows
-- [ ] **AI Symptom Checker** — Pre-appointment chatbot assessment
-- [ ] **Smart Doctor Recommendations** — Suggest best doctor based on symptoms
+<details>
+<summary><b>Receptionist — <code>/api/receptionist</code></b></summary>
 
-### 📱 Phase 4 — Mobile & Scale
-- [ ] **React Native Mobile App** — iOS & Android for patients
-- [ ] **Doctor Mobile App** — Manage appointments on the go
-- [ ] **Video Consultation** — WebRTC-based telemedicine
-- [ ] **Real-time Chat** — In-app messaging between patient and doctor
-- [ ] **Multi-language Support** — Urdu, Arabic, and regional languages
+| Method | Endpoint | Notes |
+|---|---|---|
+| POST | `/login` | Receptionist auth |
+| GET | `/dashboard`, `/appointments` | Operations |
+| POST | `/book-appointment` | Book for patient |
+| POST | `/check-in`, `/appointment-status` | Workflow |
+| POST | `/payment` | Record payment |
+| POST | `/patient-insurance-verify` | Insurance at visit |
+| GET | `/patients`, `/doctors`, `/clinics` | Directory |
 
-### 🔒 Phase 5 — Compliance & Enterprise Security
-- [ ] **Audit Logs** — Full activity logs for regulatory compliance
-- [ ] **Data Export** — Patient data as PDF / Excel reports
-- [ ] **HIPAA / HL7 FHIR Compliance** — International healthcare standards
+</details>
 
 ---
 
-## 🙏 Acknowledgements
+## Roles & Authentication
 
-This project was built with the help of some amazing open-source tools, services, and communities:
+```text
+┌─────────────┐     ┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
+│   Patient   │     │   Doctor    │     │  Receptionist    │     │    Admin    │
+│  frontend   │     │ admin panel │     │  admin panel     │     │ admin panel │
+└──────┬──────┘     └──────┬──────┘     └────────┬─────────┘     └──────┬──────┘
+       │ token             │ dtoken              │ rtoken               │ atoken
+       └───────────────────┴─────────────────────┴──────────────────────┘
+                                    │
+                           Express + RBAC middleware
+                                    │
+                              MongoDB Atlas
+```
 
-- [**React**](https://react.dev) — The UI library that powers all three portals
-- [**Vite**](https://vitejs.dev) — Blazing fast frontend build tool
-- [**Tailwind CSS**](https://tailwindcss.com) — Utility-first CSS framework for rapid UI development
-- [**Express.js**](https://expressjs.com) — Minimal and flexible Node.js web framework
-- [**MongoDB Atlas**](https://www.mongodb.com/atlas) — Cloud-hosted NoSQL database
-- [**Mongoose**](https://mongoosejs.com) — Elegant MongoDB object modeling for Node.js
-- [**Cloudinary**](https://cloudinary.com) — Cloud image storage and delivery
-- [**Nodemailer**](https://nodemailer.com) — Node.js module for sending emails
-- [**JWT**](https://jwt.io) — Secure stateless authentication standard
-- [**Lucide React**](https://lucide.dev) — Beautiful & consistent icon library
-- [**Vercel**](https://vercel.com) — Seamless deployment platform for frontend & backend
-- [**Shields.io**](https://shields.io) — Beautiful README badges
-- The entire **open-source community** whose tools made this project possible 🌍
+Permissions are defined per role in `backend/middlewares/rbac.js` (e.g. `manage clinics`, `edit prescriptions`, `manage payment status`).
 
 ---
 
-## 🤝 Contributing
+## Deployment Notes
+
+1. Deploy **backend** with all required env vars; use a process manager (PM2, systemd) or serverless adapter if supported.
+2. Build frontends: `npm run build` in `frontend/` and `admin/`; serve static files behind HTTPS.
+3. Set `VITE_BACKEND_URL` to your **production API URL** at build time for each frontend.
+4. Configure **CORS** if API and apps are on different origins (Express `cors` is enabled by default).
+5. Use **MongoDB Atlas** IP allowlist and strong `JWT_SECRET`.
+6. For teleconsultation, point `TELECONSULTATION_BASE_URL` to your Jitsi-compatible server.
+
+---
+
+## Roadmap
+
+Implemented items from earlier plans (payments, SMS hooks, ratings, audit logs, multi-branch, analytics, bilingual UI) are **live**. Upcoming ideas:
+
+- Native **iOS / Android** apps (React Native)
+- **HL7 FHIR** / HIPAA-oriented compliance pack
+- **Pharmacy & lab** integrations
+- **AI-assisted** triage / no-show prediction
+- **In-app chat** between patient and clinic
+- Additional payment gateways (local wallets)
+
+---
+
+## Contributing
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
+2. Create a branch: `git checkout -b feature/your-feature`
 3. Commit: `git commit -m 'Add: your feature'`
 4. Push: `git push origin feature/your-feature`
 5. Open a Pull Request
 
+Please keep changes focused, match existing code style, and do not commit secrets.
+
 ---
 
-## 👨‍💻 Author
+## Author
 
 <div align="center">
 
-**Muhammad Arqum**
-*Full Stack Developer — Building digital solutions for the healthcare industry*
+**Muhammad Arqum**  
+*Full Stack Developer — healthcare & clinic systems*
 
 <br/>
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Muhammad_Arqum-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/muhammadarqumtariq/)
 [![Email](https://img.shields.io/badge/Email-marqum987@gmail.com-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:marqum987@gmail.com)
-[![Phone](https://img.shields.io/badge/Phone-+92_343_2705821-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](tel:+923432705821)
 
 📍 Karachi, Pakistan
 
 <br/>
 
-*Interested in deploying Prescripto for your clinic or hospital? Feel free to reach out!*
+*Deploying Clinivo for your clinic or hospital? Reach out.*
 
 </div>
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the **MIT License** — free to use, modify, and distribute.
 
@@ -601,10 +614,10 @@ This project is licensed under the **MIT License** — free to use, modify, and 
 
 <div align="center">
 
-**⭐ If Prescripto helps your clinic or hospital, please give it a star! ⭐**
+**If Clinivo helps your clinic, consider giving the repo a star.**
 
-*Built with ❤️ for the healthcare community of Pakistan and beyond*
+*Built for modern clinics — Egypt, MENA, and beyond.*
 
-*© 2026 Prescripto — All Rights Reserved*
+*© 2026 Clinivo*
 
 </div>

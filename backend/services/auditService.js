@@ -1,4 +1,5 @@
 import auditLogModel from '../models/auditLogModel.js'
+import { getSecuritySettings } from './securityPolicyService.js'
 
 const sensitiveKeys = ['password', 'token', 'atoken', 'dtoken', 'rtoken', 'authorization']
 const auditWriteTimeoutMs = 1500
@@ -69,6 +70,9 @@ export const logAudit = async ({
       return
     }
 
+    const security = await getSecuritySettings()
+    if (!security.auditLogsEnabled) return
+
     const actor = req ? getAuditActor(req) : {}
 
     const writeAuditLog = auditLogModel.create({
@@ -81,8 +85,8 @@ export const logAudit = async ({
         status,
         reason,
         metadata: sanitizeMetadata(metadata) || {},
-        ipAddress: getClientIp(req),
-        location: getLocation(req),
+        ipAddress: security.allowIpTracking ? getClientIp(req) : '',
+        location: security.allowIpTracking ? getLocation(req) : {},
         userAgent: req?.headers?.['user-agent'] || ''
       })
 

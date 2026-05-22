@@ -20,36 +20,48 @@ const Header = () => {
   const appointmentsButtonText = hero.appointmentsButtonText || 'My appointments'
 
   return (
-    <div className='flex flex-col md:flex-row flex-wrap rounded-lg px-6 md:px-10 lg:px-20' style={{ backgroundColor }}>
-      
-      {/* -------- Left Side -------- */}
-      <div className='md:w-1/2 flex flex-col items-start justify-center gap-4 py-10 m-auto md:py-[10vw] md:mb-[-30px]'>
-         <p className='text-3xl md:text-4xl lg:text-5xl text-white font-semibold leading-tight md:leading-tight lg:leading-tight'>
-            {t(title)}
-         </p>
-         <div className='flex flex-col md:flex-row items-center gap-3 text-white text-sm font-semi' >
-            {showGroupImage && <img className='w-28' src={groupImage} alt="" />}
-            <p>{t(subtitle)}</p>
-         </div>
-         <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
-           {showBookButton && (
-            <button onClick={() => navigate('/doctors')} className='flex items-center justify-center gap-2 bg-white px-8 py-3 rounded-full text-gray-600 text-sm m-auto md:m-0 hover:scale-105 transition-all duration-300 cursor-pointer'>
-              {t(bookButtonText)} <img  className='w-3' src={assets.arrow_icon} alt="" />
+    <div
+      className='relative z-0 mt-2 flex flex-col overflow-hidden rounded-lg md:flex-row md:flex-wrap'
+      style={{ backgroundColor }}
+    >
+      <div className='flex w-full flex-col items-start justify-center gap-4 px-6 py-10 md:w-1/2 md:py-[10vw] md:pb-8'>
+        <p className='text-3xl font-semibold leading-tight text-white md:text-4xl lg:text-5xl'>
+          {t(title)}
+        </p>
+        <div className='flex flex-col items-start gap-3 text-sm font-medium text-white md:flex-row'>
+          {showGroupImage && <img className='w-28' src={groupImage} alt='' />}
+          <p>{t(subtitle)}</p>
+        </div>
+        <div className='flex w-full flex-col gap-3 sm:flex-row'>
+          {showBookButton && (
+            <button
+              type='button'
+              onClick={() => navigate('/doctors')}
+              className='flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3 text-sm font-semibold text-gray-600 shadow-md transition hover:scale-105'
+            >
+              {t(bookButtonText)}
+              <img className='h-3 w-3' src={assets.arrow_icon} alt='' />
             </button>
-           )}
-           {token && showAppointmentsButton && (
-            <button onClick={() => navigate('/my-appointments')} className='flex items-center justify-center gap-2 bg-primary-dark/20 border border-white/50 px-8 py-3 rounded-full text-white text-sm m-auto md:m-0 hover:bg-white hover:text-primary transition-all duration-300 cursor-pointer'>
-              <CalendarDays className='w-4 h-4' />
+          )}
+          {token && showAppointmentsButton && (
+            <button
+              type='button'
+              onClick={() => navigate('/my-appointments')}
+              className='flex items-center justify-center gap-2 rounded-full border border-white/50 bg-primary-dark/20 px-8 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-primary'
+            >
+              <CalendarDays className='h-4 w-4' />
               {t(appointmentsButtonText)}
             </button>
-           )}
-         </div>
+          )}
+        </div>
       </div>
 
-
-      {/* -------- Right Side -------- */}
-      <div className='md:w-1/2 relative'>
-         <img className='w-full md:absolute bottom-0 h-auto rounded-lg' src={heroImage} alt="" />
+      <div className='relative flex min-h-[220px] w-full items-end justify-center md:min-h-0 md:w-1/2'>
+        <img
+          className='h-auto w-full max-h-[min(380px,45vh)] object-contain object-bottom md:max-h-[min(420px,50vh)] md:rounded-lg'
+          src={heroImage}
+          alt=''
+        />
       </div>
     </div>
   )

@@ -30,7 +30,9 @@ export const permissionsByRole = {
     'update appointments',
     'view basic patient profile',
     'manage payment status',
-    'view doctors'
+    'view doctors',
+    'view own profile',
+    'update own profile'
   ],
   patient: [
     'view own profile',

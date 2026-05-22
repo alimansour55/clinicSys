@@ -1,25 +1,37 @@
 import { v2 as cloudinary } from 'cloudinary'
 import siteSettingModel from '../models/siteSettingModel.js'
 import { logAudit } from '../services/auditService.js'
+import { normalizeSecuritySettings, purgeExpiredAuditLogs } from '../services/securityPolicyService.js'
+import { getResolvedInsuranceProviders } from '../services/insuranceProvidersService.js'
+import { normalizeHomeVisitPricing } from '../services/homeVisitPricingService.js'
+import { normalizeGlobalVisitFees } from '../services/globalVisitFeesService.js'
+import { getPublicAppBrand } from '../config/publicBrand.js'
+import { normalizeLanguagePolicies } from '../utils/languageAvailability.js'
 
 const SETTING_KEY = 'site-settings'
 
+const defaultCopyrightLine = () => {
+  const brand = getPublicAppBrand()
+  return `Copyright ${new Date().getFullYear()} © ${brand} - All Rights Reserved.`
+}
+
 const DEFAULT_FOOTER = {
-  description: "Simplifying healthcare access through smart appointment management. Book your doctor, anytime, anywhere with Prescripto's intelligent scheduling system. No more long waits or booking hassles - just efficient, reliable, and patient-focused healthcare at your convenience.",
-  companyTitle: 'COMPANY',
-  contactTitle: 'GET IN TOUCH',
+  description:
+    "Simplifying healthcare access through smart appointment management. Book your doctor, anytime, anywhere with our intelligent scheduling system. No more long waits or booking hassles - just efficient, reliable, and patient-focused healthcare at your convenience.",
+  companyTitle: 'Company',
+  contactTitle: 'Get in touch',
   homeLabel: 'Home',
   aboutLabel: 'About',
-  doctorsLabel: 'All Doctors',
-  contactLabel: 'Contact Us',
-  appointmentsLabel: 'My Appointments',
-  profileLabel: 'My Profile',
+  doctorsLabel: 'All doctors',
+  contactLabel: 'Contact us',
+  appointmentsLabel: 'My appointments',
+  profileLabel: 'My profile',
   privacyLabel: 'Privacy Policy',
   phoneLabel: 'Phone',
   phoneNumber: '+92 343 2705821',
   emailLabel: 'Email',
   email: 'marqum987@gmail.com',
-  copyrightText: 'Copyright 2026 © Prescripto - All Rights Reserved.',
+  copyrightText: defaultCopyrightLine(),
   showHomeLink: true,
   showAboutLink: true,
   showDoctorsLink: true,
@@ -41,12 +53,103 @@ const getSettingsDocument = async () => {
   return siteSettingModel.create({ key: SETTING_KEY })
 }
 
+/** Replace legacy template branding in API responses (does not write to DB). */
+const sanitizeLegacyPrescriptoInPayload = (payload) => {
+  const brand = getPublicAppBrand()
+  const year = new Date().getFullYear()
+  const copyrightLine = `Copyright ${year} © ${brand} - All Rights Reserved.`
+
+  if (payload.footer && typeof payload.footer === 'object') {
+    const f = payload.footer
+    if (f.copyrightText && /prescripto/i.test(String(f.copyrightText))) {
+      f.copyrightText = copyrightLine
+    }
+    if (f.description && /prescripto/i.test(String(f.description))) {
+      const b = brand
+      f.description = String(f.description)
+        .replace(/Prescripto's/gi, `${b}'s`)
+        .replace(/Prescripto/gi, b)
+    }
+  }
+  if (payload.branding && typeof payload.branding === 'object') {
+    const alt = String(payload.branding.altText || '').trim()
+    if (/^prescripto$/i.test(alt)) payload.branding.altText = brand
+  }
+}
+
 const getPublicSiteSettings = async (req, res) => {
   try {
     const settings = await getSettingsDocument()
-    res.json({ success: true, settings })
+    const payload = settings.toObject ? settings.toObject() : { ...settings }
+    sanitizeLegacyPrescriptoInPayload(payload)
+    payload.homeVisitPricing = normalizeHomeVisitPricing(payload.homeVisitPricing)
+    payload.globalVisitFees = normalizeGlobalVisitFees(payload.globalVisitFees)
+    payload.insuranceProviders = await getResolvedInsuranceProviders()
+    payload.languagePolicies = normalizeLanguagePolicies(payload.languagePolicies, payload.languageAvailability)
+    res.json({ success: true, settings: payload })
   } catch (error) {
     console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const listInsuranceProviders = async (req, res) => {
+  try {
+    const providers = await getResolvedInsuranceProviders()
+    res.json({ success: true, providers })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const normalizeInsuranceProvidersBody = (body) => {
+  let list = body?.providers
+  if (typeof list === 'string') {
+    try {
+      list = JSON.parse(list)
+    } catch {
+      list = []
+    }
+  }
+  if (!Array.isArray(list)) list = []
+  return [...new Set(list.map((p) => String(p || '').trim()).filter(Boolean))]
+}
+
+const updateInsuranceProviders = async (req, res) => {
+  try {
+    const next = normalizeInsuranceProvidersBody(req.body || {})
+    if (next.length < 1) {
+      return res.json({ success: false, message: 'At least one insurance provider is required' })
+    }
+
+    const settings = await siteSettingModel.findOneAndUpdate(
+      { key: SETTING_KEY },
+      { $set: { insuranceProviders: next } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    )
+
+    await logAudit({
+      action: 'insurance_providers_update',
+      status: 'success',
+      entityType: 'site_settings',
+      entityId: settings._id,
+      metadata: { count: next.length },
+      req
+    })
+
+    const payload = settings.toObject ? settings.toObject() : { ...settings }
+    payload.insuranceProviders = await getResolvedInsuranceProviders()
+    res.json({ success: true, message: 'Insurance providers updated', settings: payload })
+  } catch (error) {
+    console.log(error)
+    await logAudit({
+      action: 'insurance_providers_update',
+      status: 'failed',
+      reason: error.message,
+      entityType: 'site_settings',
+      req
+    })
     res.json({ success: false, message: error.message })
   }
 }
@@ -300,4 +403,249 @@ const updateFooterSettings = async (req, res) => {
   }
 }
 
-export { getPublicSiteSettings, updateHomeHeroSettings, updateHomeBannerSettings, updateHomeServiceCardsSettings, updateFooterSettings }
+const updateBrandingLogo = async (req, res) => {
+  try {
+    const currentSettings = await getSettingsDocument()
+    const current = currentSettings.branding?.toObject?.() || currentSettings.branding || {}
+    let headerLogoUrl = String(current.headerLogoUrl || '').trim()
+
+    if (booleanFromBody(req.body.clearHeaderLogo, false)) {
+      headerLogoUrl = ''
+    } else if (req.file) {
+      const upload = await cloudinary.uploader.upload(req.file.path, { resource_type: 'image' })
+      headerLogoUrl = upload.secure_url
+    }
+
+    const defaultBrand = getPublicAppBrand()
+    const altText = String(req.body.altText ?? current.altText ?? defaultBrand).trim() || defaultBrand
+
+    const nextBranding = { headerLogoUrl, altText, logoMaxWidthPx: 0, logoMaxHeightPx: 0 }
+
+    const settings = await siteSettingModel.findOneAndUpdate(
+      { key: SETTING_KEY },
+      { $set: { branding: nextBranding } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    )
+
+    await logAudit({
+      action: 'site_branding_update',
+      status: 'success',
+      entityType: 'site_settings',
+      entityId: settings._id,
+      metadata: {
+        clearedLogo: booleanFromBody(req.body.clearHeaderLogo, false),
+        uploadedLogo: Boolean(req.file)
+      },
+      req
+    })
+
+    const settingsPlain = settings.toObject ? settings.toObject({ flattenMaps: true }) : { ...settings }
+    res.json({ success: true, message: 'Site logo updated', settings: settingsPlain })
+  } catch (error) {
+    console.log(error)
+    await logAudit({
+      action: 'site_branding_update',
+      status: 'failed',
+      reason: error.message,
+      entityType: 'site_settings',
+      req
+    })
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const updateGlobalVisitFeesSettings = async (req, res) => {
+  try {
+    const body = req.body || {}
+    const next = normalizeGlobalVisitFees({
+      enabled: booleanFromBody(body.enabled, false),
+      examinationFee: body.examinationFee,
+      consultationFee: body.consultationFee
+    })
+
+    if (next.enabled) {
+      if (next.examinationFee <= 0) {
+        return res.json({ success: false, message: 'Examination fee must be greater than zero when global fees are enabled' })
+      }
+      if (next.consultationFee <= 0) {
+        return res.json({ success: false, message: 'Follow-up consultation fee must be greater than zero when global fees are enabled' })
+      }
+      if (next.consultationFee >= next.examinationFee) {
+        return res.json({
+          success: false,
+          message: 'Follow-up consultation fee must be lower than the examination fee'
+        })
+      }
+    }
+
+    const settings = await siteSettingModel.findOneAndUpdate(
+      { key: SETTING_KEY },
+      { $set: { globalVisitFees: next } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    )
+
+    await logAudit({
+      action: 'global_visit_fees_update',
+      status: 'success',
+      entityType: 'site_settings',
+      entityId: settings._id,
+      metadata: { globalVisitFees: next },
+      req
+    })
+
+    const payload = settings.toObject ? settings.toObject() : { ...settings }
+    payload.globalVisitFees = normalizeGlobalVisitFees(payload.globalVisitFees)
+    payload.homeVisitPricing = normalizeHomeVisitPricing(payload.homeVisitPricing)
+
+    res.json({ success: true, message: 'Global visit fees updated', settings: payload })
+  } catch (error) {
+    console.log(error)
+    await logAudit({
+      action: 'global_visit_fees_update',
+      status: 'failed',
+      reason: error.message,
+      entityType: 'site_settings',
+      req
+    })
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const updateHomeVisitPricingSettings = async (req, res) => {
+  try {
+    const body = req.body || {}
+    const next = normalizeHomeVisitPricing({
+      pricingType: body.pricingType,
+      percentageValue: body.percentageValue,
+      fixedAmount: body.fixedAmount
+    })
+
+    if (next.pricingType === 'fixed' && next.fixedAmount <= 0) {
+      return res.json({ success: false, message: 'Fixed home visit amount must be greater than zero' })
+    }
+
+    const settings = await siteSettingModel.findOneAndUpdate(
+      { key: SETTING_KEY },
+      { $set: { homeVisitPricing: next } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    )
+
+    await logAudit({
+      action: 'home_visit_pricing_update',
+      status: 'success',
+      entityType: 'site_settings',
+      entityId: settings._id,
+      metadata: { homeVisitPricing: next },
+      req
+    })
+
+    const payload = settings.toObject ? settings.toObject() : { ...settings }
+    payload.homeVisitPricing = normalizeHomeVisitPricing(payload.homeVisitPricing)
+
+    res.json({ success: true, message: 'Home visit pricing updated', settings: payload })
+  } catch (error) {
+    console.log(error)
+    await logAudit({
+      action: 'home_visit_pricing_update',
+      status: 'failed',
+      reason: error.message,
+      entityType: 'site_settings',
+      req
+    })
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const updateLanguagePoliciesSettings = async (req, res) => {
+  try {
+    const current = await getSettingsDocument()
+    const legacy = current?.languageAvailability
+    const languagePolicies = normalizeLanguagePolicies(req.body?.languagePolicies, legacy)
+
+    const settings = await siteSettingModel.findOneAndUpdate(
+      { key: SETTING_KEY },
+      { $set: { languagePolicies } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    )
+
+    await logAudit({
+      action: 'language_policies_update',
+      status: 'success',
+      entityType: 'site_settings',
+      entityId: settings._id,
+      metadata: { languagePolicies },
+      req
+    })
+
+    const payload = settings.toObject ? settings.toObject() : { ...settings }
+    payload.languagePolicies = normalizeLanguagePolicies(payload.languagePolicies, payload.languageAvailability)
+    res.json({ success: true, message: 'Language settings updated', settings: payload })
+  } catch (error) {
+    console.log(error)
+    await logAudit({
+      action: 'language_policies_update',
+      status: 'failed',
+      reason: error.message,
+      entityType: 'site_settings',
+      req
+    })
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const updateSecuritySettings = async (req, res) => {
+  try {
+    const currentSettings = await getSettingsDocument()
+    const currentSecurity = currentSettings.security?.toObject?.() || currentSettings.security || {}
+    const nextSecurity = normalizeSecuritySettings({ ...currentSecurity, ...(req.body || {}) })
+
+    const settings = await siteSettingModel.findOneAndUpdate(
+      { key: SETTING_KEY },
+      { $set: { security: nextSecurity } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    )
+
+    const purgeResult = await purgeExpiredAuditLogs()
+
+    await logAudit({
+      action: 'security_settings_update',
+      status: 'success',
+      entityType: 'site_settings',
+      entityId: settings._id,
+      metadata: {
+        changedFields: Object.keys(nextSecurity),
+        auditRetentionDays: nextSecurity.auditLogRetentionDays,
+        dataRetentionDays: nextSecurity.dataRetentionDays,
+        purgedAuditLogs: purgeResult.deletedCount
+      },
+      req
+    })
+
+    res.json({ success: true, message: 'Security settings updated', settings, purgeResult })
+  } catch (error) {
+    console.log(error)
+    await logAudit({
+      action: 'security_settings_update',
+      status: 'failed',
+      reason: error.message,
+      entityType: 'site_settings',
+      req
+    })
+    res.json({ success: false, message: error.message })
+  }
+}
+
+export {
+  getPublicSiteSettings,
+  listInsuranceProviders,
+  updateInsuranceProviders,
+  updateHomeHeroSettings,
+  updateHomeBannerSettings,
+  updateHomeServiceCardsSettings,
+  updateFooterSettings,
+  updateBrandingLogo,
+  updateLanguagePoliciesSettings,
+  updateSecuritySettings,
+  updateHomeVisitPricingSettings,
+  updateGlobalVisitFeesSettings
+}

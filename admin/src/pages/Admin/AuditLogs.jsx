@@ -18,6 +18,7 @@ const AuditLogs = () => {
   const [logs, setLogs] = useState([])
   const [filters, setFilters] = useState(initialFilters)
   const [loading, setLoading] = useState(true)
+  const [auditPolicy, setAuditPolicy] = useState({ enabled: true, retentionDays: null, purgedAuditLogs: 0 })
 
   const hasFilters = useMemo(() => Object.values(filters).some(Boolean), [filters])
 
@@ -50,6 +51,11 @@ const AuditLogs = () => {
 
       if (data.success) {
         setLogs(data.logs)
+        setAuditPolicy({
+          enabled: data.auditLogsEnabled !== false,
+          retentionDays: data.retentionDays || null,
+          purgedAuditLogs: data.purgedAuditLogs || 0
+        })
       } else {
         toast.error(data.message)
       }
@@ -188,6 +194,14 @@ const AuditLogs = () => {
           <span className='px-2 sm:px-3 py-1 bg-red-50 text-red-700 rounded-full whitespace-nowrap'>
             Failed: {logs.filter(log => log.status === 'failed').length}
           </span>
+          <span className='px-2 sm:px-3 py-1 bg-gray-100 text-gray-700 rounded-full whitespace-nowrap'>
+            Retention: {auditPolicy.retentionDays ? `${auditPolicy.retentionDays} days` : 'Policy default'}
+          </span>
+          {auditPolicy.purgedAuditLogs > 0 && (
+            <span className='px-2 sm:px-3 py-1 bg-amber-50 text-amber-700 rounded-full whitespace-nowrap'>
+              Purged expired: {auditPolicy.purgedAuditLogs}
+            </span>
+          )}
         </div>
 
         <div className='bg-white border rounded-lg text-xs sm:text-sm max-h-[70vh] sm:max-h-[80vh] min-h-[40vh] overflow-y-auto overflow-x-auto'>

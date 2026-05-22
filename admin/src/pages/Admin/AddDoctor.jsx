@@ -1,9 +1,11 @@
 import React, { useContext, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { AdminContext } from "../../context/AdminContext";
 import { toast } from 'react-toastify'
 import axios from 'axios'
-import { Building2, Plus, RotateCcw, Upload, UserPlus, Eye, EyeOff, Loader2, Check, MapPin, X } from 'lucide-react'
+import { ArrowLeft, Building2, Plus, RotateCcw, Upload, UserPlus, Eye, EyeOff, Loader2, Check, MapPin, X } from 'lucide-react'
 import { AppContext } from "../../context/AppContext";
+import { useLanguage } from "../../i18n";
 
 const AddDoctor = () => {
   const [docImg, setDocImg] = useState(false)
@@ -11,20 +13,25 @@ const AddDoctor = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [experience, setExperience] = useState('1 Year')
+  const [experience, setExperience] = useState(1)
   const [fees, setFees] = useState('')
   const [about, setAbout] = useState('')
   const [speciality, setSpeciality] = useState('General physician')
   const [degree, setDegree] = useState('')
-  const [address1, setAddress1] = useState('')
-  const [address2, setAddress2] = useState('')
+  const [gender, setGender] = useState('')
+  const [title, setTitle] = useState('')
+  const [acceptsCash, setAcceptsCash] = useState(true)
+  const [acceptsOnlinePayment, setAcceptsOnlinePayment] = useState(true)
+  const [promoCode, setPromoCode] = useState({ code: '', discountType: 'percentage', discountValue: '', active: false })
   const [phone, setPhone] = useState()
   const [selectedClinics, setSelectedClinics] = useState([])
   const [locations, setLocations] = useState([''])
   const [isLoading, setIsLoading] = useState(false)
 
-  const { backendUrl, aToken, clinics, getClinics } = useContext(AdminContext)
+  const { backendUrl, aToken, clinics, getClinics, getAllDoctors } = useContext(AdminContext)
   const { currency } = useContext(AppContext)
+  const { t } = useLanguage()
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (aToken) {
@@ -64,11 +71,16 @@ const AddDoctor = () => {
       formData.append('password', password)
       formData.append('phone', phone)
       formData.append('experience', experience)
-      formData.append('fees', Number(fees))
+      formData.append('fees', String(fees ?? '').trim())
       formData.append('about', about)
       formData.append('speciality', speciality)
       formData.append('degree', degree)
-      formData.append('address', JSON.stringify({line1: address1, line2: address2}))
+      formData.append('gender', gender)
+      formData.append('title', title)
+      formData.append('acceptsCash', acceptsCash)
+      formData.append('acceptsOnlinePayment', acceptsOnlinePayment)
+      formData.append('promoCode', JSON.stringify(promoCode))
+      formData.append('address', JSON.stringify({ line1: '', line2: '', addresses: [] }))
       formData.append('clinicIds', JSON.stringify(selectedClinics))
       formData.append('locations', JSON.stringify(locations.map((location) => location.trim()).filter(Boolean)))
       
@@ -76,8 +88,9 @@ const AddDoctor = () => {
       const { data } = await axios.post(backendUrl + '/api/admin/add-doctor', formData, {headers: {aToken}})
       
       if(data.success) {
-        toast.success(data.message)
-        handleReset()
+        toast.success(`${data.message} The doctor must sign in and publish availability before patients can book.`)
+        await getAllDoctors()
+        navigate('/doctor-list')
       } else {
         toast.error(data.message)
       }
@@ -94,13 +107,16 @@ const AddDoctor = () => {
     setEmail('')
     setPassword('')
     setPhone('')
-    setAddress1('')
-    setAddress2('')
     setDegree('')
     setAbout('')
     setFees('')
-    setExperience('1 Year')
+    setExperience(1)
     setSpeciality('General physician')
+    setGender('')
+    setTitle('')
+    setAcceptsCash(true)
+    setAcceptsOnlinePayment(true)
+    setPromoCode({ code: '', discountType: 'percentage', discountValue: '', active: false })
     setSelectedClinics([])
     setLocations([''])
   }
@@ -109,14 +125,23 @@ const AddDoctor = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-4 sm:py-6 lg:py-8 px-3 sm:px-6 lg:px-8">
       <div className="max-w-5xl">
 
-        {/* Header */}
+        <div className="mb-4 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-start sm:justify-between lg:mb-8">
+          <Link
+            to="/doctor-list"
+            className="inline-flex w-fit items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition hover:bg-gray-50"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t('Back to doctors')}
+          </Link>
+        </div>
+
         <div className="mb-4 sm:mb-6 lg:mb-8"> 
           <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2">
             <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-primary" />
-            Add New Doctor
+            {t('Add Doctor')}
           </h1>
           <p className="mt-1 sm:mt-2 text-xs sm:text-sm lg:text-base text-gray-600 ml-7 sm:ml-8 lg:ml-9">
-            Fill in the information below to add a new doctor to the system
+            Fill in the information below to add a new doctor to the directory
           </p>
         </div>
 
@@ -223,42 +248,40 @@ const AddDoctor = () => {
                   <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                     Years of Experience <span className="text-red-500">*</span>
                   </label>
-                  <select 
-                    onChange={(e) => setExperience(e.target.value)} 
-                    value={experience} 
-                    className="w-full border-2 border-gray-200 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-700 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all outline-none bg-white cursor-pointer"
-                  >
-                    <option value="1 Year">1 Year</option>
-                    <option value="2 Years">2 Years</option>
-                    <option value="3 Years">3 Years</option>
-                    <option value="4 Years">4 Years</option>
-                    <option value="5 Years">5 Years</option>
-                    <option value="6 Years">6 Years</option>
-                    <option value="7 Years">7 Years</option>
-                    <option value="8 Years">8 Years</option>
-                    <option value="9 Years">9 Years</option>
-                    <option value="10 Years">10 Years</option>
-                  </select>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      onChange={(e) => setExperience(Number(e.target.value))}
+                      value={experience}
+                      className="w-24 border-2 border-gray-200 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-700 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all outline-none bg-white"
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="12"
+                      required
+                    />
+                    <span className="text-sm text-gray-600">years of experience</span>
+                  </div>
                 </div>
 
-                {/* Fees */}
+                {/* Fees (optional — uses global fees when empty) */}
                 <div>
                   <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                    Consultation Fees <span className="text-red-500">*</span>
+                    Examination fee (optional)
                   </label>
-                  <div className="relative">
-                    <span className="absolute left-3 sm:left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm sm:text-base  ">
+                  <div className="flex overflow-hidden rounded-lg border-2 border-gray-200 bg-white focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+                    <span className="flex shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-600 sm:text-base">
                       {currency} 
                     </span>
                     <input 
                       onChange={(e) => setFees(e.target.value)} 
                       value={fees} 
-                      className="w-full border-2 border-gray-200 rounded-lg pl-7  sm:pl-8 pr-3 sm:pr-4 py-2 sm:py-3 text-sm sm:text-base text-gray-700 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all outline-none" 
+                      className="min-w-0 flex-1 px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-700 outline-none" 
                       type="number" 
-                      placeholder="0.00" 
-                      required 
+                      min="0"
+                      placeholder="Leave empty for global fees" 
                     />
                   </div>
+                  <p className="mt-1 text-xs text-gray-500">Leave blank to use global visit fees. Set a value here to override global fees for this doctor only.</p>
                 </div>
               </div>
 
@@ -298,28 +321,36 @@ const AddDoctor = () => {
                   />
                 </div>
 
-                {/* Address */}
-                <div>
-                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                    Clinic Address <span className="text-red-500">*</span>
-                  </label>
-                  <div className="space-y-2 sm:space-y-3">
-                    <input 
-                      onChange={(e) => setAddress1(e.target.value)} 
-                      value={address1} 
-                      className="w-full border-2 border-gray-200 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-700 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all outline-none" 
-                      type="text" 
-                      placeholder="Street address" 
-                      required 
-                    />
-                    <input 
-                      onChange={(e) => setAddress2(e.target.value)} 
-                      value={address2} 
-                      className="w-full border-2 border-gray-200 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-700 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all outline-none" 
-                      type="text" 
-                      placeholder="City, State, ZIP" 
-                      required 
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                      Doctor Gender
+                    </label>
+                    <select
+                      onChange={(e) => setGender(e.target.value)}
+                      value={gender}
+                      className="w-full border-2 border-gray-200 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-700 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all outline-none bg-white cursor-pointer"
+                    >
+                      <option value="">Choose gender</option>
+                      <option value="Female">Female</option>
+                      <option value="Male">Male</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                      Doctor Title
+                    </label>
+                    <select
+                      onChange={(e) => setTitle(e.target.value)}
+                      value={title}
+                      className="w-full border-2 border-gray-200 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-700 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all outline-none bg-white cursor-pointer"
+                    >
+                      <option value="">Choose title</option>
+                      <option value="Professor">Professor</option>
+                      <option value="Lecturer">Lecturer</option>
+                      <option value="Consultant">Consultant</option>
+                      <option value="Specialist">Specialist</option>
+                    </select>
                   </div>
                 </div>
 
@@ -337,6 +368,32 @@ const AddDoctor = () => {
                   />
                 </div>
 
+              </div>
+            </div>
+
+            <div className="mt-4 sm:mt-6 lg:mt-8">
+              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                Payment and Promo Offer
+              </label>
+              <div className="grid grid-cols-1 gap-3 rounded-xl border-2 border-gray-200 bg-gray-50 p-3 sm:grid-cols-2 sm:p-4">
+                <label className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700">
+                  <input type="checkbox" checked={acceptsCash} onChange={(event) => setAcceptsCash(event.target.checked)} className="accent-primary" />
+                  Accept cash payment
+                </label>
+                <label className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700">
+                  <input type="checkbox" checked={acceptsOnlinePayment} onChange={(event) => setAcceptsOnlinePayment(event.target.checked)} className="accent-primary" />
+                  Accept online payment
+                </label>
+                <label className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 sm:col-span-2">
+                  <input type="checkbox" checked={promoCode.active} onChange={(event) => setPromoCode((previous) => ({ ...previous, active: event.target.checked }))} className="accent-primary" />
+                  Show percentage offer to patients
+                </label>
+                <input value={promoCode.code} onChange={(event) => setPromoCode((previous) => ({ ...previous, code: event.target.value.toUpperCase() }))} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary" placeholder="Optional code, auto-created if empty" />
+                <select value={promoCode.discountType} onChange={(event) => setPromoCode((previous) => ({ ...previous, discountType: event.target.value }))} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary">
+                  <option value="percentage">Percentage discount</option>
+                  <option value="fixed">Fixed amount discount</option>
+                </select>
+                <input value={promoCode.discountValue} onChange={(event) => setPromoCode((previous) => ({ ...previous, discountValue: event.target.value }))} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary sm:col-span-2" type="number" min="0" max={promoCode.discountType === 'percentage' ? '100' : undefined} placeholder={promoCode.discountType === 'percentage' ? 'Percentage, e.g. 10' : 'Fixed discount value'} />
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Outfit:wght@100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Prata&display=swap');
 
 @import "tailwindcss";
+@import "react-toastify/dist/ReactToastify.css";
 
 *{
   font-family: Outfit, Arial, sans-serif;
@@ -22,4 +23,45 @@ html[dir="rtl"] select {
 
 ::-webkit-scrollbar{
   @apply hidden
+}
+
+body > section.Toastify {
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: visible !important;
+}
+
+body > section.Toastify .Toastify__toast-container {
+  pointer-events: none !important;
+  width: max-content !important;
+  max-width: calc(100vw - 1rem) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+body > section.Toastify .Toastify__toast-container--top-right {
+  top: max(0.75rem, env(safe-area-inset-top, 0px)) !important;
+}
+
+body > section.Toastify .Toastify__toast {
+  pointer-events: auto !important;
+  touch-action: manipulation;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+}
+
+#root a,
+#root button,
+#root [role='button'],
+#root input,
+#root select,
+#root textarea,
+#root label {
+  touch-action: manipulation;
 }

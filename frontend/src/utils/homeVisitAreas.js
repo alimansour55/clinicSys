@@ -56,3 +56,17 @@ export const formatHomeVisitAddress = (address = {}) => [
   address.floor ? `Floor ${address.floor}` : '',
   address.apartment ? `Apartment ${address.apartment}` : ''
 ].filter(Boolean).join(', ')
+
+export const getDoctorHomeVisitAreas = (doctor, allAreas = supportedHomeVisitAreas) => {
+  const selected = Array.isArray(doctor?.homeVisitAreas) ? doctor.homeVisitAreas : []
+  if (!selected.length) return []
+  const allowed = new Set(selected.map((area) => String(area).trim().toLowerCase()))
+  return allAreas.filter((area) => allowed.has(area.toLowerCase()))
+}
+
+export const doctorOffersHomeVisit = (doctor) => {
+  if (!doctor) return false
+  const workingDays = doctor?.homeVisitSchedule?.workingDays
+  const hasSchedule = Array.isArray(workingDays) && workingDays.length > 0
+  return hasSchedule && getDoctorHomeVisitAreas(doctor).length > 0
+}

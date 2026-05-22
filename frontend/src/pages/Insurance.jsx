@@ -1,11 +1,14 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import { CreditCard, FileUp } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
+import { getInsuranceStatus, insuranceStatusLabel, insuranceStatusTone, isInsuranceExpired } from '../utils/insuranceVerification'
 
 const emptyInsurance = {
   enabled: false,
+  provider: '',
   fullName: '',
   birthDate: '',
   idNumber: '',
@@ -16,11 +19,34 @@ const emptyInsurance = {
 const today = new Date().toISOString().split('T')[0]
 
 const Insurance = () => {
-  const { token, userData, saveInsurance } = useContext(AppContext)
+  const { token, userData, saveInsurance, backendUrl, loadUserProfileData } = useContext(AppContext)
   const navigate = useNavigate()
   const [insurance, setInsurance] = useState(emptyInsurance)
   const [cardFile, setCardFile] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [providers, setProviders] = useState([])
+
+  /** Receptionist/admin may update insurance on the server; reload profile when this page is opened. */
+  useEffect(() => {
+    if (!token) return
+    loadUserProfileData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load fresh insurance from API on visit
+  }, [token])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data } = await axios.get(`${backendUrl}/api/user/insurance-providers`)
+        if (!cancelled && data.success && Array.isArray(data.providers)) setProviders(data.providers)
+      } catch {
+        if (!cancelled) setProviders([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [backendUrl])
 
   useEffect(() => {
     setInsurance({ ...emptyInsurance, ...(userData?.insurance || {}) })
@@ -33,8 +59,8 @@ const Insurance = () => {
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    if (insurance.enabled && (!insurance.fullName || !insurance.birthDate || !insurance.idNumber || !insurance.expiryDate)) {
-      toast.error('Please complete all insurance fields')
+    if (insurance.enabled && (!insurance.provider || !insurance.fullName || !insurance.birthDate || !insurance.idNumber || !insurance.expiryDate)) {
+      toast.error('Please complete all insurance fields including provider')
       return
     }
 
@@ -45,6 +71,7 @@ const Insurance = () => {
 
     const formData = new FormData()
     formData.append('insuranceEnabled', insurance.enabled)
+    formData.append('insuranceProvider', insurance.provider)
     formData.append('insuranceFullName', insurance.fullName)
     formData.append('insuranceBirthDate', insurance.birthDate)
     formData.append('insuranceIdNumber', insurance.idNumber)
@@ -73,6 +100,21 @@ const Insurance = () => {
           </div>
         </div>
 
+        {userData?.insurance?.enabled && (
+          <div className={`mb-5 rounded-lg border px-4 py-3 text-sm ${insuranceStatusTone(getInsuranceStatus(userData.insurance))}`}>
+            <p className='font-semibold'>{insuranceStatusLabel(getInsuranceStatus(userData.insurance))}</p>
+            {getInsuranceStatus(userData.insurance) === 'pending' && (
+              <p className='mt-1 text-xs opacity-90'>Your insurance is on file and waiting for reception desk review.</p>
+            )}
+            {getInsuranceStatus(userData.insurance) === 'declined' && userData.insurance.declineReason && (
+              <p className='mt-1 text-xs opacity-90'>Reason: {userData.insurance.declineReason}</p>
+            )}
+            {isInsuranceExpired(userData.insurance.expiryDate) && (
+              <p className='mt-1 text-xs font-semibold'>Your card expiry date has passed. Please update your details.</p>
+            )}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className='space-y-5'>
           <label className='flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 cursor-pointer'>
             <span>
@@ -89,6 +131,22 @@ const Insurance = () => {
 
           {insurance.enabled && (
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+              <div className='sm:col-span-2'>
+                <label className='block text-sm font-medium text-gray-700 mb-1'>Insurance provider *</label>
+                <select
+                  value={insurance.provider}
+                  onChange={(e) => setInsurance((prev) => ({ ...prev, provider: e.target.value }))}
+                  className='w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white'
+                  required
+                >
+                  <option value=''>Select provider</option>
+                  {providers.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className='sm:col-span-2'>
                 <label className='block text-sm font-medium text-gray-700 mb-1'>Full Name *</label>
                 <input value={insurance.fullName} onChange={(e) => setInsurance((prev) => ({ ...prev, fullName: e.target.value }))} className='w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20' required />

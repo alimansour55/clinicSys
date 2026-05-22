@@ -3,9 +3,15 @@ import doctorModel from '../models/doctorModel.js'
 import userModel from '../models/userModel.js'
 import stripe, { stripeCurrency } from '../config/stripe.js'
 import { logAudit } from '../services/auditService.js'
-import { isSlotAllowedBySchedule } from '../services/scheduleService.js'
-import { buildTeleconsultationLink, normalizeAppointmentType } from '../services/appointmentModeService.js'
+import { getBookedSlots, getBookedSlotsField, isSlotAllowedBySchedule, resolveClinicLocationForSchedule, usesClinicWeeklySchedule } from '../services/scheduleService.js'
+import { buildTeleconsultationLink, getDoctorAppointmentModeError, normalizeAppointmentType } from '../services/appointmentModeService.js'
 import { normalizeHomeVisitAddress, validateHomeVisitAddress } from '../services/homeVisitService.js'
+import { applyAppointmentPricing } from '../services/appointmentPricingService.js'
+import { getHomeVisitPricingSettings } from '../services/homeVisitPricingService.js'
+import { normalizeVisitFeeType } from '../services/globalVisitFeesService.js'
+import { patientCanBookConsultation } from '../services/visitFeeEligibilityService.js'
+import { getNextReservationNumber } from '../services/reservationService.js'
+import { notifyAppointmentBooked, notifyPaymentRecorded } from '../services/notificationService.js'
 
 const ensureStripe = () => {
   if (!stripe) {
@@ -16,6 +22,12 @@ const ensureStripe = () => {
 }
 
 const toMinorUnits = (amount) => Math.round(Number(amount || 0) * 100)
+
+const getDoctorPaymentError = (doctor, paymentMethod) => {
+  if (paymentMethod === 'Cash' && doctor.acceptsCash === false) return 'This doctor does not accept cash payment'
+  if (paymentMethod === 'Visa' && doctor.acceptsOnlinePayment === false) return 'This doctor does not accept online payment'
+  return ''
+}
 
 const getStripeChargeId = (intent) => {
   if (!intent) return ''
@@ -30,16 +42,14 @@ const createBookingPaymentIntent = async (req, res) => {
 
     const userId = req.user.userId
     const { docId, slotDate, slotTime } = req.body
+    const promoCodeInput = String(req.body.promoCode || '').trim()
     const clinicLocation = String(req.body.clinicLocation || '').trim()
     const appointmentType = normalizeAppointmentType(req.body.appointmentType)
+    const visitFeeType = normalizeVisitFeeType(req.body.visitFeeType)
     const homeVisitAddress = normalizeHomeVisitAddress(req.body.homeVisitAddress || {})
 
     if (!docId || !slotDate || !slotTime) {
       return res.json({ success: false, message: 'Missing appointment details' })
-    }
-    if (appointmentType === 'Home Visit') {
-      const addressError = validateHomeVisitAddress(homeVisitAddress)
-      if (addressError) return res.json({ success: false, message: addressError })
     }
 
     const docData = await doctorModel.findById(docId).select('-password')
@@ -48,22 +58,54 @@ const createBookingPaymentIntent = async (req, res) => {
     if (!docData) {
       return res.json({ success: false, message: 'Doctor not found' })
     }
+    if (appointmentType === 'Home Visit') {
+      const addressError = validateHomeVisitAddress(homeVisitAddress, docData)
+      if (addressError) return res.json({ success: false, message: addressError })
+    }
+    if (visitFeeType === 'consultation') {
+      const eligibility = await patientCanBookConsultation(userId, docId)
+      if (!eligibility.allowed) {
+        return res.json({
+          success: false,
+          message: 'Follow-up consultation is only available within 30 days of a completed examination with this doctor'
+        })
+      }
+    }
+    const appointmentModeError = getDoctorAppointmentModeError(docData, appointmentType)
+    if (appointmentModeError) {
+      return res.json({ success: false, message: appointmentModeError })
+    }
+    const paymentError = getDoctorPaymentError(docData, 'Visa')
+    if (paymentError) {
+      return res.json({ success: false, message: paymentError })
+    }
 
     if (!userData || userData.isActive === false) {
       return res.json({ success: false, message: 'Patient account is deactivated' })
     }
 
-    const scheduleCheck = isSlotAllowedBySchedule(docData, slotDate, slotTime)
+    const scheduleCheck = isSlotAllowedBySchedule(docData, slotDate, slotTime, appointmentType)
     if (!scheduleCheck.allowed) {
       return res.json({ success: false, message: scheduleCheck.reason })
     }
 
-    const isAlreadyBooked = docData.slots_booked?.[slotDate]?.includes(slotTime)
+    const isAlreadyBooked = getBookedSlots(docData, appointmentType)?.[slotDate]?.includes(slotTime)
     if (isAlreadyBooked) {
       return res.json({ success: false, message: 'Slot not available' })
     }
 
-    const amount = Number(docData.fees || 0)
+    const homeVisitPricing = await getHomeVisitPricingSettings()
+    const pricing = await applyAppointmentPricing(docData, {
+      promoCode: promoCodeInput,
+      appointmentType,
+      homeVisitPricing,
+      visitFeeType
+    })
+    if (pricing.error) {
+      return res.json({ success: false, message: pricing.error })
+    }
+
+    const amount = pricing.amount
     const amountInMinorUnits = toMinorUnits(amount)
     if (!Number.isFinite(amountInMinorUnits) || amountInMinorUnits <= 0) {
       return res.json({ success: false, message: 'Invalid appointment amount' })
@@ -87,6 +129,12 @@ const createBookingPaymentIntent = async (req, res) => {
         homeVisitFloor: homeVisitAddress.floor,
         homeVisitApartment: homeVisitAddress.apartment,
         homeVisitNotes: homeVisitAddress.notes,
+        promoCode: pricing.promoCode,
+        visitFeeType: pricing.visitFeeType,
+        discountAmount: String(pricing.discountAmount),
+        discountReason: pricing.discountReason,
+        homeVisitSurcharge: String(pricing.homeVisitSurcharge || 0),
+        originalAmount: String(pricing.baseAmount),
         patientName: userData.name || '',
         doctorName: docData.name || ''
       }
@@ -119,6 +167,7 @@ const confirmBookingPaymentIntent = async (req, res) => {
 
     const { docId, slotDate, slotTime, clinicLocation = '' } = intent.metadata || {}
     const appointmentType = normalizeAppointmentType(intent.metadata?.appointmentType)
+    const visitFeeType = normalizeVisitFeeType(intent.metadata?.visitFeeType)
     const homeVisitAddress = normalizeHomeVisitAddress({
       area: intent.metadata?.homeVisitArea,
       street: intent.metadata?.homeVisitStreet,
@@ -141,8 +190,37 @@ const confirmBookingPaymentIntent = async (req, res) => {
       })
       return res.json({ success: false, message: 'Appointment is no longer available. Payment refund was requested.' })
     }
+    if (visitFeeType === 'consultation') {
+      const eligibility = await patientCanBookConsultation(userId, docId)
+      if (!eligibility.allowed) {
+        await stripe.refunds.create({
+          payment_intent: intent.id,
+          metadata: { reason: 'consultation_not_eligible', userId, docId }
+        })
+        return res.json({
+          success: false,
+          message: 'Follow-up consultation is no longer eligible. Payment refund was requested.'
+        })
+      }
+    }
+    const appointmentModeError = getDoctorAppointmentModeError(docData, appointmentType)
+    if (appointmentModeError) {
+      await stripe.refunds.create({
+        payment_intent: intent.id,
+        metadata: { reason: 'doctor_appointment_mode_changed', userId, docId, appointmentType }
+      })
+      return res.json({ success: false, message: 'Doctor no longer accepts this appointment type. Payment refund was requested.' })
+    }
+    const paymentError = getDoctorPaymentError(docData, 'Visa')
+    if (paymentError) {
+      await stripe.refunds.create({
+        payment_intent: intent.id,
+        metadata: { reason: 'doctor_payment_method_changed', userId, docId }
+      })
+      return res.json({ success: false, message: 'Doctor no longer accepts online payment. Payment refund was requested.' })
+    }
 
-    const scheduleCheck = isSlotAllowedBySchedule(docData, slotDate, slotTime)
+    const scheduleCheck = isSlotAllowedBySchedule(docData, slotDate, slotTime, appointmentType)
     if (!scheduleCheck.allowed) {
       await stripe.refunds.create({
         payment_intent: intent.id,
@@ -151,9 +229,31 @@ const confirmBookingPaymentIntent = async (req, res) => {
       return res.json({ success: false, message: 'Slot is no longer available. Payment refund was requested.' })
     }
 
+    // Check for any existing appointment for this doctor at the same time across all locations
+    // This prevents double-booking across multiple clinic locations
+    const conflictingAppointment = await appointmentModel.findOne({
+      docId,
+      slotDate,
+      slotTime,
+      appointmentType,
+      appointmentStatus: { $ne: 'Cancelled' }
+    })
+
+    if (conflictingAppointment) {
+      await stripe.refunds.create({
+        payment_intent: intent.id,
+        metadata: { reason: 'slot_double_booked', userId, docId, slotDate, slotTime }
+      })
+      return res.json({ 
+        success: false, 
+        message: `Slot was just booked by someone else at ${conflictingAppointment.clinicLocation || 'another location'}. Payment refund was requested.` 
+      })
+    }
+
+    const bookedSlotsField = getBookedSlotsField(appointmentType)
     const slotUpdate = await doctorModel.updateOne(
-      { _id: docId, [`slots_booked.${slotDate}`]: { $ne: slotTime } },
-      { $addToSet: { [`slots_booked.${slotDate}`]: slotTime } }
+      { _id: docId, [`${bookedSlotsField}.${slotDate}`]: { $ne: slotTime } },
+      { $addToSet: { [`${bookedSlotsField}.${slotDate}`]: slotTime } }
     )
 
     if (slotUpdate.modifiedCount === 0) {
@@ -166,21 +266,27 @@ const confirmBookingPaymentIntent = async (req, res) => {
 
     const appointmentDocData = docData.toObject()
     delete appointmentDocData.slots_booked
+    delete appointmentDocData.home_visit_slots_booked
 
     const appointmentId = new appointmentModel()._id
     const teleconsultationLink = ['Voice Call', 'Video Call'].includes(appointmentType) ? buildTeleconsultationLink({ appointmentId, docId, userId, slotDate, slotTime }) : ''
 
     const appointmentData = {
       _id: appointmentId,
+      reservationNumber: await getNextReservationNumber(),
       userId,
       docId,
       userData,
       docData: appointmentDocData,
-      amount: Number(docData.fees),
-      originalAmount: Number(docData.fees),
+      amount: Number(intent.amount_received || intent.amount || 0) / 100,
+      originalAmount: Number(intent.metadata?.originalAmount || docData.fees),
+      discountAmount: Number(intent.metadata?.discountAmount || 0),
+      discountReason: intent.metadata?.discountReason || '',
+      promoCode: intent.metadata?.promoCode || '',
+      visitFeeType,
       slotTime,
       slotDate,
-      clinicLocation: appointmentType === 'Clinic' ? clinicLocation : '',
+      clinicLocation: usesClinicWeeklySchedule(appointmentType) ? resolveClinicLocationForSchedule(docData, clinicLocation, appointmentType) : '',
       appointmentType,
       teleconsultationLink,
       homeVisitAddress: appointmentType === 'Home Visit' ? { ...homeVisitAddress, updatedBy: 'Patient', updatedAt: Date.now() } : {},
@@ -218,6 +324,8 @@ const confirmBookingPaymentIntent = async (req, res) => {
       },
       req
     })
+
+    notifyAppointmentBooked({ appointment: newAppointment, bookedBy: 'Patient' })
 
     res.json({ success: true, message: 'Payment confirmed and appointment booked', appointment: newAppointment })
   } catch (error) {
@@ -342,6 +450,8 @@ const confirmPaymentIntent = async (req, res) => {
       },
       req
     })
+
+    await notifyPaymentRecorded({ appointment: updatedAppointment, source: 'online' })
 
     res.json({ success: true, message: 'Payment confirmed', appointment: updatedAppointment })
   } catch (error) {

@@ -12,13 +12,24 @@ const userSchema = new mongoose.Schema({
     phone: {type:String, default:'000000000'},
     insurance: {
       enabled: { type: Boolean, default: false },
+      provider: { type: String, default: '' },
       fullName: { type: String, default: '' },
       birthDate: { type: String, default: '' },
       idNumber: { type: String, default: '' },
       expiryDate: { type: String, default: '' },
       medicalCardPhoto: { type: String, default: '' },
       updatedAt: { type: Number, default: 0 },
-      updatedBy: { type: String, default: '' }
+      updatedBy: { type: String, default: '' },
+      verificationStatus: {
+        type: String,
+        enum: ['none', 'pending', 'approved', 'declined'],
+        default: 'none'
+      },
+      verifiedAt: { type: Number, default: 0 },
+      verifiedBy: { type: String, default: '' },
+      declineReason: { type: String, default: '' },
+      lastCheckedAt: { type: Number, default: 0 },
+      lastCheckedBy: { type: String, default: '' }
     },
     isActive: {type: Boolean, default: true},
     deactivatedAt: {type: Number, default: 0},
@@ -33,8 +44,25 @@ const userSchema = new mongoose.Schema({
       updatedBy: { type: String, default: '' }
     },
 
+    emailVerified: { type: Boolean, default: false },
+    phoneVerified: { type: Boolean, default: false },
+    accountVerifiedAt: { type: Number, default: 0 },
+    emailVerifyOtp: { type: String, default: '' },
+    emailVerifyOtpExpireAt: { type: Number, default: 0 },
+    emailVerifyOtpSentAt: { type: Number, default: 0 },
+    phoneVerifyOtp: { type: String, default: '' },
+    phoneVerifyOtpExpireAt: { type: Number, default: 0 },
+    phoneVerifyOtpSentAt: { type: Number, default: 0 },
+
     resetOtp: {type: String, default: ''},
-    resetOtpExpireAt: {type: Number, default: 0}
+    resetOtpExpireAt: {type: Number, default: 0},
+    mfa: {
+      enabled: { type: Boolean, default: false },
+      secret: { type: String, default: '' },
+      requiredByAdmin: { type: Boolean, default: false },
+      configuredAt: { type: Number, default: 0 },
+      resetAt: { type: Number, default: 0 }
+    }
 
 
 }, {timestamps: true}  )

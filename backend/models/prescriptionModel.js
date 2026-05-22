@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const prescriptionSchema = new mongoose.Schema({
     // Basic IDs
     appointmentId: { type: String, required: true },
+    reservationNumber: { type: String, default: '' },
     userId: { type: String, required: true },
     docId: { type: String, required: true },
 

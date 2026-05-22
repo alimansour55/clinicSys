@@ -6,9 +6,33 @@ import prescriptionModel from "../models/prescriptionModel.js"
 import userModel from "../models/userModel.js"
 import { createJwtPayload } from "../middlewares/rbac.js"
 import { logAudit } from "../services/auditService.js"
-import { sanitizeSchedule } from "../services/scheduleService.js"
-import { normalizeHomeVisitAddress, validateHomeVisitAddress } from "../services/homeVisitService.js"
+import { getBookedSlotsField, hasDoctorPublishedSchedule, isDoctorOpenForPatientBooking, sanitizeSchedule, validateDoctorNoScheduleOverlap } from "../services/scheduleService.js"
+import { normalizeDoctorHomeVisitAreas, normalizeHomeVisitAddress, validateHomeVisitAddress } from "../services/homeVisitService.js"
 import { attachRatingSummariesToDoctors } from "./ratingController.js"
+import { buildMfaSetupPayload, generateMfaSecret, verifyTotpCode } from "../services/mfaService.js"
+import { getSecuritySettings, isMfaRequiredForProfile } from "../services/securityPolicyService.js"
+import { normalizeAppointmentTeleconsultationLinks } from "../services/appointmentModeService.js"
+import { notifyAppointmentCancelled, notifyVisitCompletedWithPrescription } from '../services/notificationService.js'
+import { findOneByEmail } from '../utils/emailUtils.js'
+import { normalizeExperienceForStorage } from '../utils/doctorExperience.js'
+import { buildClinicBySpecialityMap, enrichDoctorWithSpecialityClinic } from '../utils/doctorClinicLink.js'
+
+const MFA_TOKEN_EXPIRES_IN = '10m'
+
+const signDoctorToken = (doctor) => jwt.sign(createJwtPayload({ id: doctor._id, role: 'doctor', email: doctor.email }), process.env.JWT_SECRET)
+
+const signDoctorMfaToken = (doctor, purpose = 'doctor-mfa') => jwt.sign({
+   id: doctor._id.toString(),
+   role: 'doctor',
+   purpose,
+   email: doctor.email
+}, process.env.JWT_SECRET, { expiresIn: MFA_TOKEN_EXPIRES_IN })
+
+const getDoctorFromMfaToken = async (mfaToken, purpose = 'doctor-mfa') => {
+   const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET)
+   if (decoded?.purpose !== purpose || decoded?.role !== 'doctor' || !decoded?.id) return null
+   return doctorModel.findById(decoded.id)
+}
 
 const normalizeDoctorLocations = (locations) => {
    if (!locations) return []
@@ -23,25 +47,116 @@ const normalizeDoctorLocations = (locations) => {
    return [...new Set(list.map((location) => String(location || '').trim()).filter(Boolean))]
 }
 
-const changeAvailability = async (req,res) => {
-    try {
-      const { docId } = req.body
-       const docData = await doctorModel.findById(docId)
-       await doctorModel.findByIdAndUpdate(docId,{available: !docData.available })
-       res.json({success:true, message: 'Availability Changed'})
+const normalizeLocationSchedules = (locationSchedules, locations = [], fallbackSchedule = {}) => {
+   if (!locationSchedules) return {}
+   const source = typeof locationSchedules === 'string'
+      ? (() => {
+         try { return JSON.parse(locationSchedules) } catch { return {} }
+      })()
+      : locationSchedules
+   const allowedLocations = new Set(locations.map((location) => String(location || '').trim()).filter(Boolean))
+   return Object.entries(source || {}).reduce((acc, [location, schedule]) => {
+      const key = String(location || '').trim()
+      if (!key || (allowedLocations.size > 0 && !allowedLocations.has(key))) return acc
+      acc[key] = sanitizeSchedule({ ...fallbackSchedule, ...(schedule || {}) })
+      return acc
+   }, {})
+}
 
-      } catch (error) {
-       console.log(error)
-       res.json({success:false, message:error.message}) 
+const normalizeDoctorGender = (gender) => ['Male', 'Female'].includes(gender) ? gender : ''
+const normalizeDoctorTitle = (title) => ['Professor', 'Lecturer', 'Consultant', 'Specialist'].includes(title) ? title : ''
+const parseBoolean = (value, fallback = false) => {
+   if (value === undefined || value === null || value === '') return fallback
+   return value === true || value === 'true' || value === 'on' || value === '1'
+}
+const normalizePromoCode = (promoCode = {}) => {
+   const source = typeof promoCode === 'string'
+      ? (() => {
+         try { return JSON.parse(promoCode) } catch { return { code: promoCode } }
+      })()
+      : promoCode
+   const discountType = source?.discountType === 'fixed' ? 'fixed' : 'percentage'
+   const rawDiscountValue = Math.max(0, Number(source?.discountValue || 0))
+   const discountValue = discountType === 'percentage' ? Math.min(100, rawDiscountValue) : rawDiscountValue
+   const fallbackCode = discountType === 'percentage' ? `${discountValue}PCTOFF` : `${discountValue}OFF`
+   const active = parseBoolean(source?.active, false) && discountValue > 0
+   const code = String(source?.code || (active ? fallbackCode : '')).trim().toUpperCase()
+
+   return {
+      code,
+      discountType,
+      discountValue,
+      active
+   }
+}
+
+const attachCompletedBookingsCountToDoctors = async (doctors = []) => {
+  const doctorIds = doctors.map((d) => String(d._id || d.id)).filter(Boolean)
+  if (doctorIds.length === 0) return doctors
+
+  const rows = await appointmentModel.aggregate([
+    {
+      $match: {
+        docId: { $in: doctorIds },
+        isCompleted: true,
+        cancelled: { $ne: true }
       }
+    },
+    { $group: { _id: '$docId', completedBookingsCount: { $sum: 1 } } }
+  ])
+
+  const countMap = rows.reduce((acc, row) => {
+    acc[String(row._id)] = row.completedBookingsCount
+    return acc
+  }, {})
+
+  return doctors.map((doctor) => ({
+    ...doctor,
+    completedBookingsCount: countMap[String(doctor._id || doctor.id)] || 0
+  }))
+}
+
+const isDoctorAvailable = (doctor) => doctor?.available !== false
+
+const changeAvailability = async (req, res) => {
+  try {
+    const { docId, available } = req.body
+    if (!docId) {
+      return res.json({ success: false, message: 'Doctor ID is required' })
+    }
+
+    const docData = await doctorModel.findById(docId)
+    if (!docData) {
+      return res.json({ success: false, message: 'Doctor not found' })
+    }
+
+    const nextAvailable = available === undefined || available === null || available === ''
+      ? !isDoctorAvailable(docData)
+      : parseBoolean(available, true)
+
+    await doctorModel.findByIdAndUpdate(docId, { available: nextAvailable })
+    res.json({ success: true, message: 'Availability Changed', available: nextAvailable })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
 }
 
 
 const doctorList = async (req,res) => {
-   try {      
+   try {
      const doctors = await doctorModel.find({}).select(['-password', '-email']).populate('clinics')
      const doctorsWithRatings = await attachRatingSummariesToDoctors(doctors)
-     res.json({success:true, doctors: doctorsWithRatings})
+     const doctorsWithStats = await attachCompletedBookingsCountToDoctors(doctorsWithRatings)
+     const clinicBySpecKey = await buildClinicBySpecialityMap()
+     const doctorsForPatients = doctorsWithStats.map((doctor) => {
+       const doc = enrichDoctorWithSpecialityClinic(doctor, clinicBySpecKey)
+       return {
+         ...doc,
+         patientBookable: isDoctorOpenForPatientBooking(doc)
+       }
+     })
+     res.json({success:true, doctors: doctorsForPatients})
    } catch (error) {
       console.log(error)
       res.json({success:false, message:error.message})
@@ -53,7 +168,7 @@ const doctorList = async (req,res) => {
 const loginDoctor = async (req,res) => {
    try {
      const { email, password } = req.body
-     const doctor = await doctorModel.findOne({email})
+     const doctor = await findOneByEmail(doctorModel, email)
 
      if(!doctor){
         await logAudit({
@@ -70,7 +185,42 @@ const loginDoctor = async (req,res) => {
       const isMatch = await bcrypt.compare(password, doctor.password)
       
       if(isMatch){
-         const token = jwt.sign(createJwtPayload({ id: doctor._id, role: 'doctor', email: doctor.email }), process.env.JWT_SECRET)
+         const security = await getSecuritySettings()
+         const mfaRequired = isMfaRequiredForProfile(security, 'doctor', doctor)
+         const hasConfiguredMfa = Boolean(doctor.mfa?.enabled && doctor.mfa?.secret)
+
+         if (mfaRequired && !hasConfiguredMfa) {
+            const secret = generateMfaSecret()
+            await doctorModel.findByIdAndUpdate(doctor._id, { 'mfa.secret': secret, 'mfa.enabled': false })
+            await logAudit({
+               action: 'mfa_setup_required',
+               actorUserId: doctor._id,
+               actorRole: 'doctor',
+               status: 'success',
+               entityType: 'doctor',
+               entityId: doctor._id,
+               metadata: { loginId: doctor.email },
+               req
+            })
+            return res.json({
+               success: false,
+               mfaSetupRequired: true,
+               mfaToken: signDoctorMfaToken(doctor, 'doctor-mfa-setup'),
+               setup: buildMfaSetupPayload({ secret, accountName: doctor.email }),
+               message: 'MFA setup is required before login'
+            })
+         }
+
+         if (mfaRequired && hasConfiguredMfa) {
+            return res.json({
+               success: false,
+               mfaRequired: true,
+               mfaToken: signDoctorMfaToken(doctor),
+               message: 'Enter your MFA code'
+            })
+         }
+
+         const token = signDoctorToken(doctor)
          await logAudit({
             action: 'login_success',
             actorUserId: doctor._id,
@@ -100,9 +250,181 @@ const loginDoctor = async (req,res) => {
          })
          res.json({success: false, message: 'Invalid credentials'})
       }
-   } catch (error) {   
+   } catch (error) {
+      console.log(error)
+      res.json({ success: false, message: error.message })
    }
 } 
+
+const verifyDoctorMfaLogin = async (req, res) => {
+   try {
+      const { mfaToken, code } = req.body
+      const doctor = await getDoctorFromMfaToken(mfaToken)
+      if (!doctor || !doctor.mfa?.secret || !doctor.mfa?.enabled) {
+         return res.json({ success: false, message: 'Invalid MFA session' })
+      }
+
+      if (!verifyTotpCode(doctor.mfa.secret, code)) {
+         await logAudit({
+            action: 'mfa_login_failed',
+            actorUserId: doctor._id,
+            actorRole: 'doctor',
+            status: 'failed',
+            reason: 'Invalid MFA code',
+            entityType: 'doctor',
+            entityId: doctor._id,
+            req
+         })
+         return res.json({ success: false, message: 'Invalid MFA code' })
+      }
+
+      const token = signDoctorToken(doctor)
+      await logAudit({
+         action: 'login_success',
+         actorUserId: doctor._id,
+         actorRole: 'doctor',
+         status: 'success',
+         entityType: 'doctor',
+         entityId: doctor._id,
+         metadata: { username: doctor.name, loginId: doctor.email, mfa: true },
+         req
+      })
+
+      res.json({ success: true, token })
+   } catch (error) {
+      console.log(error)
+      res.json({ success: false, message: 'MFA session expired. Please sign in again.' })
+   }
+}
+
+const completeDoctorMfaLoginSetup = async (req, res) => {
+   try {
+      const { mfaToken, code } = req.body
+      const doctor = await getDoctorFromMfaToken(mfaToken, 'doctor-mfa-setup')
+      if (!doctor || !doctor.mfa?.secret) {
+         return res.json({ success: false, message: 'Invalid MFA setup session' })
+      }
+
+      if (!verifyTotpCode(doctor.mfa.secret, code)) {
+         return res.json({ success: false, message: 'Invalid MFA code' })
+      }
+
+      await doctorModel.findByIdAndUpdate(doctor._id, {
+         'mfa.enabled': true,
+         'mfa.configuredAt': Date.now()
+      })
+
+      const token = signDoctorToken(doctor)
+      await logAudit({
+         action: 'mfa_enable',
+         actorUserId: doctor._id,
+         actorRole: 'doctor',
+         status: 'success',
+         entityType: 'doctor',
+         entityId: doctor._id,
+         metadata: { source: 'required_login_setup' },
+         req
+      })
+
+      res.json({ success: true, token, message: 'MFA configured successfully' })
+   } catch (error) {
+      console.log(error)
+      res.json({ success: false, message: 'MFA setup session expired. Please sign in again.' })
+   }
+}
+
+const getDoctorMfaStatus = async (req, res) => {
+   try {
+      const docId = req.doctor.docId
+      const doctor = await doctorModel.findById(docId).select('email mfa')
+      const security = await getSecuritySettings()
+      res.json({
+         success: true,
+         mfa: {
+            enabled: Boolean(doctor?.mfa?.enabled),
+            required: isMfaRequiredForProfile(security, 'doctor', doctor),
+            requiredByAdmin: Boolean(doctor?.mfa?.requiredByAdmin),
+            canSelfManage: security.mfaAllowUserOptIn !== false
+         }
+      })
+   } catch (error) {
+      console.log(error)
+      res.json({ success: false, message: error.message })
+   }
+}
+
+const startDoctorMfaSetup = async (req, res) => {
+   try {
+      const docId = req.doctor.docId
+      const doctor = await doctorModel.findById(docId).select('email mfa')
+      const security = await getSecuritySettings()
+      if (!isMfaRequiredForProfile(security, 'doctor', doctor) && security.mfaAllowUserOptIn === false) {
+         return res.json({ success: false, message: 'Self-service MFA is disabled by admin' })
+      }
+
+      const secret = generateMfaSecret()
+      await doctorModel.findByIdAndUpdate(docId, { 'mfa.secret': secret, 'mfa.enabled': false })
+      res.json({ success: true, setup: buildMfaSetupPayload({ secret, accountName: doctor.email }) })
+   } catch (error) {
+      console.log(error)
+      res.json({ success: false, message: error.message })
+   }
+}
+
+const enableDoctorMfa = async (req, res) => {
+   try {
+      const docId = req.doctor.docId
+      const { code } = req.body
+      const doctor = await doctorModel.findById(docId).select('mfa')
+      if (!doctor?.mfa?.secret) return res.json({ success: false, message: 'Start MFA setup first' })
+      if (!verifyTotpCode(doctor.mfa.secret, code)) return res.json({ success: false, message: 'Invalid MFA code' })
+
+      await doctorModel.findByIdAndUpdate(docId, { 'mfa.enabled': true, 'mfa.configuredAt': Date.now() })
+      await logAudit({
+         action: 'mfa_enable',
+         status: 'success',
+         actorUserId: docId,
+         actorRole: 'doctor',
+         entityType: 'doctor',
+         entityId: docId,
+         req
+      })
+      res.json({ success: true, message: 'MFA enabled' })
+   } catch (error) {
+      console.log(error)
+      res.json({ success: false, message: error.message })
+   }
+}
+
+const disableDoctorMfa = async (req, res) => {
+   try {
+      const docId = req.doctor.docId
+      const { code } = req.body
+      const doctor = await doctorModel.findById(docId).select('mfa')
+      const security = await getSecuritySettings()
+      if (isMfaRequiredForProfile(security, 'doctor', doctor)) {
+         return res.json({ success: false, message: 'MFA is required by policy and cannot be disabled' })
+      }
+      if (doctor?.mfa?.secret && !verifyTotpCode(doctor.mfa.secret, code)) {
+         return res.json({ success: false, message: 'Invalid MFA code' })
+      }
+
+      await doctorModel.findByIdAndUpdate(docId, { 'mfa.enabled': false, 'mfa.secret': '', 'mfa.resetAt': Date.now() })
+      await logAudit({
+         action: 'mfa_disable',
+         status: 'success',
+         actorUserId: docId,
+         actorRole: 'doctor',
+         entityType: 'doctor',
+         entityId: docId,
+         req
+      })
+      res.json({ success: true, message: 'MFA disabled' })
+   } catch (error) {
+      console.log(error)
+      res.json({ success: false, message: error.message })
+   }
+}
 
 
 
@@ -110,7 +432,7 @@ const loginDoctor = async (req,res) => {
 const appointmentsDoctor = async (req,res) => {
    try {
       const docId = req.doctor.docId;
-      const appointments = await appointmentModel.find({ docId })
+      const appointments = normalizeAppointmentTeleconsultationLinks(await appointmentModel.find({ docId }))
 
       res.json({success: true, appointments})
 
@@ -215,6 +537,7 @@ const appointmentComplete = async (req,res) => {
       // Prescription save karo with complete data
       const prescription = new prescriptionModel({
          appointmentId,
+         reservationNumber: appointmentData.reservationNumber || '',
          userId: appointmentData.userId,
          docId,
          userData: appointmentData.userData,    // Patient details
@@ -253,6 +576,9 @@ const appointmentComplete = async (req,res) => {
          },
          req
       })
+
+      const finishedAppointment = { ...appointmentData.toObject(), isCompleted: true, appointmentStatus: 'Finished', statusUpdatedAt: Date.now() }
+      notifyVisitCompletedWithPrescription({ appointment: finishedAppointment })
       
       return res.json({
          success: true, 
@@ -278,7 +604,8 @@ const appointmentCancel = async (req,res) => {
       if(appointmentData && appointmentData.docId === docId) {
          
         await appointmentModel.findByIdAndUpdate(appointmentId, {cancelled: true, appointmentStatus: 'Cancelled', statusUpdatedAt: Date.now()})
-        await doctorModel.findByIdAndUpdate(docId, { $pull: { [`slots_booked.${appointmentData.slotDate}`]: appointmentData.slotTime } })
+        const bookedSlotsField = getBookedSlotsField(appointmentData.appointmentType)
+        await doctorModel.findByIdAndUpdate(docId, { $pull: { [`${bookedSlotsField}.${appointmentData.slotDate}`]: appointmentData.slotTime } })
         await logAudit({
          action: 'appointment_cancel',
          status: 'success',
@@ -294,6 +621,7 @@ const appointmentCancel = async (req,res) => {
          },
          req
         })
+        notifyAppointmentCancelled({ appointment: appointmentData, cancelledBy: 'doctor' })
         return res.json({success: true, message:'Appointment Cancelled'})
 
       } else {
@@ -500,30 +828,49 @@ const doctordashboard = async (req,res) => {
     try {
       const { docId } = req.doctor
 
-      const appointments = await appointmentModel.find({ docId })
+      const appointments = await appointmentModel.find({ docId }).lean()
+
+      const today = new Date()
+      const todaySlotDate = `${today.getDate()}_${today.getMonth() + 1}_${today.getFullYear()}`
 
       let earnings = 0
+      let pendingCount = 0
+      let completedCount = 0
+      let cancelledCount = 0
+      let todayActiveCount = 0
 
-      appointments.map((item) => {
-         if(item.isCompleted || item.payment) {
-            earnings += item.amount
-         }
-      })
+      const patientIds = new Set()
 
-      let patients = []
-
-      appointments.map((item) => {
-        if(!patients.includes(item.userId)){
-           patients.push(item.userId)
+      for (const item of appointments) {
+        patientIds.add(item.userId)
+        if (item.isCompleted || item.payment) {
+          earnings += Number(item.amount) || 0
         }
-      })
+        if (item.cancelled) {
+          cancelledCount += 1
+        } else if (item.isCompleted) {
+          completedCount += 1
+        } else {
+          pendingCount += 1
+        }
+        if (!item.cancelled && item.slotDate === todaySlotDate) {
+          todayActiveCount += 1
+        }
+      }
 
+      const latestAppointments = [...appointments]
+        .sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0))
+        .slice(0, 8)
 
       const dashData = {
          earnings,
          appointments: appointments.length,
-         patients: patients.length,
-         latestAppointments: appointments.reverse().slice(0,5)
+         patients: patientIds.size,
+         pendingCount,
+         completedCount,
+         cancelledCount,
+         todayActiveCount,
+         latestAppointments
       }
       res.json({success: true, dashData})
 
@@ -556,11 +903,136 @@ const doctorProfile = async (req,res) => {
 const updateDoctorprofile = async (req,res) => {
   try {
    const { docId } = req.doctor; 
-   const { fees, address, available, schedule, locations } = req.body;
-   const updateData = { fees, address, available, locations: normalizeDoctorLocations(locations) }
+   const {
+      address,
+      available,
+      schedule,
+      locationSchedules,
+      homeVisitSchedule,
+      homeVisitAreas,
+      locations,
+      gender,
+      title,
+      acceptsVoiceCall,
+      acceptsVideoCall,
+      experience,
+      about
+   } = req.body;
+   const updateData = {}
+
+   const baseline = await doctorModel.findById(docId).select('locations schedule locationSchedules homeVisitSchedule homeVisitAreas').lean()
+   if (!baseline) {
+      return res.json({ success: false, message: 'Doctor not found' })
+   }
+
+   if (address !== undefined) updateData.address = address
+   if (available !== undefined) updateData.available = parseBoolean(available, true)
+   if (locations !== undefined) updateData.locations = normalizeDoctorLocations(locations)
+   if (gender !== undefined) updateData.gender = normalizeDoctorGender(gender)
+   if (title !== undefined) updateData.title = normalizeDoctorTitle(title)
+   if (acceptsVoiceCall !== undefined) updateData.acceptsVoiceCall = parseBoolean(acceptsVoiceCall, true)
+   if (acceptsVideoCall !== undefined) updateData.acceptsVideoCall = parseBoolean(acceptsVideoCall, true)
+
+   if (experience !== undefined) {
+      const normalized = normalizeExperienceForStorage(experience)
+      if (!normalized) {
+         return res.json({ success: false, message: 'Enter a valid number of years of experience (0–100)' })
+      }
+      updateData.experience = normalized
+   }
+
+   if (about !== undefined) {
+      const trimmedAbout = String(about || '').trim()
+      if (!trimmedAbout) {
+         return res.json({ success: false, message: 'About section cannot be empty' })
+      }
+      updateData.about = trimmedAbout
+   }
 
    if (schedule) {
       updateData.schedule = sanitizeSchedule(schedule)
+   }
+
+   if (locationSchedules !== undefined) {
+      const nextLocations = updateData.locations || baseline.locations || []
+      const normalizedBranchSchedules = normalizeLocationSchedules(
+        locationSchedules,
+        nextLocations,
+        updateData.schedule || baseline.schedule || {}
+      )
+      updateData.locationSchedules = Object.fromEntries(
+        Object.entries(normalizedBranchSchedules).filter(
+          ([, branchSchedule]) => Array.isArray(branchSchedule?.workingDays) && branchSchedule.workingDays.length > 0
+        )
+      )
+   }
+
+   if (homeVisitSchedule) {
+      updateData.homeVisitSchedule = sanitizeSchedule(homeVisitSchedule, { defaultWorkingDays: [], defaultSlotDuration: 60 })
+   }
+
+   if (homeVisitAreas !== undefined) {
+      updateData.homeVisitAreas = normalizeDoctorHomeVisitAreas(homeVisitAreas)
+   }
+
+   const touchesHomeVisit =
+      homeVisitSchedule !== undefined ||
+      homeVisitAreas !== undefined
+
+   if (touchesHomeVisit) {
+      const nextHomeSchedule = updateData.homeVisitSchedule !== undefined
+         ? updateData.homeVisitSchedule
+         : baseline.homeVisitSchedule
+      const nextHomeAreas = updateData.homeVisitAreas !== undefined
+         ? updateData.homeVisitAreas
+         : normalizeDoctorHomeVisitAreas(baseline.homeVisitAreas)
+      if (
+         Array.isArray(nextHomeSchedule?.workingDays) &&
+         nextHomeSchedule.workingDays.length > 0 &&
+         nextHomeAreas.length === 0
+      ) {
+         return res.json({
+            success: false,
+            message: 'Select at least one home visit area when home visit availability is enabled'
+         })
+      }
+   }
+
+   const touchesSchedule =
+      schedule !== undefined ||
+      locationSchedules !== undefined ||
+      homeVisitSchedule !== undefined ||
+      locations !== undefined
+
+   if (touchesSchedule) {
+      const nextSchedule = updateData.schedule !== undefined ? updateData.schedule : baseline.schedule
+      const nextLocs = updateData.locations !== undefined ? updateData.locations : (baseline.locations || [])
+      const nextLocationSchedules = locationSchedules !== undefined
+         ? updateData.locationSchedules
+         : Object.fromEntries(Object.entries(baseline.locationSchedules || {}).filter(([key]) => nextLocs.includes(key)))
+      const nextHome = updateData.homeVisitSchedule !== undefined ? updateData.homeVisitSchedule : baseline.homeVisitSchedule
+
+      const overlap = validateDoctorNoScheduleOverlap({
+         ...baseline,
+         schedule: nextSchedule,
+         locations: nextLocs,
+         locationSchedules: nextLocationSchedules,
+         homeVisitSchedule: nextHome
+      })
+      if (overlap) {
+         return res.json({ success: false, message: overlap })
+      }
+   }
+
+   const mergedForPublish = {
+      ...baseline,
+      ...updateData,
+      schedule: updateData.schedule ?? baseline.schedule,
+      locationSchedules: updateData.locationSchedules ?? baseline.locationSchedules,
+      homeVisitSchedule: updateData.homeVisitSchedule ?? baseline.homeVisitSchedule
+   }
+   if (hasDoctorPublishedSchedule(mergedForPublish)) {
+      updateData.available = true
    }
 
    await doctorModel.findByIdAndUpdate(docId, updateData)
@@ -621,10 +1093,9 @@ const updateAppointmentHomeVisitAddress = async (req, res) => {
       const docId = req.doctor?.docId || req.user?.docId || req.user?.userId
       const { appointmentId } = req.body
       const homeVisitAddress = normalizeHomeVisitAddress(req.body.homeVisitAddress || {})
-      const addressError = validateHomeVisitAddress(homeVisitAddress)
 
-      if (!appointmentId || addressError) {
-         return res.json({ success: false, message: addressError || 'Appointment is required' })
+      if (!appointmentId) {
+         return res.json({ success: false, message: 'Appointment is required' })
       }
 
       const appointment = await appointmentModel.findById(appointmentId)
@@ -633,6 +1104,11 @@ const updateAppointmentHomeVisitAddress = async (req, res) => {
       }
       if (appointment.appointmentType !== 'Home Visit') {
          return res.json({ success: false, message: 'Only home visit appointments have a visit address' })
+      }
+
+      const addressError = validateHomeVisitAddress(homeVisitAddress, appointment.docData)
+      if (addressError) {
+         return res.json({ success: false, message: addressError })
       }
 
       const updatedAddress = { ...homeVisitAddress, updatedBy: 'Doctor', updatedAt: Date.now() }
@@ -656,4 +1132,4 @@ const updateAppointmentHomeVisitAddress = async (req, res) => {
 }
 
 
-export { changeAvailability, doctorList, loginDoctor, appointmentsDoctor, appointmentComplete, appointmentCancel, doctordashboard, doctorProfile, updateDoctorprofile, patienthistory, editPrescription, updatePatientMedicalHistory, updateAppointmentHomeVisitAddress}
+export { changeAvailability, doctorList, loginDoctor, verifyDoctorMfaLogin, completeDoctorMfaLoginSetup, getDoctorMfaStatus, startDoctorMfaSetup, enableDoctorMfa, disableDoctorMfa, appointmentsDoctor, appointmentComplete, appointmentCancel, doctordashboard, doctorProfile, updateDoctorprofile, patienthistory, editPrescription, updatePatientMedicalHistory, updateAppointmentHomeVisitAddress}

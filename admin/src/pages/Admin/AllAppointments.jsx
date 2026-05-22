@@ -1,11 +1,27 @@
 import React, { useContext, useEffect, useState, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import { AdminContext } from '../../context/AdminContext'
 import { AppContext } from '../../context/AppContext'
 import { assets } from '../../assets/assets'
 import { Search, X, ChevronDown, ChevronUp, SlidersHorizontal, FileText, Home, Phone, Video } from 'lucide-react'
 import { formatHomeVisitAddress } from '../../utils/homeVisitAreas'
 
+/** Live row: cancelled (any reason) */
+const isRowCancelled = (item) => item.cancelled === true || item.appointmentStatus === 'Cancelled'
+
+/** Live row: completed / finished visit */
+const isRowFinished = (item) => item.isCompleted === true || item.appointmentStatus === 'Finished'
+
+/** Still on the schedule — not done and not cancelled */
+const isRowActual = (item) => !isRowCancelled(item) && !isRowFinished(item)
+
 const AllAppointments = () => {
+  const location = useLocation()
+  const scope = useMemo(() => {
+    if (location.pathname === '/actual-appointments') return 'actual'
+    if (location.pathname === '/finished-appointments') return 'finished'
+    return 'all'
+  }, [location.pathname])
 
   const { aToken, appointments, getAllAppointments, cancelAppointment } = useContext(AdminContext)
   const { calculateAge, slotDateFormat, currency } = useContext(AppContext)
@@ -30,31 +46,64 @@ const AllAppointments = () => {
     fetchData();
   }, [aToken])
 
+  useEffect(() => {
+    setSearchQuery('')
+    setFilters({ status: 'all', dateRange: 'all' })
+  }, [scope])
+
   // Handle Cancel with Refresh
   const handleCancelAppointment = async (appointmentId) => {
     await cancelAppointment(appointmentId);
     getAllAppointments(); 
   };
 
+  const getReservationNumber = (item) => item.reservationNumber || `RES-${String(item._id || '').slice(-6).toUpperCase()}`
+
+  const scopePool = useMemo(() => {
+    const list = appointments || []
+    if (scope === 'actual') return list.filter(isRowActual)
+    if (scope === 'finished') return list.filter((item) => isRowFinished(item) || isRowCancelled(item))
+    return [...list]
+  }, [appointments, scope])
+
+  const pageMeta = useMemo(() => {
+    if (scope === 'actual') {
+      return {
+        title: 'Actual Appointments',
+        subtitle: 'Active visits only — not completed and not cancelled. Use the sidebar “All Appointments” to see everything.',
+      }
+    }
+    if (scope === 'finished') {
+      return {
+        title: 'Finished Appointments',
+        subtitle: 'Completed or cancelled visits. Archived records are under Appointment History in the top bar.',
+      }
+    }
+    return {
+      title: 'All Appointments',
+      subtitle: 'Monitor and manage every appointment in the system.',
+    }
+  }, [scope])
 
   // Filtered Appointments
   const filteredAppointments = useMemo(() => {
-    let result = [...appointments];
+    let result = [...scopePool];
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       result = result.filter(item => 
-        item.userData.patientId?.toLowerCase().includes(query)
+        item.userData.patientId?.toLowerCase().includes(query) ||
+        getReservationNumber(item).toLowerCase().includes(query)
       );
     }
 
     if (filters.status !== 'all') {
-      result = result.filter(item => {
-        if (filters.status === 'pending') return !item.isCompleted && !item.cancelled;
-        if (filters.status === 'completed') return item.isCompleted;
-        if (filters.status === 'cancelled') return item.cancelled;
-        return true;
-      });
+      result = result.filter((item) => {
+        if (filters.status === 'pending') return isRowActual(item)
+        if (filters.status === 'completed') return isRowFinished(item) && !isRowCancelled(item)
+        if (filters.status === 'cancelled') return isRowCancelled(item)
+        return true
+      })
     }
 
     if (filters.dateRange !== 'all') {
@@ -79,7 +128,7 @@ const AllAppointments = () => {
     }
 
     return result;
-  }, [appointments, searchQuery, filters]);
+  }, [scopePool, searchQuery, filters]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -100,9 +149,9 @@ const AllAppointments = () => {
         <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-4'>
           <div>
             <h1 className='text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2'>
-              <FileText className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 text-blue-600" /> All Appointments
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 text-blue-600" /> {pageMeta.title}
             </h1>
-            <p className='text-xs sm:text-sm md:text-base text-gray-600 mt-1 ml-6 sm:ml-9'>Monitor and manage all system appointments</p>
+            <p className='text-xs sm:text-sm md:text-base text-gray-600 mt-1 ml-6 sm:ml-9'>{pageMeta.subtitle}</p>
           </div>
           
           <button onClick={() => setShowFilters(!showFilters)} className='flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm'>
@@ -120,7 +169,7 @@ const AllAppointments = () => {
               type='text'
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder='Search by Patient ID...'
+              placeholder='Search by Patient ID or reservation...'
               className='w-full pl-10 sm:pl-12 pr-10 sm:pr-12 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
             />
             {searchQuery && (
@@ -218,16 +267,16 @@ const AllAppointments = () => {
         {/* Stats Summary */}
         <div className='flex flex-wrap gap-2 sm:gap-3 md:gap-4 mb-4 text-[10px] sm:text-xs md:text-sm'>
           <span className='px-2 sm:px-3 py-1 bg-blue-50 text-blue-700 rounded-full whitespace-nowrap'>
-            Total: {appointments.length}
+            Total: {scopePool.length}
           </span>
           <span className='px-2 sm:px-3 py-1 bg-yellow-50 text-yellow-700 rounded-full whitespace-nowrap'>
-            Pending: {appointments.filter(a => !a.isCompleted && !a.cancelled).length}
+            Pending: {scopePool.filter((a) => isRowActual(a)).length}
           </span>
           <span className='px-2 sm:px-3 py-1 bg-green-50 text-green-700 rounded-full whitespace-nowrap'>
-            Completed: {appointments.filter(a => a.isCompleted).length}
+            Completed: {scopePool.filter((a) => isRowFinished(a) && !isRowCancelled(a)).length}
           </span>
           <span className='px-2 sm:px-3 py-1 bg-red-50 text-red-700 rounded-full whitespace-nowrap'>
-            Cancelled: {appointments.filter(a => a.cancelled).length}
+            Cancelled: {scopePool.filter((a) => isRowCancelled(a)).length}
           </span>
           <span className='px-2 sm:px-3 py-1 bg-gray-100 text-gray-700 rounded-full whitespace-nowrap'>
             Showing: {filteredAppointments.length}
@@ -326,6 +375,7 @@ const AllAppointments = () => {
                     <img className='w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover flex-shrink-0' src={item.userData.image} alt="" />
                     <div className='flex-1 min-w-0'>
                       <p className='font-medium text-gray-800 text-sm sm:text-base mb-1'>{item.userData.name}</p>
+                      <p className='text-xs font-semibold text-blue-700 mb-1'>Reservation: {getReservationNumber(item)}</p>
                       <p className='text-xs text-gray-500 mb-1'>ID: {item.userData.patientId}</p>
                       <p className='text-xs text-gray-500'>Age: {calculateAge(item.userData.dob)} years</p>
                     </div>
@@ -353,9 +403,9 @@ const AllAppointments = () => {
                   </div>
                   
                   <div className='flex justify-end'>
-                    {item.cancelled ? (
+                    {isRowCancelled(item) ? (
                       <p className='text-red-500 text-xs font-medium px-3 py-1.5 bg-red-50 rounded-full'>Cancelled</p>
-                    ) : item.isCompleted ? (
+                    ) : isRowFinished(item) ? (
                       <p className='text-green-600 text-xs font-medium px-3 py-1.5 bg-green-50 rounded-full'>Completed</p>
                     ) : (
                       <button onClick={() => handleCancelAppointment(item._id)} className='flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-xs font-medium'>
@@ -370,7 +420,10 @@ const AllAppointments = () => {
                 <p className='hidden lg:block'>{index + 1}</p>
                 <div className='hidden lg:flex items-center gap-2'>
                   <img className='w-8 sm:w-9 md:w-10 h-8 sm:h-9 md:h-10 rounded-full object-cover' src={item.userData.image} alt="" /> 
-                  <p className='truncate'>{item.userData.name}</p>
+                  <div className='min-w-0'>
+                    <p className='truncate'>{item.userData.name}</p>
+                    <p className='truncate text-[11px] font-semibold text-blue-700'>{getReservationNumber(item)}</p>
+                  </div>
                 </div>
                 <p className='hidden lg:block truncate'>{item.userData.patientId}</p>
                 <p className='hidden lg:block'>{calculateAge(item.userData.dob)}</p>
@@ -396,9 +449,9 @@ const AllAppointments = () => {
                   )}
                 </div>
                 <div className='hidden lg:block'>
-                  {item.cancelled ? (
+                  {isRowCancelled(item) ? (
                     <p className='text-red-500 text-xs font-medium px-2 py-1 bg-red-50 rounded-full inline-block'>Cancelled</p>
-                  ) : item.isCompleted ? (
+                  ) : isRowFinished(item) ? (
                     <p className='text-green-600 text-xs font-medium px-2 py-1 bg-green-50 rounded-full inline-block'>Completed</p>
                   ) : (
                     <img onClick={() => handleCancelAppointment(item._id)} className='w-8 sm:w-9 md:w-10 cursor-pointer hover:scale-110 transition-transform' src={assets.cancel_icon} alt="Cancel" />

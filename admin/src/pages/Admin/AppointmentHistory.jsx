@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { AdminContext } from '../../context/AdminContext';
 import { AppContext } from '../../context/AppContext';
 import { Search, X, ArrowLeft, FileText, Calendar, DollarSign, Clock, User, Stethoscope, Thermometer, Pill, Clipboard, Activity, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
+import { formatExperienceEn } from '../../utils/doctorExperience';
 
 const AppointmentHistory = () => {
   const { aToken, membersHistory, getAppointmentsHistory, deleteAppointmentHistory } = useContext(AdminContext);
@@ -12,6 +13,8 @@ const AppointmentHistory = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true); 
+
+  const getReservationNumber = (item) => item.reservationNumber || `RES-${String(item.appointmentId || item._id || '').slice(-6).toUpperCase()}`
 
   useEffect(() => {
   const fetchData = async () => {
@@ -31,7 +34,8 @@ const AppointmentHistory = () => {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       result = result.filter(item => 
-        item.userData.patientId?.toLowerCase().includes(query)
+        item.userData.patientId?.toLowerCase().includes(query) ||
+        getReservationNumber(item).toLowerCase().includes(query)
       );
     }
 
@@ -97,6 +101,9 @@ const AppointmentHistory = () => {
                     <User className="w-3 h-3 sm:w-4 sm:h-4" />
                     {selectedAppointment.userData.patientId}
                   </span>
+                  <span className="inline-flex items-center gap-1.5 bg-white text-blue-700 text-xs sm:text-sm font-semibold px-3 py-1 rounded-full border border-blue-100">
+                    Reservation: {getReservationNumber(selectedAppointment)}
+                  </span>
                   <span className="inline-flex items-center gap-1.5 bg-white text-gray-700 text-xs sm:text-sm px-3 py-1 rounded-full border border-gray-200">
                     Age: {calculateAge(selectedAppointment.userData.dob)} years
                   </span>
@@ -133,7 +140,7 @@ const AppointmentHistory = () => {
                     <span className="font-medium">Degree:</span> {selectedAppointment.docData.degree}
                   </p>
                   <p className="flex items-center gap-2">
-                    <span className="font-medium">Experience:</span> {selectedAppointment.docData.experience}
+                    <span className="font-medium">Experience:</span> {formatExperienceEn(selectedAppointment.docData.experience) || selectedAppointment.docData.experience}
                   </p>
                   {selectedAppointment.docData.email && (
                     <p className="flex items-center gap-2">
@@ -401,7 +408,7 @@ const AppointmentHistory = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by Patient ID..."
+              placeholder="Search by Patient ID or reservation..."
               className="w-full pl-10 sm:pl-12 pr-10 sm:pr-12 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             {searchQuery && (
@@ -524,6 +531,10 @@ const AppointmentHistory = () => {
                         {item.userData.name}
                       </p>
 
+                      <p className='text-xs font-semibold text-blue-700'>
+                        Reservation: {getReservationNumber(item)}
+                      </p>
+
                       <p className='text-xs text-gray-500'>
                         ID: {item.userData.patientId}
                       </p>
@@ -560,7 +571,10 @@ const AppointmentHistory = () => {
 
                 <div className='hidden lg:flex items-center gap-2'>
                   <img className='w-8 sm:w-9 md:w-10 h-8 sm:h-9 md:h-10 rounded-full object-cover' src={item.userData.image} alt=''/>
-                  <p className='truncate'>{item.userData.name}</p>
+                  <div className='min-w-0'>
+                    <p className='truncate'>{item.userData.name}</p>
+                    <p className='truncate text-[11px] font-semibold text-blue-700'>{getReservationNumber(item)}</p>
+                  </div>
                 </div>
 
                 <p className='hidden lg:block truncate'>{item.userData.patientId}</p>

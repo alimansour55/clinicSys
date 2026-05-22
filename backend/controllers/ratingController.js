@@ -2,6 +2,7 @@ import appointmentModel from '../models/appointmentModel.js'
 import doctorModel from '../models/doctorModel.js'
 import ratingModel from '../models/ratingModel.js'
 import { logAudit } from '../services/auditService.js'
+import { notifyNewPatientRating } from '../services/notificationService.js'
 
 const normalizeRating = (value) => {
   const numeric = Number(value)
@@ -115,6 +116,13 @@ const createRating = async (req, res) => {
         rating: normalizedRating
       },
       req
+    })
+
+    notifyNewPatientRating({
+      docId: appointment.docId,
+      patientName: appointment.userData?.name,
+      rating: normalizedRating,
+      appointmentId
     })
 
     res.json({ success: true, message: 'Thank you for your rating', rating: newRating })

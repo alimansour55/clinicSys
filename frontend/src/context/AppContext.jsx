@@ -2,13 +2,18 @@ import { createContext, useEffect, useState } from "react";
 import axios from 'axios'
 import { toast } from "react-toastify";
 import { useLanguage } from "../i18n";
+import { readCachedPublicSiteSettings, writeCachedPublicSiteSettings } from "../utils/siteSettingsCache";
+import { displayPersonName as displayPersonNameAr } from '../utils/personNameArabic.js'
+import { collectPlaceStringsNeedingTranslate } from '../utils/placeTranslations.js'
+import { collectDoctorAboutTextsNeedingTranslate } from '../utils/doctorAboutTranslate.js'
+import { resolveBackendUrl } from '../utils/resolveBackendUrl.js'
 
 export const AppContext = createContext()
 
 const AppContextProvider = (props) => {
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL
-  const { language, t, tc } = useLanguage()
+  const backendUrl = resolveBackendUrl()
+  const { language, t, tc, localizeDigits } = useLanguage()
   const currencySymbol = language === 'ar' ? 'ج.م ' : 'EGP '
   
   const [doctors, setDoctors] = useState([])
@@ -16,7 +21,31 @@ const AppContextProvider = (props) => {
   const [token, setToken] = useState(localStorage.getItem('token') ? localStorage.getItem('token') : false)
   const [userData, setUserData] = useState(false)
   const [appointments, setAppointments] = useState([])
-  const [siteSettings, setSiteSettings] = useState(null)
+  const [siteSettings, setSiteSettings] = useState(() => readCachedPublicSiteSettings())
+  const [placeTranslationOverrides, setPlaceTranslationOverrides] = useState({})
+  const [textTranslationOverrides, setTextTranslationOverrides] = useState({})
+
+  const clearAuthSession = () => {
+    localStorage.removeItem('token')
+    setToken(false)
+    setUserData(false)
+    setAppointments([])
+  }
+
+  const isAuthFailure = (error, data) => {
+    const status = error?.response?.status
+    const message = String(data?.message || error?.response?.data?.message || '').toLowerCase()
+
+    return status === 401 || status === 403 || message.includes('login again') || message.includes('invalid token')
+  }
+
+  const handleAuthFailure = (error, data) => {
+    if (!isAuthFailure(error, data)) return false
+
+    clearAuthSession()
+    toast.error(data?.message || error?.response?.data?.message || 'Session expired. Please login again.')
+    return true
+  }
 
   // UTILITY FUNCTIONS 
   const calculateAge = (dob) => {
@@ -32,16 +61,26 @@ const AppContextProvider = (props) => {
 
   const slotDateFormat = (slotDate) => {
     const dateArray = slotDate.split('_')
-    return dateArray[0] + " " + months[Number(dateArray[1])] + " " + dateArray[2]
+    const s = dateArray[0] + " " + months[Number(dateArray[1])] + " " + dateArray[2]
+    return localizeDigits(s)
   }
 
   
   // DOCTORS API 
   const getDoctorsData = async () => {
     try {
-      const { data } = await axios.get(backendUrl + '/api/doctor/list')
+      const { data } = await axios.get(backendUrl + '/api/doctor/list', {
+        params: { _t: Date.now() }
+      })
       if (data.success) {
-        setDoctors(data.doctors)
+        const list = Array.isArray(data.doctors) ? data.doctors : []
+        setDoctors(list.map((doctor) => ({
+          ...doctor,
+          available: doctor?.available !== false,
+          patientBookable: typeof doctor?.patientBookable === 'boolean'
+            ? doctor.patientBookable
+            : undefined
+        })))
       } else {
         toast.error(data.message)
       }
@@ -68,7 +107,7 @@ const AppContextProvider = (props) => {
   const getSiteSettings = async () => {
     try {
       const { data } = await axios.get(backendUrl + '/api/user/site-settings')
-      if (data.success) {
+      if (data.success && data.settings) {
         setSiteSettings(data.settings)
       }
     } catch (error) {
@@ -84,10 +123,12 @@ const AppContextProvider = (props) => {
       if (data.success) {
         setUserData(data.userData)
       } else {
+        if (handleAuthFailure(null, data)) return
         toast.error(data.message)
       }
     } catch (error) {
       console.log(error)
+      if (handleAuthFailure(error)) return
       toast.error(error.message)
     }
   }
@@ -101,10 +142,12 @@ const AppContextProvider = (props) => {
       if (data.success) {
         setAppointments(data.appointments.reverse())
       } else {
+        if (handleAuthFailure(null, data)) return
         toast.error(data.message)
       }
     } catch (error) {
       console.log(error)
+      if (handleAuthFailure(error)) return
       toast.error(error.message)
     }
   }
@@ -121,7 +164,8 @@ const AppContextProvider = (props) => {
       if (data.success) {
         toast.success(data.message)
         getUserAppointments() 
-        getDoctorsData() 
+        getDoctorsData()
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('clinic:notifications-refresh'))
       } else {
         toast.error(data.message)
       }
@@ -241,13 +285,13 @@ const AppContextProvider = (props) => {
       )
 
       if (data.success) {
-        toast.success(data.message)
+        toast.success(t('Payment confirmed and appointment booked'))
         await getUserAppointments()
         await getDoctorsData()
         return data.appointment
       }
 
-      toast.error(data.message)
+      toast.error(t(data.message))
       return null
     } catch (error) {
       console.log(error)
@@ -326,7 +370,7 @@ const AppContextProvider = (props) => {
 
       if (data.success) {
         toast.success(data.message)
-        setUserData(data.userData)
+        await loadUserProfileData()
         return data.insurance
       }
 
@@ -426,6 +470,10 @@ const AppContextProvider = (props) => {
     language,
     t,
     tc,
+    placeTranslationOverrides,
+    textTranslationOverrides,
+    localizeDigits,
+    displayPersonName: (name) => displayPersonNameAr(name, language),
 
     // Utility Functions
     calculateAge,
@@ -456,9 +504,25 @@ const AppContextProvider = (props) => {
 
   //  EFFECTS 
   useEffect(() => {
+    if (siteSettings) writeCachedPublicSiteSettings(siteSettings)
+  }, [siteSettings])
+
+  useEffect(() => {
     getDoctorsData()
     getClinicsData()
     getSiteSettings()
+  }, [])
+
+  useEffect(() => {
+    const refreshDoctors = () => {
+      if (document.visibilityState === 'visible') getDoctorsData()
+    }
+    window.addEventListener('focus', refreshDoctors)
+    document.addEventListener('visibilitychange', refreshDoctors)
+    return () => {
+      window.removeEventListener('focus', refreshDoctors)
+      document.removeEventListener('visibilitychange', refreshDoctors)
+    }
   }, [])
 
   useEffect(() => {
@@ -470,6 +534,58 @@ const AppContextProvider = (props) => {
       setAppointments([])
     }
   }, [token])
+
+  useEffect(() => {
+    if (!backendUrl) return
+    const texts = collectPlaceStringsNeedingTranslate(doctors, clinics)
+    if (texts.length === 0) return
+
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await axios.post(
+          `${backendUrl}/api/user/translate-places`,
+          { texts },
+          { timeout: 30000 }
+        )
+        if (cancelled || !data?.success || !data.translations || typeof data.translations !== 'object') return
+        setPlaceTranslationOverrides((prev) => ({ ...prev, ...data.translations }))
+      } catch (error) {
+        console.log('translate-places', error?.message || error)
+      }
+    }, 450)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [doctors, clinics, backendUrl])
+
+  useEffect(() => {
+    if (!backendUrl) return
+    const texts = collectDoctorAboutTextsNeedingTranslate(doctors, language)
+    if (texts.length === 0) return
+
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await axios.post(
+          `${backendUrl}/api/user/translate-texts`,
+          { texts, target: language },
+          { timeout: 120000 }
+        )
+        if (cancelled || !data?.success || !data.translations || typeof data.translations !== 'object') return
+        setTextTranslationOverrides((prev) => ({ ...prev, ...data.translations }))
+      } catch (error) {
+        console.log('translate-texts', error?.message || error)
+      }
+    }, 650)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [doctors, language, backendUrl])
 
   return (
     <AppContext.Provider value={value}>

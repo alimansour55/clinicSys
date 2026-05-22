@@ -1,9 +1,10 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AdminContext } from '../../context/AdminContext'
 import { AppContext } from '../../context/AppContext'
 import { assets } from '../../assets/assets'
-import { Building2, CalendarDays, ClipboardList, CreditCard, LineChart, ShieldCheck, Stethoscope, UserPlus, UserRound, WalletCards } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Building2, CalendarDays, CreditCard, LineChart, Stethoscope, UserRound, WalletCards } from 'lucide-react'
+import { useLanguage } from '../../i18n'
 
 const StatTile = ({ icon, label, value, accent = 'bg-blue-50 text-blue-700' }) => (
   <div className='bg-white border border-gray-200 rounded-lg p-4'>
@@ -45,9 +46,10 @@ const TrendBars = ({ data }) => {
 }
 
 const Dashboard = () => {
+  const navigate = useNavigate()
   const { aToken, getDashData, cancelAppointment, dashData } = useContext(AdminContext)
   const { slotDateFormat, currency } = useContext(AppContext)
-  const navigate = useNavigate()
+  const { t } = useLanguage()
   const [loading, setLoading] = useState(true)
   const [trendRange, setTrendRange] = useState('day')
 
@@ -75,40 +77,13 @@ const Dashboard = () => {
     getDashData()
   }
 
-  const adminOptions = [
-    { label: 'Patients', path: '/patients', icon: <UserRound className='w-5 h-5' />, tone: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-    { label: 'Doctors', path: '/doctor-list', icon: <Stethoscope className='w-5 h-5' />, tone: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' },
-    { label: 'Appointments', path: '/all-appointments', icon: <CalendarDays className='w-5 h-5' />, tone: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
-    { label: 'History', path: '/appointment-history', icon: <ClipboardList className='w-5 h-5' />, tone: 'bg-slate-100 text-slate-700 hover:bg-slate-200' },
-    { label: 'Clinics', path: '/clinics', icon: <Building2 className='w-5 h-5' />, tone: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
-    { label: 'Add Doctor', path: '/add-doctor', icon: <UserPlus className='w-5 h-5' />, tone: 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100' },
-    { label: 'Receptionists', path: '/receptionist-list', icon: <CreditCard className='w-5 h-5' />, tone: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
-    { label: 'Audit Logs', path: '/audit-logs', icon: <ShieldCheck className='w-5 h-5' />, tone: 'bg-rose-50 text-rose-700 hover:bg-rose-100' }
-  ]
-
   if (loading) {
     return (
       <div className='p-3 sm:p-5 md:p-6 lg:p-8'>
         <div className='max-w-7xl'>
           <div className='mb-5'>
-            <h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900'>Admin Dashboard</h1>
-            <p className='text-sm text-gray-600 mt-1'>Use the options below to manage the clinic system.</p>
-          </div>
-
-          <div className='bg-white border border-gray-200 rounded-lg p-4 sm:p-5 mb-5'>
-            <h2 className='font-semibold text-gray-900 mb-4'>Admin Options</h2>
-            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3'>
-              {adminOptions.map((option) => (
-                <button
-                  key={option.path}
-                  onClick={() => navigate(option.path)}
-                  className={`min-h-24 rounded-lg px-3 py-4 flex flex-col items-center justify-center gap-2 text-center font-semibold text-sm transition ${option.tone}`}
-                >
-                  {option.icon}
-                  <span>{option.label}</span>
-                </button>
-              ))}
-            </div>
+            <h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900'>{t('Dashboard')}</h1>
+            <p className='text-sm text-gray-600 mt-1'>Patients, doctors, revenue, payments, appointment trends, and clinic performance.</p>
           </div>
 
           <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5'>
@@ -126,33 +101,15 @@ const Dashboard = () => {
       <div className='p-3 sm:p-5 md:p-6 lg:p-8'>
         <div className='max-w-7xl'>
           <div className='mb-5'>
-            <h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900'>Admin Dashboard</h1>
+            <h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900'>{t('Dashboard')}</h1>
             <p className='text-sm text-gray-600 mt-1'>Patients, doctors, revenue, payments, appointment trends, and clinic performance.</p>
           </div>
 
-          <div className='bg-white border border-gray-200 rounded-lg p-4 sm:p-5 mb-5'>
-            <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4'>
-              <div>
-                <h2 className='font-semibold text-gray-900'>Admin Options</h2>
-                <p className='text-sm text-gray-500'>Open the main management pages directly from here.</p>
-              </div>
-            </div>
-            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3'>
-              {adminOptions.map((option) => (
-                <button
-                  key={option.path}
-                  onClick={() => navigate(option.path)}
-                  className={`min-h-24 rounded-lg px-3 py-4 flex flex-col items-center justify-center gap-2 text-center font-semibold text-sm transition ${option.tone}`}
-                >
-                  {option.icon}
-                  <span>{option.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5'>
-            <StatTile icon={<UserRound className='w-5 h-5' />} label='Total Patients' value={dashData?.patients || 0} accent='bg-blue-50 text-blue-700' />
+            <button type='button' onClick={() => navigate('/patients')} className='text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500'>
+              <StatTile icon={<UserRound className='w-5 h-5' />} label='Total Patients' value={dashData?.patients || 0} accent='bg-blue-50 text-blue-700' />
+            </button>
             <StatTile icon={<Stethoscope className='w-5 h-5' />} label='Total Doctors' value={dashData?.doctors || 0} accent='bg-indigo-50 text-indigo-700' />
             <StatTile icon={<CalendarDays className='w-5 h-5' />} label='Appointments' value={dashData?.appointments || 0} accent='bg-purple-50 text-purple-700' />
             <StatTile icon={<WalletCards className='w-5 h-5' />} label='Revenue' value={`${currency}${dashData?.revenue || 0}`} accent='bg-green-50 text-green-700' />

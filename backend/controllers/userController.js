@@ -9,14 +9,52 @@ import prescriptionModel from '../models/prescriptionModel.js'
 import counterModel from '../models/counterModel.js'
 import ratingModel from '../models/ratingModel.js'
 import { PASSWORD_RESET_TEMPLATE } from "../config/EmailTemplates.js";
+import { getPublicAppBrand } from '../config/publicBrand.js'
 import transporter from "../config/nodemailer.js";
 import { createJwtPayload } from '../middlewares/rbac.js'
 import { logAudit } from '../services/auditService.js'
-import { isSlotAllowedBySchedule } from '../services/scheduleService.js'
-import { buildTeleconsultationLink, normalizeAppointmentType } from '../services/appointmentModeService.js'
+import { getBookedSlotsField, isDoctorOpenForPatientBooking, isSlotAllowedBySchedule, resolveClinicLocationForSchedule, usesClinicWeeklySchedule } from '../services/scheduleService.js'
+import { buildTeleconsultationLink, getDoctorAppointmentModeError, normalizeAppointmentTeleconsultationLinks, normalizeAppointmentType } from '../services/appointmentModeService.js'
 import { normalizeHomeVisitAddress, validateHomeVisitAddress } from '../services/homeVisitService.js'
 import { refundAppointmentPayment } from './paymentController.js'
+import { applyAppointmentPricing } from '../services/appointmentPricingService.js'
+import { getHomeVisitPricingSettings } from '../services/homeVisitPricingService.js'
+import { getVisitFeeQuote, normalizeVisitFeeType } from '../services/globalVisitFeesService.js'
+import { patientCanBookConsultation } from '../services/visitFeeEligibilityService.js'
+import { getNextReservationNumber } from '../services/reservationService.js'
+import { getSecuritySettings, isMfaRequiredForProfile, validatePasswordAgainstPolicy } from '../services/securityPolicyService.js'
+import { buildMfaSetupPayload, generateMfaSecret, verifyTotpCode } from '../services/mfaService.js'
+import { notifyAppointmentBooked, notifyAppointmentCancelled } from '../services/notificationService.js'
+import { assertValidInsuranceProvider } from '../services/insuranceProvidersService.js'
+import { attachInsuranceVerification } from '../services/insuranceVerificationService.js'
+import { findOneByEmail, normalizeEmail } from '../utils/emailUtils.js'
+import { isValidEgyptPhone, normalizeEgyptPhone } from '../utils/egyptPhone.js'
+import {
+  buildRegistrationVerificationResponse,
+  isAccountVerified,
+  signVerificationToken,
+  issueVerificationCodes,
+  maskEmail,
+  maskPhone
+} from '../services/accountVerificationService.js'
+import { verifySignupProof } from '../services/signupVerificationService.js'
 
+const MFA_TOKEN_EXPIRES_IN = '10m'
+
+const signPatientToken = (user) => jwt.sign(createJwtPayload({ id: user._id, role: 'patient', email: user.email }), process.env.JWT_SECRET)
+
+const signPatientMfaToken = (user, purpose = 'patient-mfa') => jwt.sign({
+  id: user._id.toString(),
+  role: 'patient',
+  purpose,
+  email: user.email
+}, process.env.JWT_SECRET, { expiresIn: MFA_TOKEN_EXPIRES_IN })
+
+const getPatientFromMfaToken = async (mfaToken, purpose = 'patient-mfa') => {
+  const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET)
+  if (decoded?.purpose !== purpose || decoded?.role !== 'patient' || !decoded?.id) return null
+  return userModel.findById(decoded.id)
+}
 
 
 // Function to get next ID
@@ -31,7 +69,19 @@ const getNextPatientId = async () => {
 
 const parseBoolean = (value) => value === true || value === 'true' || value === 'on' || value === '1'
 
-const normalizePhone = (phone = '') => String(phone).trim()
+const normalizePhone = (phone = '') => {
+  const egypt = normalizeEgyptPhone(phone)
+  if (egypt) return egypt
+  return String(phone).trim()
+}
+
+const normalizePatientGender = (gender) => ['Male', 'Female'].includes(gender) ? gender : 'Not Selected'
+
+const getDoctorPaymentError = (doctor, paymentMethod) => {
+  if (paymentMethod === 'Cash' && doctor.acceptsCash === false) return 'This doctor does not accept cash payment'
+  if (paymentMethod === 'Visa' && doctor.acceptsOnlinePayment === false) return 'This doctor does not accept online payment'
+  return ''
+}
 
 const isPastDate = (value) => {
   if (!value || typeof value !== 'string') return false
@@ -43,12 +93,13 @@ const isPastDate = (value) => {
   return date < todayUtc
 }
 
-const buildInsuranceData = async (body = {}, file, existingInsurance = {}, updatedBy = 'patient') => {
+const buildInsuranceData = async (body = {}, file, existingInsurance = {}, updatedBy = 'patient', options = {}) => {
   const enabled = parseBoolean(body.insuranceEnabled)
 
   if (!enabled) {
     return {
       enabled: false,
+      provider: '',
       fullName: '',
       birthDate: '',
       idNumber: '',
@@ -59,8 +110,16 @@ const buildInsuranceData = async (body = {}, file, existingInsurance = {}, updat
     }
   }
 
+  let provider = ''
+  if (enabled) {
+    let raw = String(body.insuranceProvider || body.insuranceProviderName || '').trim()
+    if (!raw && existingInsurance?.provider) raw = String(existingInsurance.provider).trim()
+    provider = await assertValidInsuranceProvider(raw)
+  }
+
   const insurance = {
     enabled: true,
+    provider,
     fullName: String(body.insuranceFullName || body.fullName || '').trim(),
     birthDate: String(body.insuranceBirthDate || body.birthDate || '').trim(),
     idNumber: String(body.insuranceIdNumber || body.idNumber || '').trim(),
@@ -87,7 +146,11 @@ const buildInsuranceData = async (body = {}, file, existingInsurance = {}, updat
     insurance.medicalCardPhoto = upload.secure_url
   }
 
-  return insurance
+  return attachInsuranceVerification(insurance, {
+    updatedBy,
+    existingInsurance,
+    verifiedBy: options.verifiedBy || (updatedBy === 'receptionist' ? String(body.verifiedBy || body.receptionistId || '').trim() : '')
+  })
 }
 
 
@@ -96,11 +159,16 @@ const buildInsuranceData = async (body = {}, file, existingInsurance = {}, updat
 const registerUser = async (req, res) => {
     try {
         const body = req.body || {}
-        const { name, email, password, dob } = body;
-        const phone = normalizePhone(body.phone)
+        const { name, password, dob } = body;
+        const email = normalizeEmail(body.email)
 
-        if (!name || !password || !email || !phone || !dob) {
+        if (!name || !password || !email || !body.phone || !dob) {
             return res.json({success: false, message: 'Missing Details'});
+        }
+
+        const security = await getSecuritySettings()
+        if (!security.allowPatientSelfRegistration) {
+            return res.json({ success: false, message: 'Patient self registration is currently disabled' })
         }
 
         if (!isPastDate(dob)) {
@@ -111,12 +179,29 @@ const registerUser = async (req, res) => {
             return res.json({success: false, message: 'Enter a valid email'});
         }
 
-        if (password.length < 8) {
-            return res.json({success: false, message: 'Enter a strong password'});
+        const phone = normalizePhone(body.phone)
+        if (!isValidEgyptPhone(phone)) {
+            return res.json({ success: false, message: 'Please enter a valid Egyptian mobile number' })
         }
 
-        const existingUser = await userModel.findOne({ email });
+        const passwordPolicy = await validatePasswordAgainstPolicy(password)
+        if (!passwordPolicy.valid) {
+            return res.json({success: false, message: passwordPolicy.message});
+        }
+
+        const existingUser = await findOneByEmail(userModel, email);
         if (existingUser) {
+            if (!isAccountVerified(existingUser)) {
+                try {
+                    const response = await buildRegistrationVerificationResponse(existingUser);
+                    return res.json({
+                        ...response,
+                        message: 'Account exists but is not verified. A new code was sent to your email.'
+                    });
+                } catch (error) {
+                    return res.json({ success: false, message: error.message || 'Could not send verification codes' });
+                }
+            }
             return res.json({success: false, message: 'Email already registered'});
         }
 
@@ -125,6 +210,9 @@ const registerUser = async (req, res) => {
             return res.json({success: false, message: 'Phone number already registered'});
         }
 
+        if (!verifySignupProof(body.emailVerificationToken, 'signup-email', email)) {
+            return res.json({ success: false, message: 'Please verify your email using Verify now before creating an account' })
+        }
         // Counter se ID lo
         const patientId = await getNextPatientId();
 
@@ -140,15 +228,17 @@ const registerUser = async (req, res) => {
             dob,
             password: hashedPassword,
             patientId: patientId,
-            insurance: await buildInsuranceData(body, req.file, {}, 'patient')
+            insurance: await buildInsuranceData(body, req.file, {}, 'patient'),
+            emailVerified: true,
+            phoneVerified: false,
+            accountVerifiedAt: Date.now()
         };
 
         const newUser = new userModel(userData);
         const user = await newUser.save();
 
-        const token = jwt.sign(createJwtPayload({ id: user._id, role: 'patient', email: user.email }), process.env.JWT_SECRET);
-
-        res.json({success: true, token});
+        const token = signPatientToken(user)
+        return res.json({ success: true, token, message: 'Account created successfully' })
 
     } catch (error) {
         console.log(error);
@@ -171,7 +261,10 @@ const loginUser = async (req,res) => {
         return res.json({ success: false, message: 'Email/phone and password are required' })
       }
 
-      const user = await userModel.findOne({ $or: [{ email: loginId }, { phone: loginId }] })
+      const phoneLookup = normalizePhone(loginId)
+      const user = validator.isEmail(loginId)
+        ? await findOneByEmail(userModel, loginId)
+        : await userModel.findOne({ phone: phoneLookup })
 
       if(!user){
        await logAudit({
@@ -203,7 +296,58 @@ const loginUser = async (req,res) => {
       const isMatch = await bcrypt.compare(password,user.password)
 
       if(isMatch) {
-        const token = jwt.sign(createJwtPayload({ id: user._id, role: 'patient', email: user.email }), process.env.JWT_SECRET)
+        if (!isAccountVerified(user)) {
+          try {
+            await issueVerificationCodes(user);
+          } catch (error) {
+            console.log('Verification resend on login:', error.message);
+          }
+          return res.json({
+            success: false,
+            verificationRequired: true,
+            verificationToken: signVerificationToken(user._id),
+            email: maskEmail(user.email),
+            phone: maskPhone(user.phone),
+            message: 'Verify your email before signing in. A new code was sent.'
+          });
+        }
+
+        const security = await getSecuritySettings()
+        const mfaRequired = isMfaRequiredForProfile(security, 'patient', user)
+        const hasConfiguredMfa = Boolean(user.mfa?.enabled && user.mfa?.secret)
+
+        if (mfaRequired && !hasConfiguredMfa) {
+          const secret = generateMfaSecret()
+          await userModel.findByIdAndUpdate(user._id, { 'mfa.secret': secret, 'mfa.enabled': false })
+          await logAudit({
+            action: 'mfa_setup_required',
+            actorUserId: user._id,
+            actorRole: 'patient',
+            status: 'success',
+            entityType: 'user',
+            entityId: user._id,
+            metadata: { loginId },
+            req
+          })
+          return res.json({
+            success: false,
+            mfaSetupRequired: true,
+            mfaToken: signPatientMfaToken(user, 'patient-mfa-setup'),
+            setup: buildMfaSetupPayload({ secret, accountName: user.email }),
+            message: 'Authenticator setup is required before login'
+          })
+        }
+
+        if (mfaRequired && hasConfiguredMfa) {
+          return res.json({
+            success: false,
+            mfaRequired: true,
+            mfaToken: signPatientMfaToken(user),
+            message: 'Enter your authenticator code'
+          })
+        }
+
+        const token = signPatientToken(user)
         await logAudit({
           action: 'login_success',
           actorUserId: user._id,
@@ -240,12 +384,97 @@ const loginUser = async (req,res) => {
     }
 }
 
+const verifyPatientMfaLogin = async (req, res) => {
+  try {
+    const { mfaToken, code } = req.body
+    const user = await getPatientFromMfaToken(mfaToken)
+    if (!user || !user.mfa?.secret || !user.mfa?.enabled) {
+      return res.json({ success: false, message: 'Invalid MFA session' })
+    }
+
+    if (user.isActive === false) {
+      return res.json({ success: false, message: 'Patient account is deactivated' })
+    }
+
+    if (!verifyTotpCode(user.mfa.secret, code)) {
+      await logAudit({
+        action: 'mfa_login_failed',
+        actorUserId: user._id,
+        actorRole: 'patient',
+        status: 'failed',
+        reason: 'Invalid MFA code',
+        entityType: 'user',
+        entityId: user._id,
+        req
+      })
+      return res.json({ success: false, message: 'Invalid authenticator code' })
+    }
+
+    const token = signPatientToken(user)
+    await logAudit({
+      action: 'login_success',
+      actorUserId: user._id,
+      actorRole: 'patient',
+      status: 'success',
+      entityType: 'user',
+      entityId: user._id,
+      metadata: { username: user.name, loginId: user.patientId || user.email, mfa: true },
+      req
+    })
+
+    res.json({ success: true, token })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: 'MFA session expired. Please sign in again.' })
+  }
+}
+
+const completePatientMfaLoginSetup = async (req, res) => {
+  try {
+    const { mfaToken, code } = req.body
+    const user = await getPatientFromMfaToken(mfaToken, 'patient-mfa-setup')
+    if (!user || !user.mfa?.secret) {
+      return res.json({ success: false, message: 'Invalid MFA setup session' })
+    }
+
+    if (user.isActive === false) {
+      return res.json({ success: false, message: 'Patient account is deactivated' })
+    }
+
+    if (!verifyTotpCode(user.mfa.secret, code)) {
+      return res.json({ success: false, message: 'Invalid authenticator code' })
+    }
+
+    await userModel.findByIdAndUpdate(user._id, {
+      'mfa.enabled': true,
+      'mfa.configuredAt': Date.now()
+    })
+
+    const token = signPatientToken(user)
+    await logAudit({
+      action: 'mfa_enable',
+      actorUserId: user._id,
+      actorRole: 'patient',
+      status: 'success',
+      entityType: 'user',
+      entityId: user._id,
+      metadata: { source: 'required_login_setup' },
+      req
+    })
+
+    res.json({ success: true, token, message: 'Authenticator MFA configured successfully' })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: 'MFA setup session expired. Please sign in again.' })
+  }
+}
+
 
 
 
 // Send OTP to email for password reset
 export const sendPasswordResetOtp = async (req, res) => {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body?.email);
 
   if (!email) {
     return res.json({ success: false, message: 'Email is required' });
@@ -253,7 +482,7 @@ export const sendPasswordResetOtp = async (req, res) => {
 
   try {
     // Check if user exists
-    const user = await userModel.findOne({ email });
+    const user = await findOneByEmail(userModel, email);
     
     if (!user) {
       return res.json({ success: false, message: 'User not found with this email' });
@@ -272,7 +501,10 @@ export const sendPasswordResetOtp = async (req, res) => {
       from: process.env.SENDER_EMAIL,
       to: user.email,
       subject: 'Password Reset OTP',
-      html: PASSWORD_RESET_TEMPLATE.replace('{{otp}}', otp).replace('{{email}}', user.email)
+      html: PASSWORD_RESET_TEMPLATE.replace('{{otp}}', otp)
+        .replace('{{email}}', user.email)
+        .replace('{{FOOTER_YEAR}}', String(new Date().getFullYear()))
+        .replace('{{FOOTER_BRAND}}', getPublicAppBrand())
     };
 
     await transporter.sendMail(mailOptions);
@@ -293,14 +525,15 @@ export const sendPasswordResetOtp = async (req, res) => {
 
 // Verify the OTP entered by user
 export const verifyPasswordResetOtp = async (req, res) => {
-  const { email, otp } = req.body;
+  const email = normalizeEmail(req.body?.email);
+  const { otp } = req.body;
 
   if (!email || !otp) {
     return res.json({ success: false, message: 'Email and OTP are required' });
   }
 
   try {
-    const user = await userModel.findOne({ email });
+    const user = await findOneByEmail(userModel, email);
 
     if (!user) {
       return res.json({ success: false, message: 'User not found' });
@@ -336,7 +569,8 @@ export const verifyPasswordResetOtp = async (req, res) => {
 
 // Reset password after OTP verification
 export const resetPassword = async (req, res) => {
-  const { email, otp, newPassword } = req.body;
+  const email = normalizeEmail(req.body?.email);
+  const { otp, newPassword } = req.body;
 
   if (!email || !otp || !newPassword) {
     return res.json({ 
@@ -346,7 +580,7 @@ export const resetPassword = async (req, res) => {
   }
 
   try {
-    const user = await userModel.findOne({ email });
+    const user = await findOneByEmail(userModel, email);
 
     if (!user) {
       return res.json({ success: false, message: 'User not found' });
@@ -356,7 +590,10 @@ export const resetPassword = async (req, res) => {
     if (user.resetOtp === '' || user.resetOtp !== otp) {
       return res.json({ success: false, message: 'Invalid OTP' });
     }
-
+    const passwordPolicy = await validatePasswordAgainstPolicy(newPassword)
+    if (!passwordPolicy.valid) {
+      return res.json({ success: false, message: passwordPolicy.message })
+    }
 
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -409,7 +646,7 @@ const updateProfile = async (req,res) => {
     const { name, phone, address, dob, gender } = body;
     const imageFile = req.file
 
-    if( !name || !phone || !dob || !gender ){
+    if( !name || !phone || !dob ){
       return res.json({success: false, message:"Data Missing"})
     }
 
@@ -422,7 +659,18 @@ const updateProfile = async (req,res) => {
       return res.json({ success: false, message: 'Phone number already registered' })
     }
 
-    await userModel.findByIdAndUpdate(userId,{name, phone: normalizePhone(phone), address: JSON.parse(address),dob, gender})
+    let parsedAddress = { line1: '', line2: '' }
+    if (address) {
+      parsedAddress = typeof address === 'string' ? JSON.parse(address) : address
+    }
+
+    await userModel.findByIdAndUpdate(userId,{
+      name: String(name).trim(),
+      phone: normalizePhone(phone),
+      address: parsedAddress,
+      dob,
+      gender: normalizePatientGender(gender)
+    })
 
     if(imageFile){
       
@@ -466,6 +714,99 @@ const updateInsurance = async (req, res) => {
     })
 
     res.json({ success: true, message: 'Insurance updated', userData: updatedUser, insurance: updatedUser.insurance })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const getPatientMfaStatus = async (req, res) => {
+  try {
+    const userId = req.user.userId
+    const user = await userModel.findById(userId).select('email mfa')
+    const security = await getSecuritySettings()
+    res.json({
+      success: true,
+      mfa: {
+        enabled: Boolean(user?.mfa?.enabled),
+        required: isMfaRequiredForProfile(security, 'patient', user),
+        requiredByAdmin: Boolean(user?.mfa?.requiredByAdmin),
+        canSelfManage: security.mfaAllowUserOptIn !== false
+      }
+    })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const startPatientMfaSetup = async (req, res) => {
+  try {
+    const userId = req.user.userId
+    const user = await userModel.findById(userId).select('email mfa')
+    const security = await getSecuritySettings()
+    if (!isMfaRequiredForProfile(security, 'patient', user) && security.mfaAllowUserOptIn === false) {
+      return res.json({ success: false, message: 'Self-service MFA is disabled by admin' })
+    }
+
+    const secret = generateMfaSecret()
+    await userModel.findByIdAndUpdate(userId, { 'mfa.secret': secret, 'mfa.enabled': false })
+    res.json({ success: true, setup: buildMfaSetupPayload({ secret, accountName: user.email }) })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const enablePatientMfa = async (req, res) => {
+  try {
+    const userId = req.user.userId
+    const { code } = req.body
+    const user = await userModel.findById(userId).select('mfa')
+    if (!user?.mfa?.secret) return res.json({ success: false, message: 'Start MFA setup first' })
+    if (!verifyTotpCode(user.mfa.secret, code)) return res.json({ success: false, message: 'Invalid authenticator code' })
+
+    await userModel.findByIdAndUpdate(userId, { 'mfa.enabled': true, 'mfa.configuredAt': Date.now() })
+    await logAudit({
+      action: 'mfa_enable',
+      status: 'success',
+      actorUserId: userId,
+      actorRole: 'patient',
+      entityType: 'user',
+      entityId: userId,
+      req
+    })
+    res.json({ success: true, message: 'Authenticator MFA enabled' })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const disablePatientMfa = async (req, res) => {
+  try {
+    const userId = req.user.userId
+    const { code } = req.body
+    const user = await userModel.findById(userId).select('mfa')
+    const security = await getSecuritySettings()
+    if (isMfaRequiredForProfile(security, 'patient', user)) {
+      return res.json({ success: false, message: 'MFA is required by policy and cannot be disabled' })
+    }
+    if (user?.mfa?.secret && !verifyTotpCode(user.mfa.secret, code)) {
+      return res.json({ success: false, message: 'Invalid authenticator code' })
+    }
+
+    await userModel.findByIdAndUpdate(userId, { 'mfa.enabled': false, 'mfa.secret': '', 'mfa.resetAt': Date.now() })
+    await logAudit({
+      action: 'mfa_disable',
+      status: 'success',
+      actorUserId: userId,
+      actorRole: 'patient',
+      entityType: 'user',
+      entityId: userId,
+      req
+    })
+    res.json({ success: true, message: 'Authenticator MFA disabled' })
   } catch (error) {
     console.log(error)
     res.json({ success: false, message: error.message })
@@ -544,6 +885,34 @@ const createMedicalHistory = async (req, res) => {
 const updateMedicalHistory = async (req, res) => {
   return saveMedicalHistory(req, res, 'Medical history updated')
 }
+
+const getVisitFeeEligibility = async (req, res) => {
+  try {
+    const userId = req.user.userId
+    const { docId } = req.params
+
+    const docData = await doctorModel.findById(docId).select('fees name')
+    if (!docData) {
+      return res.json({ success: false, message: 'Doctor not found' })
+    }
+
+    const quote = await getVisitFeeQuote(docData, 'examination')
+    const eligibility = await patientCanBookConsultation(userId, docId)
+
+    res.json({
+      success: true,
+      canBookConsultation: eligibility.allowed,
+      lastExaminationAt: eligibility.lastExaminationAt,
+      examinationFee: quote.examinationAmount,
+      consultationFee: quote.consultationAmount,
+      globalFeesEnabled: Boolean(quote.globalVisitFees?.enabled)
+    })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
 //  API to book appointment
 const bookAppointment = async (req,res) => {
 
@@ -553,19 +922,63 @@ const bookAppointment = async (req,res) => {
     const { docId, slotDate, slotTime } = req.body;
     const clinicLocation = String(req.body.clinicLocation || '').trim()
     const paymentMethod = String(req.body.paymentMethod || 'Cash').trim()
+    const promoCodeInput = String(req.body.promoCode || '').trim()
     const appointmentType = normalizeAppointmentType(req.body.appointmentType)
+    const visitFeeType = normalizeVisitFeeType(req.body.visitFeeType)
     const homeVisitAddress = normalizeHomeVisitAddress(req.body.homeVisitAddress || {})
 
     if (!['Cash', 'Visa'].includes(paymentMethod)) {
       return res.json({ success: false, message: 'Please choose Cash or Visa payment method' })
     }
+
+    const docData = await doctorModel.findById(docId).select('-password')
+    if (!docData) {
+      return res.json({ success: false, message: 'Doctor not found' })
+    }
     if (appointmentType === 'Home Visit') {
-      const addressError = validateHomeVisitAddress(homeVisitAddress)
+      const addressError = validateHomeVisitAddress(homeVisitAddress, docData)
       if (addressError) return res.json({ success: false, message: addressError })
     }
-    const docData = await doctorModel.findById(docId).select('-password')
+    if (visitFeeType === 'consultation') {
+      const eligibility = await patientCanBookConsultation(userId, docId)
+      if (!eligibility.allowed) {
+        return res.json({
+          success: false,
+          message: 'Follow-up consultation is only available within 30 days of a completed examination with this doctor'
+        })
+      }
+    }
+    if (!isDoctorOpenForPatientBooking(docData)) {
+      return res.json({ success: false, message: 'This doctor has not opened appointments yet. Please check back later.' })
+    }
+    const appointmentModeError = getDoctorAppointmentModeError(docData, appointmentType)
+    if (appointmentModeError) {
+      return res.json({ success: false, message: appointmentModeError })
+    }
+    const doctorLocations = (docData.locations || []).map((location) => String(location || '').trim()).filter(Boolean)
+    const resolvedClinicLocation = resolveClinicLocationForSchedule(docData, clinicLocation, appointmentType)
+    if (usesClinicWeeklySchedule(appointmentType) && doctorLocations.length > 1 && !resolvedClinicLocation) {
+      return res.json({ success: false, message: 'Please choose a clinic location' })
+    }
+    if (usesClinicWeeklySchedule(appointmentType) && resolvedClinicLocation && doctorLocations.length > 0 && !doctorLocations.includes(resolvedClinicLocation)) {
+      return res.json({ success: false, message: 'Please choose a valid clinic location' })
+    }
+    const paymentError = getDoctorPaymentError(docData, paymentMethod)
+    if (paymentError) {
+      return res.json({ success: false, message: paymentError })
+    }
+    const homeVisitPricing = await getHomeVisitPricingSettings()
+    const pricing = await applyAppointmentPricing(docData, {
+      promoCode: promoCodeInput,
+      appointmentType,
+      homeVisitPricing,
+      visitFeeType
+    })
+    if (pricing.error) {
+      return res.json({ success: false, message: pricing.error })
+    }
 
-    const scheduleCheck = isSlotAllowedBySchedule(docData, slotDate, slotTime)
+    const scheduleCheck = isSlotAllowedBySchedule(docData, slotDate, slotTime, appointmentType, clinicLocation)
     if(!scheduleCheck.allowed){
       return res.json({success: false, message: scheduleCheck.reason})
     }
@@ -576,10 +989,28 @@ const bookAppointment = async (req,res) => {
     if (!userData || userData.isActive === false) {
       return res.json({ success: false, message: 'Patient account is deactivated' })
     }
+
+    // Check for any existing appointment for this doctor at the same time across all locations
+    // This prevents double-booking across multiple clinic locations
+    const conflictingAppointment = await appointmentModel.findOne({
+      docId,
+      slotDate,
+      slotTime,
+      appointmentType,
+      appointmentStatus: { $ne: 'Cancelled' }
+    })
+
+    if (conflictingAppointment) {
+      return res.json({ 
+        success: false, 
+        message: `Doctor is already booked for this time slot at ${conflictingAppointment.clinicLocation || 'another location'}` 
+      })
+    }
  
+    const bookedSlotsField = getBookedSlotsField(appointmentType)
     const slotUpdate = await doctorModel.updateOne(
-      { _id: docId, [`slots_booked.${slotDate}`]: { $ne: slotTime } },
-      { $addToSet: { [`slots_booked.${slotDate}`]: slotTime } }
+      { _id: docId, [`${bookedSlotsField}.${slotDate}`]: { $ne: slotTime } },
+      { $addToSet: { [`${bookedSlotsField}.${slotDate}`]: slotTime } }
     )
 
     if (slotUpdate.modifiedCount === 0) {
@@ -588,21 +1019,27 @@ const bookAppointment = async (req,res) => {
 
     const appointmentDocData = docData.toObject()
     delete appointmentDocData.slots_booked
+    delete appointmentDocData.home_visit_slots_booked
     
     const appointmentId = new appointmentModel()._id
     const teleconsultationLink = ['Voice Call', 'Video Call'].includes(appointmentType) ? buildTeleconsultationLink({ appointmentId, docId, userId, slotDate, slotTime }) : ''
 
     const appointmentData = {
       _id: appointmentId,
+      reservationNumber: await getNextReservationNumber(),
       userId,
       docId,
       userData,
       docData: appointmentDocData,
-      amount: Number(docData.fees),
-      originalAmount: Number(docData.fees),
+      amount: pricing.amount,
+      originalAmount: pricing.baseAmount,
+      discountAmount: pricing.discountAmount,
+      discountReason: pricing.discountReason,
+      promoCode: pricing.promoCode,
+      visitFeeType: pricing.visitFeeType,
       slotTime, 
       slotDate,
-      clinicLocation: appointmentType === 'Clinic' ? clinicLocation : '',
+      clinicLocation: usesClinicWeeklySchedule(appointmentType) ? resolvedClinicLocation : '',
       appointmentType,
       teleconsultationLink,
       homeVisitAddress: appointmentType === 'Home Visit' ? { ...homeVisitAddress, updatedBy: 'Patient', updatedAt: Date.now() } : {},
@@ -637,6 +1074,8 @@ const bookAppointment = async (req,res) => {
       req
     })
 
+    notifyAppointmentBooked({ appointment: newAppointment, bookedBy: 'Patient' })
+
     res.json({success: true, message: 'Appointment Booked', appointment: newAppointment})
   } catch (error) {
     console.log(error)
@@ -663,7 +1102,7 @@ const listAppointment = async (req,res) => {
      acc[rating.appointmentId] = rating
      return acc
    }, {})
-   const appointmentsWithRatings = appointments.map((appointment) => ({
+   const appointmentsWithRatings = normalizeAppointmentTeleconsultationLinks(appointments).map((appointment) => ({
      ...appointment,
      myRating: ratingsByAppointment[appointment._id.toString()] || null
    }))
@@ -716,11 +1155,12 @@ const cancelAppointment = async (req,res) => {
    const { docId, slotDate, slotTime } = appointmentData
    const doctorData = await doctorModel.findById(docId)
 
-   let slots_booked = doctorData.slots_booked
+   const bookedSlotsField = getBookedSlotsField(appointmentData.appointmentType)
+   let slots_booked = doctorData[bookedSlotsField] || {}
 
-   slots_booked[slotDate] = slots_booked[slotDate].filter(e => e !== slotTime)
+   slots_booked[slotDate] = (slots_booked[slotDate] || []).filter(e => e !== slotTime)
 
-   await doctorModel.findByIdAndUpdate(docId, {slots_booked})
+   await doctorModel.findByIdAndUpdate(docId, { [bookedSlotsField]: slots_booked })
 
    await logAudit({
      action: 'appointment_cancel',
@@ -737,6 +1177,8 @@ const cancelAppointment = async (req,res) => {
      },
      req
    })
+
+   notifyAppointmentCancelled({ appointment: appointmentData, cancelledBy: 'patient' })
 
    res.json({success: true, message:`Appointment Cancelled${refundMessage}`})
 
@@ -784,4 +1226,4 @@ const getUserPrescription = async (req, res) => {
 
 
 
-export { registerUser, loginUser, getProfile, updateProfile, updateInsurance, getMedicalHistory, createMedicalHistory, updateMedicalHistory, bookAppointment, listAppointment, cancelAppointment, getUserPrescription, buildInsuranceData, getNextPatientId, isPastDate }
+export { registerUser, loginUser, verifyPatientMfaLogin, completePatientMfaLoginSetup, getProfile, updateProfile, updateInsurance, getPatientMfaStatus, startPatientMfaSetup, enablePatientMfa, disablePatientMfa, getMedicalHistory, createMedicalHistory, updateMedicalHistory, getVisitFeeEligibility, bookAppointment, listAppointment, cancelAppointment, getUserPrescription, buildInsuranceData, getNextPatientId, isPastDate }

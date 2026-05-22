@@ -1,14 +1,15 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react'
 import { AdminContext } from '../../context/AdminContext'
 import { Building2, Eye, Link2, Loader2, Mail, Phone, Save, Settings2 } from 'lucide-react'
+import { DEFAULT_FOOTER_COPYRIGHT, DEFAULT_FOOTER_DESCRIPTION } from '../../utils/publicSiteDefaults'
 
 const defaults = {
-  description: "Simplifying healthcare access through smart appointment management. Book your doctor, anytime, anywhere with Prescripto's intelligent scheduling system. No more long waits or booking hassles - just efficient, reliable, and patient-focused healthcare at your convenience.",
-  companyTitle: 'COMPANY',
-  contactTitle: 'GET IN TOUCH',
+  description: DEFAULT_FOOTER_DESCRIPTION,
+  companyTitle: 'Company',
+  contactTitle: 'Get in touch',
   homeLabel: 'Home',
   aboutLabel: 'About',
-  doctorsLabel: 'All Doctors',
+  doctorsLabel: 'All doctors',
   contactLabel: 'Contact Us',
   appointmentsLabel: 'My Appointments',
   profileLabel: 'My Profile',
@@ -17,7 +18,7 @@ const defaults = {
   phoneNumber: '+92 343 2705821',
   emailLabel: 'Email',
   email: 'marqum987@gmail.com',
-  copyrightText: 'Copyright 2026 © Prescripto - All Rights Reserved.',
+  copyrightText: DEFAULT_FOOTER_COPYRIGHT,
   showHomeLink: true,
   showAboutLink: true,
   showDoctorsLink: true,
@@ -179,40 +180,50 @@ const FooterSettings = () => {
               <p className='text-sm text-gray-500 mt-1'>Approximate patient website footer.</p>
             </div>
 
-            <div className='p-4 space-y-5'>
-              <div className='grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm'>
+            <div className='rounded-xl border border-slate-200/80 bg-gradient-to-b from-slate-50 to-white p-4 space-y-5'>
+              <div className='grid grid-cols-1 sm:grid-cols-3 gap-6 text-sm'>
                 <div className='sm:col-span-1'>
-                  <div className='h-8 w-32 rounded bg-primary/15 mb-3' />
-                  <p className='text-gray-600 leading-6'>{form.description}</p>
+                  <div className='mb-3 inline-block rounded-xl bg-white p-2 shadow-sm ring-1 ring-slate-200/60'>
+                    <div className='h-7 w-28 rounded bg-primary/15' />
+                  </div>
+                  <p className='text-slate-600 leading-relaxed text-[13px]'>{form.description}</p>
                 </div>
                 <div>
-                  <p className='font-semibold text-gray-900 mb-3'>{form.companyTitle}</p>
-                  <ul className='space-y-2 text-gray-600'>
-                    {links.map((link, index) => <li key={`${link}-${index}`}>{link}</li>)}
+                  <p className='text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 mb-3'>{form.companyTitle}</p>
+                  <ul className='rounded-xl border border-slate-200/70 bg-white/60 p-2 space-y-0.5 text-slate-700'>
+                    {links.map((link, index) => (
+                      <li key={`${link}-${index}`} className='rounded-lg px-2 py-2 text-[13px] hover:bg-white'>
+                        {link}
+                      </li>
+                    ))}
                   </ul>
                 </div>
                 <div>
-                  <p className='font-semibold text-gray-900 mb-3'>{form.contactTitle}</p>
-                  <div className='space-y-3 text-gray-600'>
-                    <div className='flex gap-2'>
-                      <Phone className='w-4 h-4 text-primary mt-1' />
-                      <div>
-                        <p className='font-medium text-gray-900'>{form.phoneLabel}</p>
-                        <p>{form.phoneNumber}</p>
+                  <p className='text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 mb-3'>{form.contactTitle}</p>
+                  <div className='space-y-2 text-gray-600'>
+                    <div className='flex gap-3 rounded-xl border border-slate-200/80 bg-white/70 p-3'>
+                      <span className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary'>
+                        <Phone className='w-4 h-4' />
+                      </span>
+                      <div className='min-w-0'>
+                        <p className='text-[10px] font-semibold uppercase tracking-wide text-slate-500'>{form.phoneLabel}</p>
+                        <p className='text-[13px] font-medium text-slate-900'>{form.phoneNumber}</p>
                       </div>
                     </div>
-                    <div className='flex gap-2'>
-                      <Mail className='w-4 h-4 text-primary mt-1' />
+                    <div className='flex gap-3 rounded-xl border border-slate-200/80 bg-white/70 p-3'>
+                      <span className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary'>
+                        <Mail className='w-4 h-4' />
+                      </span>
                       <div className='min-w-0'>
-                        <p className='font-medium text-gray-900'>{form.emailLabel}</p>
-                        <p className='break-all'>{form.email}</p>
+                        <p className='text-[10px] font-semibold uppercase tracking-wide text-slate-500'>{form.emailLabel}</p>
+                        <p className='break-all text-[13px] font-medium text-slate-900'>{form.email}</p>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className='border-t border-gray-200 pt-4 text-center text-xs text-gray-600'>{form.copyrightText}</div>
+              <div className='border-t border-slate-200/90 pt-4 text-center text-[12px] text-slate-500'>{form.copyrightText}</div>
 
               <button type='submit' disabled={saving} className='w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:bg-gray-300 transition'>
                 {saving ? <Loader2 className='w-4 h-4 animate-spin' /> : <Save className='w-4 h-4' />}

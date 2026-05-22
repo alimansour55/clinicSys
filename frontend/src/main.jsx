@@ -6,7 +6,7 @@ import AppContextProvider from './context/AppContext.jsx'
 import { LanguageProvider } from './i18n.jsx'
 
 createRoot(document.getElementById('root')).render(
-  <BrowserRouter>
+  <BrowserRouter unstable_useTransitions={false}>
     <LanguageProvider>
       <AppContextProvider>
         <App />

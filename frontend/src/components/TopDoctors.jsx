@@ -1,66 +1,98 @@
-import React, { useContext } from 'react'
+import React, { useContext, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
 import { RatingBadge } from './DoctorRating'
+import PromoOfferBadge from './PromoOfferBadge'
 import { MapPin } from 'lucide-react'
+import { formatLocationLine } from '../utils/placeTranslations'
+import { isDoctorBookableForPatients, isDoctorComingSoon } from '../utils/doctorBooking'
+
+const sortDoctorsForTopSection = (list = []) =>
+  [...list].sort((a, b) => {
+    const completedA = Number(a.completedBookingsCount ?? 0)
+    const completedB = Number(b.completedBookingsCount ?? 0)
+    if (completedB !== completedA) return completedB - completedA
+    const ratingA = Number(a.ratingSummary?.averageRating ?? 0)
+    const ratingB = Number(b.ratingSummary?.averageRating ?? 0)
+    if (ratingB !== ratingA) return ratingB - ratingA
+    const countA = Number(a.ratingSummary?.ratingCount ?? 0)
+    const countB = Number(b.ratingSummary?.ratingCount ?? 0)
+    return countB - countA
+  })
 
 const TopDoctors = () => {
 
    const navigate = useNavigate()
-   const { doctors, t, tc } = useContext(AppContext)
-   const getDoctorLocation = (doctor) => {
+   const { doctors, t, tc, currencySymbol, language, displayPersonName, placeTranslationOverrides } = useContext(AppContext)
+   const topDoctors = useMemo(
+     () => sortDoctorsForTopSection(doctors).slice(0, 8),
+     [doctors]
+   )
+   const getDoctorLocationRaw = (doctor) => {
      const locations = doctor.locations?.length
        ? doctor.locations
        : (doctor.clinics || []).map((clinic) => clinic.name || clinic)
      return locations.filter(Boolean).join(', ') || [doctor.address?.line1, doctor.address?.line2].filter(Boolean).join(', ')
    }
+   const getDoctorLocationDisplay = (doctor) => {
+     const raw = getDoctorLocationRaw(doctor)
+     return raw ? formatLocationLine(raw, language, t, placeTranslationOverrides) : t('Clinic location')
+   }
 
   return (
-    <div className='flex flex-col items-center gap-4 py-16 text-gray-800'>
+    <div className='flex flex-col items-center gap-3 py-10 sm:py-12 text-gray-800'>
       
       {/* Header */}
-      <div className="max-w-6xl mx-auto text-center mb-6 md:mb-10 px-4">
-        <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3">
+      <div className="max-w-6xl mx-auto text-center mb-5 md:mb-7 px-4">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2.5">
           {t('Top Doctors to Book')}
         </h1>
-        <p className="text-gray-600 text-xs sm:text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
+        <p className="text-gray-600 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
           {t('Simply browse through our extensive list of trusted doctors')}
         </p>
       </div>
 
       {/* Doctors Grid  */}
-      <div className='w-full grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 gap-y-6 px-3 sm:px-0 max-w-6xl mx-auto'>
-        {doctors.slice(0,8).map((item,index) => (
-            <div 
-              onClick={() => {navigate(`/appointment/${item._id}`); scrollTo(0, 0);}} 
-              className='border border-blue-200 rounded-xl overflow-hidden cursor-pointer hover:translate-y-[-10px] transition-all duration-500' 
-              key={index}
+      <div className='w-full grid grid-cols-[repeat(auto-fit,minmax(166px,188px))] justify-center gap-4 px-3 sm:px-0 max-w-5xl mx-auto'>
+        {topDoctors.map((item) => (
+            <button
+              type='button'
+              key={item._id}
+              disabled={isDoctorComingSoon(item)}
+              onClick={() => {
+                if (isDoctorComingSoon(item)) return
+                navigate(`/appointment/${item._id}`)
+                scrollTo(0, 0)
+              }}
+              className='group min-h-[304px] overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition disabled:cursor-default disabled:opacity-95 hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg'
             >
-               <div className='relative'>
-                 <img className='bg-blue-50 w-full h-40 sm:h-56 object-cover' src={item.image} alt="" />
+               <div className='relative mx-3 mt-3 h-[146px] overflow-hidden rounded-lg bg-blue-50'>
+                 <img className='h-full w-full object-cover transition duration-300 group-hover:scale-105' src={item.image} alt="" />
                  <RatingBadge summary={item.ratingSummary} className='absolute left-2 top-2' />
+                 <PromoOfferBadge doctor={item} currencySymbol={currencySymbol} className='absolute bottom-2 left-2' />
                </div>
               
-               <div className='p-3 sm:p-4'>
-                <div className={`flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm ${item.available ? 'text-green-500' : 'text-gray-500'}`}>
-                  <p className={`w-1.5 h-1.5 sm:w-2 sm:h-2 ${item.available ? 'bg-green-500' : 'bg-gray-500'} rounded-full`}></p>
-                  <p>{item.available ? t('Available') : t('Not Available')}</p>
+               <div className='px-3 py-2.5'>
+                <div className={`flex items-center gap-1.5 text-xs ${isDoctorComingSoon(item) ? 'text-amber-600' : isDoctorBookableForPatients(item) ? 'text-green-500' : 'text-gray-500'}`}>
+                  <p className={`h-1.5 w-1.5 rounded-full ${isDoctorComingSoon(item) ? 'bg-amber-500' : isDoctorBookableForPatients(item) ? 'bg-green-500' : 'bg-gray-500'}`} />
+                  <p>{isDoctorComingSoon(item) ? t('Coming Soon') : isDoctorBookableForPatients(item) ? t('Available') : t('Not Available')}</p>
                 </div>
-                 <p className='text-gray-900 text-sm sm:text-lg font-medium mt-2 line-clamp-2'>{item.name}</p>
-                 <p className='text-gray-600 text-xs sm:text-sm mt-1'>{tc(item.speciality)}</p>
-                 <p className='mt-2 flex items-center gap-1.5 text-gray-500 text-xs sm:text-sm line-clamp-1'>
-                   <MapPin className='h-3.5 w-3.5 shrink-0 text-blue-500' />
-                   <span className='truncate'>{getDoctorLocation(item) || 'Clinic location'}</span>
+                 <p className='truncate text-sm font-bold text-gray-800 mt-1.5'>{displayPersonName(item.name)}</p>
+                 <p className='mt-1 truncate text-sm text-gray-600'>{tc(item.speciality)}</p>
+                 <p className='mt-2 flex items-center gap-1.5 truncate text-sm text-gray-600'>
+                   <MapPin className='h-4 w-4 shrink-0 text-blue-500' />
+                   <span className='truncate'>{getDoctorLocationDisplay(item)}</span>
                  </p>
                </div>
-            </div>   
+            </button>
         ))}
       </div>
 
       {/* Responsive Button */}
-      <button 
-        onClick={() => { navigate('/doctors'); scrollTo(0,0) }} 
-        className='bg-blue-50 text-gray-600 px-8 sm:px-12 py-2.5 sm:py-3 rounded-full mt-6 sm:mt-10 text-sm sm:text-base font-medium hover:bg-blue-100 transition-all cursor-pointer'
+      <button
+        type='button'
+        onClick={() => { navigate('/doctors'); scrollTo(0, 0) }}
+        className='mt-5 rounded-full bg-blue-50 px-8 py-2.5 text-sm font-medium text-gray-600 transition-all hover:bg-blue-100 sm:mt-8 sm:px-12 sm:py-3 sm:text-base'
       >
         {t('View More Doctors')}
       </button>

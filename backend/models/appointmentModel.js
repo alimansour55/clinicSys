@@ -1,6 +1,7 @@
 import mongoose, { Types } from 'mongoose';
 
 const appointmentSchema = new mongoose.Schema({
+    reservationNumber: { type: String, unique: true, sparse: true },
     userId: { type: String, required: true },
     docId: { type: String, required: true },
     slotDate: { type: String, required: true },
@@ -10,6 +11,12 @@ const appointmentSchema = new mongoose.Schema({
         type: String,
         enum: ['Clinic', 'Voice Call', 'Video Call', 'Home Visit'],
         default: 'Clinic'
+    },
+    /** examination = كشف (full visit); consultation = استشارة (follow-up, lower fee) */
+    visitFeeType: {
+        type: String,
+        enum: ['examination', 'consultation'],
+        default: 'examination'
     },
     teleconsultationLink: { type: String, default: '' },
     homeVisitAddress: {
@@ -28,6 +35,7 @@ const appointmentSchema = new mongoose.Schema({
     originalAmount: { type: Number, default: 0 },
     discountAmount: { type: Number, default: 0 },
     discountReason: { type: String, default: '' },
+    promoCode: { type: String, default: '' },
     coveredByInsurance: { type: Boolean, default: false },
     date: { type: Number, required: true },
     appointmentStatus: {
@@ -62,6 +70,12 @@ const appointmentSchema = new mongoose.Schema({
     statusUpdatedAt: { type: Number, default: Date.now },
     bookedBy: { type: String, enum: ['Patient', 'Receptionist'], default: 'Patient' },
     receptionistId: { type: String, default: '' },
+    insuranceVisitCheck: {
+        status: { type: String, enum: ['', 'approved', 'declined'], default: '' },
+        checkedAt: { type: Number, default: 0 },
+        checkedBy: { type: String, default: '' },
+        note: { type: String, default: '' }
+    },
     cancelled: { type: Boolean, default: false },
     isCompleted: {type: Boolean, default: false}
 })

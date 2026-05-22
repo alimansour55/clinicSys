@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
+import { useLanguage } from '../i18n'
 import { ClipboardList, HeartPulse, Save, ShieldCheck } from 'lucide-react'
 
 const emptyHistory = {
@@ -15,43 +16,52 @@ const emptyHistory = {
 const fields = [
   {
     name: 'conditions',
-    label: 'Medical Conditions',
-    hint: 'Chronic conditions, current diagnoses, or recurring concerns'
+    labelKey: 'Medical Conditions',
+    hintKey: 'Chronic conditions, current diagnoses, or recurring concerns'
   },
   {
     name: 'allergies',
-    label: 'Allergies',
-    hint: 'Medicine, food, environmental, or other known allergies'
+    labelKey: 'Allergies',
+    hintKey: 'Medicine, food, environmental, or other known allergies'
   },
   {
     name: 'surgeries',
-    label: 'Surgeries',
-    hint: 'Past operations, procedures, or hospital stays'
+    labelKey: 'Surgeries',
+    hintKey: 'Past operations, procedures, or hospital stays'
   },
   {
     name: 'familyHistory',
-    label: 'Family History',
-    hint: 'Inherited conditions or major family health patterns'
+    labelKey: 'Family History',
+    hintKey: 'Inherited conditions or major family health patterns'
   },
   {
     name: 'socialHistory',
-    label: 'Social History',
-    hint: 'Smoking, alcohol, activity level, occupation, or lifestyle notes'
+    labelKey: 'Social History',
+    hintKey: 'Smoking, alcohol, activity level, occupation, or lifestyle notes'
   },
   {
     name: 'notes',
-    label: 'Additional Notes',
-    hint: 'Anything else your care team should know'
+    labelKey: 'Additional Notes',
+    hintKey: 'Anything else your care team should know'
   }
 ]
 
 const MedicalHistory = () => {
   const navigate = useNavigate()
   const { token, getMedicalHistory, saveMedicalHistory } = useContext(AppContext)
+  const { t, language, localizeDigits } = useLanguage()
   const [history, setHistory] = useState(emptyHistory)
   const [initialHistory, setInitialHistory] = useState(emptyHistory)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  const fillT = (key, vars = {}) => {
+    let s = String(t(key))
+    Object.entries(vars || {}).forEach(([k, v]) => {
+      s = s.split(`{{${k}}}`).join(String(v))
+    })
+    return localizeDigits(s)
+  }
 
   const hasExistingHistory = Object.values(initialHistory).some((value) => String(value || '').trim())
   const hasChanges = JSON.stringify(history) !== JSON.stringify(initialHistory)
@@ -60,9 +70,18 @@ const MedicalHistory = () => {
     setHistory((prev) => ({ ...prev, [field]: value }))
   }
 
-  const formatUpdatedAt = (updatedAt) => {
-    if (!updatedAt) return 'Not updated yet'
-    return new Date(updatedAt).toLocaleString()
+  const formatUpdatedAtDisplay = (updatedAt) => {
+    if (!updatedAt) return null
+    const d = new Date(updatedAt)
+    if (!Number.isFinite(d.getTime())) return null
+    const locale = language === 'ar' ? 'ar-EG' : 'en-US'
+    return d.toLocaleString(locale, { dateStyle: 'short', timeStyle: 'medium' })
+  }
+
+  const updatedBadgeText = () => {
+    const formatted = formatUpdatedAtDisplay(initialHistory.updatedAt)
+    if (!formatted) return t('Not updated yet')
+    return fillT('Last updated: {{time}}', { time: formatted })
   }
 
   const handleSubmit = async (event) => {
@@ -119,17 +138,17 @@ const MedicalHistory = () => {
               <ClipboardList className='w-5 h-5' />
             </span>
             <h1 className='text-xl sm:text-2xl font-bold text-gray-900'>
-              Medical <span className='text-primary'>History</span>
+              <span className='text-primary'>{t('Medical History')}</span>
             </h1>
           </div>
           <p className='text-sm text-gray-600 mt-2 max-w-2xl'>
-            Keep your health background up to date so doctors can review the right context before and after visits.
+            {t('Keep your health background up to date so doctors can review the right context before and after visits.')}
           </p>
         </div>
 
         <div className='flex items-center gap-2 text-xs sm:text-sm text-gray-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2'>
           <ShieldCheck className='w-4 h-4 text-primary' />
-          <span>Last updated: {formatUpdatedAt(initialHistory.updatedAt)}</span>
+          <span>{updatedBadgeText()}</span>
         </div>
       </div>
 
@@ -139,14 +158,14 @@ const MedicalHistory = () => {
             <label key={field.name} className='block border border-gray-200 rounded-lg p-4 bg-white'>
               <span className='flex items-center gap-2 font-semibold text-gray-900 text-sm sm:text-base'>
                 <HeartPulse className='w-4 h-4 text-primary' />
-                {field.label}
+                {t(field.labelKey)}
               </span>
-              <span className='block text-xs sm:text-sm text-gray-500 mt-1 mb-3'>{field.hint}</span>
+              <span className='block text-xs sm:text-sm text-gray-500 mt-1 mb-3'>{t(field.hintKey)}</span>
               <textarea
                 value={history[field.name] || ''}
                 onChange={(event) => updateField(field.name, event.target.value)}
                 className='w-full min-h-28 resize-y border border-gray-200 rounded-lg p-3 text-sm text-gray-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10'
-                placeholder='Write here'
+                placeholder={t('Write here')}
               />
             </label>
           ))}
@@ -154,7 +173,7 @@ const MedicalHistory = () => {
 
         <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 pt-5 border-t'>
           <p className='text-xs sm:text-sm text-gray-500'>
-            You can update this anytime. Doctors may also add notes after appointments.
+            {t('You can update this anytime. Doctors may also add notes after appointments.')}
           </p>
 
           <button
@@ -165,12 +184,12 @@ const MedicalHistory = () => {
             {saving ? (
               <>
                 <span className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin'></span>
-                Saving...
+                {t('Saving...')}
               </>
             ) : (
               <>
                 <Save className='w-4 h-4' />
-                Save History
+                {t('Save History')}
               </>
             )}
           </button>

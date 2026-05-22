@@ -1,23 +1,27 @@
 import React from 'react'
 import { Star } from 'lucide-react'
+import { useLanguage } from '../i18n'
+import { localizeWesternDigits } from '../utils/arabicNumerals.js'
 
-export const formatRatingDate = (value) => {
+export const formatRatingDate = (value, language = 'en') => {
   if (!value) return ''
-  return new Date(value).toLocaleDateString(undefined, {
+  const s = new Date(value).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
     year: 'numeric',
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
   })
+  return localizeWesternDigits(s, language)
 }
 
 export const RatingBadge = ({ summary, className = '' }) => {
+  const { t, localizeDigits } = useLanguage()
   const average = Number(summary?.averageRating || 0)
   const count = Number(summary?.ratingCount || 0)
 
   return (
     <span className={`inline-flex items-center gap-1 rounded-full bg-yellow-400 px-2.5 py-1 text-xs font-bold text-yellow-950 shadow-sm ${className}`}>
       <Star className='h-3.5 w-3.5 fill-current' />
-      {count > 0 ? `${average.toFixed(1)} (${count})` : 'New'}
+      {count > 0 ? localizeDigits(`${average.toFixed(1)} (${count})`) : t('New')}
     </span>
   )
 }
@@ -31,10 +35,11 @@ export const StarRow = ({ value = 0, size = 'h-4 w-4' }) => (
 )
 
 export const RatingsList = ({ ratings = [], canDelete = false, onDelete }) => {
+  const { t, language, localizeDigits } = useLanguage()
   if (!ratings.length) {
     return (
       <div className='rounded-lg border border-dashed border-gray-300 bg-gray-50 p-5 text-center text-sm text-gray-500'>
-        No ratings yet.
+        {t('No ratings yet')}
       </div>
     )
   }
@@ -47,10 +52,10 @@ export const RatingsList = ({ ratings = [], canDelete = false, onDelete }) => {
             <div>
               <div className='flex items-center gap-2'>
                 <StarRow value={rating.rating} />
-                <span className='text-sm font-semibold text-gray-900'>{rating.rating}/5</span>
+                <span className='text-sm font-semibold text-gray-900'>{localizeDigits(`${rating.rating}/5`)}</span>
               </div>
               <p className='mt-1 text-xs text-gray-500'>
-                {rating.patientName || 'Patient'} - {formatRatingDate(rating.createdAt)}
+                {rating.patientName || t('Patient')} - {formatRatingDate(rating.createdAt, language)}
               </p>
             </div>
             {canDelete && (
