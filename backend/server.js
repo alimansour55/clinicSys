@@ -9,9 +9,12 @@ const port = process.env.PORT || 4000
 connectDB()
 connectCloudinary()
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Server Started on http://0.0.0.0:${port}`)
-  if (!process.env.VERCEL) {
+if (!process.env.VERCEL) {
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`Server Started on http://0.0.0.0:${port}`)
     printMobileAccessBanner({ apiPort: port })
-  }
-})
+  })
+}
+
+// Vercel @vercel/node expects the Express app as the default export (no app.listen).
+export default app
