@@ -12,6 +12,7 @@ import MfaSetupBox from '../components/MfaSetupBox'
 import { assets } from '../assets/assets'
 import { staffLoginLogoClassName } from '../utils/brandingLogo'
 import { DEFAULT_APP_DISPLAY_NAME } from '../utils/appDisplayName'
+import { shouldShowMobileApiHint } from '../utils/resolveBackendUrl'
 
 const Login = () => {
   
@@ -225,10 +226,16 @@ const Login = () => {
             <p className='mt-2 leading-relaxed'>
               {t('Expected API')}: <span className='font-mono break-all'>{backendUrl}</span>
             </p>
-            <p className='mt-2 flex items-start gap-2 leading-relaxed'>
-              <Wifi className='mt-0.5 h-3.5 w-3.5 shrink-0' />
-              {t('On your phone, start the backend on this PC and allow port 4000 in Windows Firewall. Patient site uses port 5173; staff login uses 5174.')}
-            </p>
+            {shouldShowMobileApiHint() ? (
+              <p className='mt-2 flex items-start gap-2 leading-relaxed'>
+                <Wifi className='mt-0.5 h-3.5 w-3.5 shrink-0' />
+                {t('On your phone, start the backend on this PC and allow port 4000 in Windows Firewall. Patient site uses port 5173; staff login uses 5174.')}
+              </p>
+            ) : (
+              <p className='mt-2 leading-relaxed'>
+                {t('In Vercel (or your host), set VITE_BACKEND_URL to your live API URL (e.g. https://your-api.onrender.com), then redeploy. The API must be running and reachable from the internet.')}
+              </p>
+            )}
           </div>
         )}
 
