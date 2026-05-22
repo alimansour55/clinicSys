@@ -51,6 +51,19 @@ describe('resolveBackendUrl', () => {
     })
     expect(resolveBackendUrl()).toBe('https://adm-snowy.vercel.app')
   })
+
+  it('production build on Vercel uses same origin (api proxy) even when env points at API host', () => {
+    vi.stubEnv('PROD', true)
+    vi.stubEnv('VITE_BACKEND_URL', 'https://clinic-sys-eight.vercel.app')
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'adm-snowy.vercel.app',
+        protocol: 'https:',
+        origin: 'https://adm-snowy.vercel.app',
+      },
+    })
+    expect(resolveBackendUrl()).toBe('https://adm-snowy.vercel.app')
+  })
 })
 
 describe('shouldShowMobileApiHint', () => {
