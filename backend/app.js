@@ -1,6 +1,7 @@
 import './config/env.js'
 import express from 'express'
 import cors from 'cors'
+import connectDB from './config/mongodb.js'
 import { getCorsOriginConfig } from './config/corsOrigins.js'
 import adminRouter from './routes/adminRoute.js'
 import doctorRouter from './routes/doctorRoute.js'
@@ -17,6 +18,16 @@ export function createApp() {
   app.use(cors({
     origin: getCorsOriginConfig(),
   }))
+  app.use(async (req, res, next) => {
+    if (!req.path.startsWith('/api')) return next()
+    try {
+      await connectDB()
+      next()
+    } catch (error) {
+      console.error('Database middleware:', error.message)
+      res.status(503).json({ success: false, message: 'Database connection failed' })
+    }
+  })
   app.use((req, res, next) => {
     if (!req.body) req.body = {}
     next()

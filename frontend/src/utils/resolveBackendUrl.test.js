@@ -26,10 +26,14 @@ describe('resolveBackendUrl', () => {
     expect(resolveBackendUrl()).toBe('http://192.168.8.139:4000')
   })
 
-  it('uses production env URL on Vercel', () => {
+  it('uses same origin on Vercel in dev preview when env points at external API', () => {
     vi.stubEnv('VITE_BACKEND_URL', 'https://api.example.com')
     vi.stubGlobal('window', {
-      location: { hostname: 'clinic-sys-m878.vercel.app', protocol: 'https:' },
+      location: {
+        hostname: 'clinic-sys-m878.vercel.app',
+        protocol: 'https:',
+        origin: 'https://clinic-sys-m878.vercel.app',
+      },
     })
     expect(resolveBackendUrl()).toBe('https://api.example.com')
   })

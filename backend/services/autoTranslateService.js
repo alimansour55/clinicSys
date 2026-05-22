@@ -5,7 +5,7 @@
  * Static dictionary: shared with frontend (see import path).
  */
 import translationCacheModel from '../models/translationCacheModel.js'
-import { PLACE_NAMES_LATIN_TO_AR } from '../../frontend/src/data/placeNamesLatinToAr.js'
+import { PLACE_NAMES_LATIN_TO_AR } from '../data/placeNamesLatinToAr.js'
 
 const norm = (s) =>
   String(s || '')

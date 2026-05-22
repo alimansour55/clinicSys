@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import userModel from '../../../models/userModel.js'
 import doctorModel from '../../../models/doctorModel.js'
 import receptionistModel from '../../../models/receptionistModel.js'
