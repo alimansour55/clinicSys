@@ -1,13 +1,17 @@
-import { defineConfig } from 'vite'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { getRepoRoot, loadRootEnv } from '../scripts/load-root-env.js'
+import { getRepoRoot } from '../scripts/load-root-env.js'
+import { loadRootEnvForVite } from '../scripts/vite-env.js'
 
 const repoRoot = getRepoRoot()
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// https://vite.dev/config/
 export default defineConfig(async ({ command, mode }) => {
-  loadRootEnv({ production: mode === 'production' })
+  loadRootEnvForVite(mode)
+  loadEnv(mode, repoRoot, '')
 
   const plugins = [react(), tailwindcss()]
 
@@ -23,7 +27,7 @@ export default defineConfig(async ({ command, mode }) => {
   }
 
   return {
-    root: '.',
+    root: __dirname,
     envDir: repoRoot,
     plugins,
     server: {
