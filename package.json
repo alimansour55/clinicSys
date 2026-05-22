@@ -1,5 +1,6 @@
 {
   "name": "clinic-sys",
+  "type": "module",
   "private": true,
   "description": "Clinivo monorepo test runner",
   "scripts": {
