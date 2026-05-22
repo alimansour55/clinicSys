@@ -1,3 +1,4 @@
+import './config/env.js'
 import express from 'express'
 import cors from 'cors'
 import adminRouter from './routes/adminRoute.js'
@@ -12,8 +13,12 @@ export function createApp() {
   const app = express()
   app.set('trust proxy', true)
   app.use(express.json())
+  const corsOrigins = String(process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean)
   app.use(cors({
-    origin: ['*',"https://clinic-sys-m878.vercel.app","https://admin-zeta-one-45.vercel.app"],
+    origin: corsOrigins.length > 0 ? corsOrigins : true,
   }))
   app.use((req, res, next) => {
     if (!req.body) req.body = {}

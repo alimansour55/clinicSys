@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Secrets — copy from .env.example / .env.prod.example at repo root
+.env
+.env.local
+.env.prod
+.env.*.local
+
+# Test / build output
+coverage/
+dist/

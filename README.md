@@ -293,9 +293,15 @@ cd backend
 npm install
 ```
 
-Create `backend/.env` — see [Environment Variables](#environment-variables).
+From the **repo root**, create shared env files (see [Environment Variables](#environment-variables)):
 
 ```bash
+npm run env:init   # copies .env.example → .env and .env.prod.example → .env.prod
+# edit .env with your MongoDB, JWT, Cloudinary, email, etc.
+```
+
+```bash
+cd backend
 npm run server    # development (nodemon)
 # npm start       # production
 ```
@@ -309,13 +315,7 @@ cd ../frontend
 npm install
 ```
 
-Create `frontend/.env`:
-
-```env
-VITE_BACKEND_URL=http://localhost:4000
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
-VITE_APP_DISPLAY_NAME=Clinivo
-```
+Uses root `.env` automatically (no `frontend/.env` needed).
 
 ```bash
 npm run dev
@@ -330,12 +330,7 @@ cd ../admin
 npm install
 ```
 
-Create `admin/.env`:
-
-```env
-VITE_BACKEND_URL=http://localhost:4000
-VITE_APP_DISPLAY_NAME=Clinivo
-```
+Uses root `.env` automatically (no `admin/.env` needed).
 
 ```bash
 npm run dev
@@ -355,77 +350,39 @@ Staff panel: `http://localhost:5174` — single login screen; role determined by
 
 ## Environment Variables
 
-### Backend — required
+**Single source:** repo root `.env` (local) and `.env.prod` (production overrides).
 
-```env
-PORT=4000
-MONGODB_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/<db>
+| File | Purpose |
+|---|---|
+| `.env.example` | Template for local dev — copy to `.env` |
+| `.env.prod.example` | Template for production — copy to `.env.prod` |
+| `.env` | Local secrets (gitignored) |
+| `.env.prod` | Production URLs & secrets (gitignored; loaded on Vercel, `vite build`, `APP_ENV=production`) |
 
-JWT_SECRET=your_long_random_secret
-
-ADMIN_EMAIL=admin@yourclinic.com
-ADMIN_PASSWORD=your_secure_admin_password
-
-CLOUDINARY_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_SECRET_KEY=your_api_secret
-
-SENDER_EMAIL=your_sender@example.com
-# One of the email setups below must work:
-APP_PASSWORD=your_gmail_app_password          # if EMAIL_SERVICE=gmail (default)
-# — or —
-EMAIL_SERVICE=outlook                         # Microsoft OAuth (see below)
-MICROSOFT_CLIENT_ID=
-MICROSOFT_CLIENT_SECRET=
-MICROSOFT_REFRESH_TOKEN=
-# — or —
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
+```bash
+npm run env:init   # from repo root: creates .env and .env.prod from examples
 ```
 
-### Backend — optional (enable features)
+**Backend**, **frontend**, and **admin** all read from these files. Key variables:
 
-```env
-# Branding (emails & defaults)
-PUBLIC_APP_BRAND=Clinivo
-APP_DISPLAY_NAME=Clinivo
+- `API_PUBLIC_URL` / `VITE_BACKEND_URL` — API base URL for apps (set both to the same live API on Vercel; no `:4000`)
+- `CORS_ORIGINS` — comma-separated patient + staff origins for the API
+- `APP_DISPLAY_NAME` / `VITE_APP_DISPLAY_NAME` — branding
+- Backend: `MONGODB_URI`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, Cloudinary, email, Stripe, etc.
 
-# Stripe (online patient payments)
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_CURRENCY=egp
+See **`.env.example`** for the full list with comments.
 
-# Teleconsultation (video/voice room base URL)
-TELECONSULTATION_BASE_URL=https://meet.ffmuc.net
-# JITSI_SERVER_URL=...   # alias
+**Production build (patient or staff app):**
 
-# Twilio — SMS & phone verification
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_PHONE_NUMBER=
-TWILIO_VERIFY_SERVICE_SID=
-
-# Account / signup OTP timing
-ACCOUNT_VERIFY_OTP_MINUTES=10
-
-# Translation (doctor about text, places, etc.)
-GOOGLE_TRANSLATE_API_KEY=
-LIBRETRANSLATE_URL=https://libretranslate.com
-LIBRETRANSLATE_API_KEY=
-
-# Microsoft OAuth device flow helper
-# npm run microsoft:auth  (in backend/)
+```bash
+# fill .env.prod with https://your-api.vercel.app and CORS_ORIGINS
+cd frontend && npm run build
+cd admin && npm run build
 ```
 
-### Frontend / admin
+On Vercel, set the same variable names in each project's Environment Variables (or paste from `.env.prod`).
 
-```env
-VITE_BACKEND_URL=http://localhost:4000
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...    # frontend only
-VITE_APP_DISPLAY_NAME=Clinivo              # optional display name before CMS loads
-```
-
-> **Never commit `.env` files.** Add them to `.gitignore` and inject secrets in CI/CD or your host's dashboard.
+> **Never commit `.env` or `.env.prod`.** Use `.env.example` / `.env.prod.example` in git only.
 
 **Gmail app password:** Google Account → Security → 2-Step Verification → App passwords.
 

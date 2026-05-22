@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './config/env.js'
 import connectDB from './config/mongodb.js'
 import connectCloudinary from './config/cloudinary.js'
 import app from './app.js'

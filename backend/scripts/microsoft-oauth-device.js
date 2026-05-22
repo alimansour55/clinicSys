@@ -10,7 +10,7 @@
  * Run from backend folder:
  *   node scripts/microsoft-oauth-device.js
  */
-import 'dotenv/config'
+import '../config/env.js'
 import {
   getMicrosoftOAuthConfig,
   pollDeviceCodeToken,

@@ -1,9 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { getRepoRoot, loadRootEnv } from '../scripts/load-root-env.js'
+
+const repoRoot = getRepoRoot()
 
 // https://vite.dev/config/
-export default defineConfig(async ({ command }) => {
+export default defineConfig(async ({ command, mode }) => {
+  loadRootEnv({ production: mode === 'production' })
+
   const plugins = [react(), tailwindcss()]
 
   if (command === 'serve') {
@@ -19,6 +24,7 @@ export default defineConfig(async ({ command }) => {
 
   return {
     root: '.',
+    envDir: repoRoot,
     plugins,
     server: {
       host: true,

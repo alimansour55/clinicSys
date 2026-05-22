@@ -2,7 +2,7 @@
  * One-time (or occasional) sync: link each doctor to clinics whose name matches their speciality.
  * Run from backend/: node scripts/sync-doctor-clinic-links.js
  */
-import 'dotenv/config'
+import '../config/env.js'
 import connectDB from '../config/mongodb.js'
 import doctorModel from '../models/doctorModel.js'
 import { resolveClinicIdsForDoctor } from '../utils/doctorClinicLink.js'
