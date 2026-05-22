@@ -5,6 +5,7 @@
  */
 export const PRODUCTION_CORS_ORIGINS = [
   'https://clinic-sys-m878.vercel.app',
+  'https://admin-zeta-one-45.vercel.app',
 ]
 
 function parseOrigins(value) {

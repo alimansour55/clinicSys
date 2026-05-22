@@ -16,10 +16,10 @@ describe('getCorsOriginConfig', () => {
 
   it('merges env origins with production defaults on Vercel', () => {
     vi.stubEnv('VERCEL', '1')
-    vi.stubEnv('CORS_ORIGINS', 'https://my-admin.vercel.app')
+    vi.stubEnv('CORS_ORIGINS', 'https://extra-preview.vercel.app')
     expect(getCorsOriginConfig()).toEqual([
       ...PRODUCTION_CORS_ORIGINS,
-      'https://my-admin.vercel.app',
+      'https://extra-preview.vercel.app',
     ])
   })
 
