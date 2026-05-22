@@ -3,11 +3,21 @@
 @import "tailwindcss";
 @import "react-toastify/dist/ReactToastify.css";
 
-/* Phones/tablets: one tap (hover styles only on real mouse/trackpad) */
-@variant hover (@media (hover: hover) and (pointer: fine) { &:hover });
-@variant group-hover (@media (hover: hover) and (pointer: fine) {
-  &:is(:where(.group):hover *)
-});
+/* Phones/tablets: hover styles only on real mouse/trackpad */
+@variant hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+@variant group-hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:is(:where(.group):hover *) {
+      @slot;
+    }
+  }
+}
 
 *{
   font-family: Outfit, Arial, sans-serif;
