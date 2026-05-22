@@ -1,19 +1,32 @@
+import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { getRepoRoot } from '../scripts/load-root-env.js'
-import { loadRootEnvForVite } from '../scripts/vite-env.js'
-import { printMobileAccessBanner } from '../scripts/lan-ip.js'
 
-const repoRoot = getRepoRoot()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const monorepoRoot = path.resolve(__dirname, '..')
 
-export default defineConfig(({ mode }) => {
-  loadRootEnvForVite(mode)
-  const env = loadEnv(mode, repoRoot, '')
-  const apiUrl = (env.VITE_BACKEND_URL || env.API_PUBLIC_URL || '').trim()
+function resolveEnvDir() {
+  if (fs.existsSync(path.join(monorepoRoot, '.env.example'))) return monorepoRoot
+  return __dirname
+}
+
+function resolveApiUrl(mode, envDir) {
+  const fileEnv = loadEnv(mode, envDir, '')
+  return (
+    process.env.VITE_BACKEND_URL ||
+    process.env.API_PUBLIC_URL ||
+    fileEnv.VITE_BACKEND_URL ||
+    fileEnv.API_PUBLIC_URL ||
+    ''
+  ).trim()
+}
+
+export default defineConfig(({ mode, command }) => {
+  const envDir = resolveEnvDir()
+  const apiUrl = resolveApiUrl(mode, envDir)
 
   const define =
     mode === 'production'
@@ -24,21 +37,28 @@ export default defineConfig(({ mode }) => {
         }
       : {}
 
-  return {
-    root: __dirname,
-    envDir: repoRoot,
-    define,
-    plugins: [
-      react(),
-      tailwindcss(),
-      {
-        name: 'clinivo-mobile-hint',
-        configureServer() {
+  const plugins = [react(), tailwindcss()]
+
+  if (command === 'serve') {
+    plugins.push({
+      name: 'clinivo-mobile-hint',
+      async configureServer() {
+        try {
+          const { printMobileAccessBanner } = await import('../scripts/lan-ip.js')
           return () =>
             printMobileAccessBanner({ patientPort: 5173, staffPort: 5174, apiPort: 4000 })
-        },
+        } catch {
+          return () => {}
+        }
       },
-    ],
+    })
+  }
+
+  return {
+    root: __dirname,
+    envDir,
+    define,
+    plugins,
     server: {
       host: true,
       port: 5173,
