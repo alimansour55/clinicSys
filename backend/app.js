@@ -12,7 +12,9 @@ export function createApp() {
   const app = express()
   app.set('trust proxy', true)
   app.use(express.json())
-  app.use(cors())
+  app.use(cors({
+    origin: ['*',"https://clinic-sys-m878.vercel.app","https://admin-zeta-one-45.vercel.app"],
+  }))
   app.use((req, res, next) => {
     if (!req.body) req.body = {}
     next()
