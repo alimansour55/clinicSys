@@ -15,13 +15,26 @@ function isPrivateLanHostname(hostname) {
   )
 }
 
+function isHostedDeployHostname(hostname) {
+  return /\.vercel\.(app|dev)$/.test(hostname) || hostname.endsWith('.netlify.app')
+}
+
 function envPointsToLocalApi(fromEnv) {
   if (!fromEnv) return true
   try {
-    return isLocalHostname(new URL(fromEnv).hostname)
+    const { hostname, port } = new URL(fromEnv)
+    if (isLocalHostname(hostname)) return true
+    return port === '4000' && !fromEnv.startsWith('https://')
   } catch {
     return true
   }
+}
+
+function productionApiFromEnv(fromEnv) {
+  if (fromEnv && !envPointsToLocalApi(fromEnv)) {
+    return fromEnv.replace(/\/$/, '')
+  }
+  return null
 }
 
 /** True when the login page should show the phone / firewall hint (LAN dev only). */
@@ -34,6 +47,15 @@ export function resolveBackendUrl() {
   const fromEnv = import.meta.env.VITE_BACKEND_URL?.trim()
   const fallback = 'http://localhost:4000'
 
+  if (import.meta.env.PROD) {
+    const api = productionApiFromEnv(fromEnv)
+    if (api) return api
+    if (typeof window !== 'undefined') {
+      return window.location.origin
+    }
+    return api || fallback
+  }
+
   if (typeof window === 'undefined') {
     return fromEnv || fallback
   }
@@ -44,8 +66,11 @@ export function resolveBackendUrl() {
     return fromEnv || fallback
   }
 
-  if (fromEnv && !envPointsToLocalApi(fromEnv)) {
-    return fromEnv
+  const api = productionApiFromEnv(fromEnv)
+  if (api) return api
+
+  if (isHostedDeployHostname(hostname)) {
+    return window.location.origin
   }
 
   if (isPrivateLanHostname(hostname)) {

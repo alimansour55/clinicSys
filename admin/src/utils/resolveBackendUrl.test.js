@@ -40,6 +40,17 @@ describe('resolveBackendUrl', () => {
     })
     expect(resolveBackendUrl()).toBe('https://clinivo-api.onrender.com')
   })
+
+  it('uses same origin on Vercel when env still points to localhost', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'adm-snowy.vercel.app',
+        protocol: 'https:',
+        origin: 'https://adm-snowy.vercel.app',
+      },
+    })
+    expect(resolveBackendUrl()).toBe('https://adm-snowy.vercel.app')
+  })
 })
 
 describe('shouldShowMobileApiHint', () => {

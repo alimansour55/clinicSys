@@ -12,11 +12,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig(({ mode }) => {
   loadRootEnvForVite(mode)
-  loadEnv(mode, repoRoot, '')
+  const env = loadEnv(mode, repoRoot, '')
+  const apiUrl = (env.VITE_BACKEND_URL || env.API_PUBLIC_URL || '').trim()
+
+  const define =
+    mode === 'production'
+      ? {
+          'import.meta.env.VITE_BACKEND_URL': JSON.stringify(
+            apiUrl && !apiUrl.includes('localhost') ? apiUrl : '',
+          ),
+        }
+      : {}
 
   return {
     root: __dirname,
     envDir: repoRoot,
+    define,
     plugins: [
       react(),
       tailwindcss(),

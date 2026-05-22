@@ -38,6 +38,7 @@ const App = () => {
       <ScrollToTop />
       <ToastContainer position='top-right' />
       <Navbar />
+      {/* Add routes to file and import it here */}
       <Routes location={location} key={location.pathname}>
         <Route path='/' element={<Home />} />
         <Route path='/doctors' element={<Doctors />} />

@@ -41,6 +41,10 @@ export function loadRootEnv(options = {}) {
       process.env.NODE_ENV === 'production' ||
       Boolean(process.env.VERCEL))
 
+  if (options.force) {
+    loaded = false
+  }
+
   if (loaded && !options.force) {
     applyDerivedEnv()
     return { root: repoRoot, production }
@@ -59,6 +63,6 @@ export function loadRootEnv(options = {}) {
   }
 
   applyDerivedEnv()
-  loaded = !options.force
+  loaded = true
   return { root: repoRoot, production }
 }
