@@ -11,16 +11,26 @@ describe('siteSettingsCache', () => {
     expect(readCachedPublicSiteSettings()).toBeNull()
   })
 
-  it('writes and reads from session then local storage', () => {
-    const settings = { footer: { copyrightText: 'Test' }, branding: { logoUrl: '/logo.png' } }
+  it('writes and reads sanitized settings', () => {
+    const settings = {
+      footer: { copyrightText: 'Test' },
+      branding: { headerLogoUrl: 'https://cdn/prescripto-old.png', altText: 'Prescripto' },
+    }
     writeCachedPublicSiteSettings(settings)
-    expect(readCachedPublicSiteSettings()).toEqual(settings)
-    expect(JSON.parse(sessionStorage.getItem('clinivo_public_site_settings_v1'))).toEqual(settings)
+    const read = readCachedPublicSiteSettings()
+    expect(read.branding.headerLogoUrl).toBeUndefined()
+    expect(read.branding.altText).toBe('Clinivo')
   })
 
   it('falls back to localStorage when session missing', () => {
     const settings = { hero: { title: 'Hello' } }
-    localStorage.setItem('clinivo_public_site_settings_local_v1', JSON.stringify(settings))
+    localStorage.setItem('clinivo_public_site_settings_local_v3', JSON.stringify(settings))
     expect(readCachedPublicSiteSettings()).toEqual(settings)
+  })
+
+  it('purges legacy v1/v2 cache keys on read', () => {
+    localStorage.setItem('clinivo_public_site_settings_v2', JSON.stringify({ branding: { altText: 'Prescripto' } }))
+    readCachedPublicSiteSettings()
+    expect(localStorage.getItem('clinivo_public_site_settings_v2')).toBeNull()
   })
 })

@@ -1,10 +1,9 @@
 import React, { useContext } from 'react'
-import { assets } from '../assets/assets'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpRight, Mail, Phone } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { patientFooterLogoClassName } from '../utils/brandingLogo'
-import { DEFAULT_APP_DISPLAY_NAME } from '../utils/appDisplayName'
+import BrandLogo from './BrandLogo'
 import { DEFAULT_FOOTER_COPYRIGHT, DEFAULT_FOOTER_DESCRIPTION } from '../utils/publicSiteDefaults'
 
 /** Calm ALL-CAPS Latin CMS labels (e.g. "ALL DOCTORS" → "All doctors") without touching other scripts. */
@@ -25,8 +24,6 @@ const Footer = () => {
   const navigate = useNavigate()
   const { token, t, siteSettings } = useContext(AppContext)
   const footer = siteSettings?.footer || {}
-  const headerLogoSrc = siteSettings?.branding?.headerLogoUrl || assets.logo
-  const logoAltText = siteSettings?.branding?.altText || `${DEFAULT_APP_DISPLAY_NAME} logo`
   const logoImgClassName = patientFooterLogoClassName
   const description = footer.description || DEFAULT_FOOTER_DESCRIPTION
   const companyTitle = footer.companyTitle || 'Company'
@@ -81,14 +78,13 @@ const Footer = () => {
         <div className='grid gap-12 lg:grid-cols-12 lg:gap-10 xl:gap-14'>
           {/* Brand */}
           <div className='lg:col-span-5'>
-            <div className='mb-6 inline-block rounded-2xl bg-white/60 p-3 shadow-sm ring-1 ring-slate-200/60 backdrop-blur-sm'>
-              <img
-                className={`${logoImgClassName} cursor-pointer transition-opacity hover:opacity-90`}
-                src={headerLogoSrc}
-                alt={logoAltText}
-                onClick={() => goTo('/')}
-              />
-            </div>
+            <button
+              type='button'
+              className='mb-6 inline-block cursor-pointer rounded-2xl bg-white/60 p-3 shadow-sm ring-1 ring-slate-200/60 backdrop-blur-sm transition-opacity hover:opacity-90'
+              onClick={() => goTo('/')}
+            >
+              <BrandLogo siteSettings={siteSettings} imgClassName={logoImgClassName} />
+            </button>
             <p className='max-w-md text-[15px] leading-[1.65] text-slate-600'>
               {t(description)}
             </p>

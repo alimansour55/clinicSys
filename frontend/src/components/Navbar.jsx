@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from 'react'
-import { assets } from '../assets/assets'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
 import {
@@ -20,7 +19,8 @@ import {
 import { LanguageToggle, useLanguage } from '../i18n'
 import PatientNotificationBell from './PatientNotificationBell'
 import { patientDrawerLogoClassName, patientHeaderLogoClassName } from '../utils/brandingLogo'
-import { DEFAULT_APP_DISPLAY_NAME } from '../utils/appDisplayName'
+import { resolveLogoAltText } from '../utils/siteSettingsBranding'
+import BrandLogo from './BrandLogo'
 
 const Navbar = () => {
   const navigate = useNavigate()
@@ -29,8 +29,7 @@ const Navbar = () => {
   const { t } = useLanguage()
   const [showMenu, setShowMenu] = useState(false)
 
-  const headerLogoSrc = siteSettings?.branding?.headerLogoUrl || assets.logo
-  const logoAltText = siteSettings?.branding?.altText || DEFAULT_APP_DISPLAY_NAME
+  const logoAltText = resolveLogoAltText(siteSettings)
 
   const publicLinks = [
     { to: '/', label: 'HOME', icon: Home },
@@ -83,7 +82,7 @@ const Navbar = () => {
           className='flex shrink-0 items-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35'
           aria-label={logoAltText}
         >
-          <img src={headerLogoSrc} alt={logoAltText} className={patientHeaderLogoClassName} />
+          <BrandLogo siteSettings={siteSettings} imgClassName={patientHeaderLogoClassName} />
         </button>
 
         <nav aria-label='Primary' className='hidden min-w-0 flex-1 justify-center md:flex'>
@@ -233,7 +232,7 @@ const Navbar = () => {
           <aside className='absolute top-0 right-0 bottom-0 flex h-full w-[min(100vw-2.5rem,20rem)] max-w-sm flex-col overflow-y-auto bg-white shadow-2xl'>
             <div className='flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3'>
               <button type='button' onClick={() => closeAndNavigate('/')} className='min-w-0 text-left'>
-                <img src={headerLogoSrc} alt={logoAltText} className={patientDrawerLogoClassName} />
+                <BrandLogo siteSettings={siteSettings} imgClassName={patientDrawerLogoClassName} />
               </button>
               <button
                 type='button'
