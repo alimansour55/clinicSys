@@ -59,7 +59,7 @@ describe('resolveBackendUrl', () => {
     expect(resolveBackendUrl()).not.toContain(':4000')
   })
 
-  it('production build uses baked API URL when set', () => {
+  it('production build on Vercel uses same origin (api proxy) even when env points at API host', () => {
     vi.stubEnv('PROD', true)
     vi.stubEnv('VITE_BACKEND_URL', 'https://clinic-sys-eight.vercel.app')
     vi.stubGlobal('window', {
@@ -69,6 +69,19 @@ describe('resolveBackendUrl', () => {
         origin: 'https://clinic-sys-m878.vercel.app',
       },
     })
-    expect(resolveBackendUrl()).toBe('https://clinic-sys-eight.vercel.app')
+    expect(resolveBackendUrl()).toBe('https://clinic-sys-m878.vercel.app')
+  })
+
+  it('production build on custom domain uses baked API URL when set', () => {
+    vi.stubEnv('PROD', true)
+    vi.stubEnv('VITE_BACKEND_URL', 'https://api.example.com')
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'app.example.com',
+        protocol: 'https:',
+        origin: 'https://app.example.com',
+      },
+    })
+    expect(resolveBackendUrl()).toBe('https://api.example.com')
   })
 })

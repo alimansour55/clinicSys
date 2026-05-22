@@ -42,6 +42,10 @@ export function resolveBackendUrl() {
   const fallback = 'http://localhost:4000'
 
   if (import.meta.env.PROD) {
+    // Vercel/Netlify: use same-origin /api proxy (vercel.json) — avoids CORS.
+    if (typeof window !== 'undefined' && isHostedDeployHostname(window.location.hostname)) {
+      return window.location.origin
+    }
     const api = productionApiFromEnv(fromEnv)
     if (api) return api
     if (typeof window !== 'undefined') {

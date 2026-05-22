@@ -48,6 +48,9 @@ export function resolveBackendUrl() {
   const fallback = 'http://localhost:4000'
 
   if (import.meta.env.PROD) {
+    if (typeof window !== 'undefined' && isHostedDeployHostname(window.location.hostname)) {
+      return window.location.origin
+    }
     const api = productionApiFromEnv(fromEnv)
     if (api) return api
     if (typeof window !== 'undefined') {
