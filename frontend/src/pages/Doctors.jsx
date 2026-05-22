@@ -418,12 +418,13 @@ const Doctors = () => {
             {filterDoc.length > 0 ? filterDoc.map((item, index) => {
                 const promoOffer = getPromoOfferLabel(item, currencySymbol, t, language)
                 return (
-              <div
+              <button
+                type="button"
+                disabled={isDoctorComingSoon(item)}
                 onClick={() => {
-                  if (isDoctorComingSoon(item)) return
                   navigate(`/appointment/${item._id}${consultationMode ? `?consultation=${consultationMode}` : ''}`)
                 }}
-                className={`group min-h-[386px] overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition ${
+                className={`group min-h-[386px] w-full overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition ${
                   isDoctorComingSoon(item)
                     ? 'cursor-default opacity-95'
                     : 'cursor-pointer hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg'
@@ -494,7 +495,7 @@ const Doctors = () => {
                     )}
                   </div>
                 </div>
-              </div>
+              </button>
                 )
               }) : (
               <div className='col-span-full rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center shadow-sm'>

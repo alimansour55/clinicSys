@@ -3,6 +3,12 @@
 @import "tailwindcss";
 @import "react-toastify/dist/ReactToastify.css";
 
+/* Phones/tablets: one tap (hover styles only on real mouse/trackpad) */
+@variant hover (@media (hover: hover) and (pointer: fine) { &:hover });
+@variant group-hover (@media (hover: hover) and (pointer: fine) {
+  &:is(:where(.group):hover *)
+});
+
 *{
   font-family: Outfit, Arial, sans-serif;
 }
@@ -64,4 +70,16 @@ body > section.Toastify .Toastify__toast {
 #root textarea,
 #root label {
   touch-action: manipulation;
+}
+
+/* Printing: hide toast layer; keep page content normal */
+@media print {
+  body > section.Toastify {
+    display: none !important;
+  }
+
+  body > section.Toastify,
+  body > section.Toastify * {
+    pointer-events: auto !important;
+  }
 }

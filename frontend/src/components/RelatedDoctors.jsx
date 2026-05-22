@@ -35,14 +35,18 @@ return (
       {/* Doctors Grid */}
       <div className='w-full grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 sm:gap-5 gap-y-6 px-3 sm:px-0 max-w-6xl mx-auto'>
         {relDoc.slice(0,5).map((item,index) => (
-            <div onClick={() => {
-              if (isDoctorComingSoon(item)) return
-              navigate(`/appointment/${item._id}`)
-              scrollTo(0, 0)
-            }} className={`border border-blue-200 rounded-xl overflow-hidden transition-all duration-500 ${
-              isDoctorComingSoon(item) ? 'cursor-default opacity-95' : 'cursor-pointer hover:translate-y-[-10px]'
-            }`}
-              key={index} >
+            <button
+              type="button"
+              disabled={isDoctorComingSoon(item)}
+              onClick={() => {
+                navigate(`/appointment/${item._id}`)
+                scrollTo(0, 0)
+              }}
+              className={`w-full border border-blue-200 rounded-xl overflow-hidden text-left transition-all duration-500 ${
+                isDoctorComingSoon(item) ? 'cursor-default opacity-95' : 'cursor-pointer hover:translate-y-[-10px]'
+              }`}
+              key={index}
+            >
                 
               <div className='relative'>
                 <img className='bg-blue-50 w-full h-40 sm:h-56 object-cover' src={item.image} alt="" />
@@ -62,7 +66,7 @@ return (
                  
                  <p className='text-gray-600 text-xs sm:text-sm mt-1'>{tc(item.speciality)}</p>
                </div>
-            </div>
+            </button>
         ))}
       </div>
 

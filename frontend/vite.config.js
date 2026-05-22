@@ -1,15 +1,24 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { printMobileAccessBanner } from '../scripts/lan-ip.js'
 
 // https://vite.dev/config/
 export default defineConfig({
   root: '.',
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    {
+      name: 'clinivo-mobile-hint',
+      configureServer() {
+        return () => printMobileAccessBanner({ patientPort: 5173, staffPort: 5174, apiPort: 4000 })
+      },
+    },
+  ],
   server: {
-    host: '0.0.0.0',
+    host: true,
     port: 5173,
-    // If 5173 is held by a stuck process, try the next port instead of failing.
     strictPort: false,
   },
 })

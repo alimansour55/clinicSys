@@ -3,6 +3,12 @@
 @import "tailwindcss";
 @import "react-toastify/dist/ReactToastify.css";
 
+/* Phones/tablets: one tap (hover styles only on real mouse/trackpad) */
+@variant hover (@media (hover: hover) and (pointer: fine) { &:hover });
+@variant group-hover (@media (hover: hover) and (pointer: fine) {
+  &:is(:where(.group):hover *)
+});
+
 *{
   font-family: Outfit, Arial, sans-serif;
 }
@@ -56,4 +62,31 @@ body > section.Toastify .Toastify__toast-container {
 
 body > section.Toastify .Toastify__toast {
   pointer-events: auto !important;
+  touch-action: manipulation;
+}
+
+/* Faster taps on touch screens (does not affect mouse on PC) */
+@media (pointer: coarse) {
+  #root a,
+  #root button,
+  #root [role='button'],
+  #root input,
+  #root select,
+  #root textarea,
+  #root label,
+  #root summary {
+    touch-action: manipulation;
+  }
+}
+
+/* Printing: hide toast layer; keep page content normal */
+@media print {
+  body > section.Toastify {
+    display: none !important;
+  }
+
+  body > section.Toastify,
+  body > section.Toastify * {
+    pointer-events: auto !important;
+  }
 }
