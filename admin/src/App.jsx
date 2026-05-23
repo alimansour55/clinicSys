@@ -4,6 +4,11 @@ import { ToastContainer, toast } from 'react-toastify';
 import { AdminContext } from './context/AdminContext';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import AdminMobileNav from './components/AdminMobileNav';
+import StaffMobileNav from './components/StaffMobileNav';
+import StaffOptionsBar from './components/StaffOptionsBar';
+import { getDoctorNavLinks, findActiveDoctorLink } from './config/doctorNav';
+import { getReceptionistNavLinks, findActiveReceptionistLink } from './config/receptionistNav';
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import Dashboad from './pages/Admin/Dashboad';
@@ -102,7 +107,7 @@ const AdminOptionsBar = () => {
   ]
 
   return (
-    <div className='sticky top-0 z-30 bg-[#F8F9FD]/95 backdrop-blur border-b border-gray-200 px-3 sm:px-5 md:px-6 lg:px-8 py-3'>
+    <div className='sticky top-0 z-30 hidden bg-[#F8F9FD]/95 backdrop-blur border-b border-gray-200 px-3 py-3 sm:px-5 md:block md:px-6 lg:px-8'>
       <div className='flex gap-2 overflow-x-auto'>
         {options.map((option) => {
           const active = option.matchPaths?.length
@@ -130,10 +135,13 @@ const AdminOptionsBar = () => {
 
 const App = () => {
   const { aToken, siteSettings } = useContext(AdminContext)
-  const { dToken } = useContext(DoctorContext)
-  const { rToken } = useContext(ReceptionistContext)
-  const { isRtl } = useLanguage()
+  const { dToken, doctorNavSummary } = useContext(DoctorContext)
+  const { rToken, receptionistNavSummary } = useContext(ReceptionistContext)
+  const { isRtl, t } = useLanguage()
   const location = useLocation()
+
+  const doctorNavLinks = useMemo(() => getDoctorNavLinks(t), [t])
+  const receptionistNavLinks = useMemo(() => getReceptionistNavLinks(t), [t])
 
   const activeLanguagePolicy = useMemo(() => {
     const legacy = siteSettings?.languageAvailability
@@ -172,9 +180,40 @@ const App = () => {
       {/* Main Content Area - Scrollable */}
       <div
         id='staff-main-scroll'
-        className={`relative z-10 min-w-0 max-w-full ${isRtl ? 'mr-14 sm:mr-16 md:mr-64' : 'ml-14 sm:ml-16 md:ml-64'} mt-[4.5rem] h-[calc(100vh-4.5rem)] overflow-y-auto overflow-x-hidden`}
+        className={`relative z-10 min-w-0 max-w-full mt-[4.5rem] h-[calc(100vh-4.5rem)] overflow-y-auto overflow-x-hidden ${
+          isRtl ? 'mr-0 md:mr-64' : 'ml-0 md:ml-64'
+        }`}
       >
-        {aToken && <AdminOptionsBar />}
+        {aToken && (
+          <>
+            <AdminMobileNav />
+            <AdminOptionsBar />
+          </>
+        )}
+        {dToken && (
+          <>
+            <StaffMobileNav
+              links={doctorNavLinks}
+              findActiveLink={findActiveDoctorLink}
+              navSummary={doctorNavSummary}
+              roleLabel={t('Doctor')}
+              drawerAriaLabel={t('Doctor navigation')}
+            />
+            <StaffOptionsBar links={doctorNavLinks} />
+          </>
+        )}
+        {rToken && (
+          <>
+            <StaffMobileNav
+              links={receptionistNavLinks}
+              findActiveLink={findActiveReceptionistLink}
+              navSummary={receptionistNavSummary}
+              roleLabel={t('Receptionist')}
+              drawerAriaLabel={t('Receptionist navigation')}
+            />
+            <StaffOptionsBar links={receptionistNavLinks} />
+          </>
+        )}
         <Routes key={location.pathname}>
           {/* Admin Routes */}
           <Route

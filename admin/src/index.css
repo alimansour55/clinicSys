@@ -82,6 +82,30 @@ body > section.Toastify .Toastify__toast {
   touch-action: manipulation;
 }
 
+/* Admin mobile: readable tables and forms without horizontal page scroll */
+@media (max-width: 767px) {
+  #staff-main-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #staff-main-scroll table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #staff-main-scroll .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #staff-main-scroll input:not([type='checkbox']):not([type='radio']),
+  #staff-main-scroll select,
+  #staff-main-scroll textarea {
+    font-size: 16px;
+  }
+}
+
 /* Printing: hide toast layer; keep page content normal */
 @media print {
   body > section.Toastify {

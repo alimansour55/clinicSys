@@ -241,13 +241,15 @@ const MyProfile = () => {
                   </span>
                 </div>
                 {isEdit ? (
-                  <input
-                    className='w-full rounded-xl border border-teal-200 bg-white px-4 py-3 text-2xl font-bold text-gray-950 outline-none focus:ring-4 focus:ring-teal-100 sm:text-3xl'
-                    type='text'
-                    value={userData.name || ''}
-                    onChange={(e) => setField('name', e.target.value)}
-                    placeholder={t('Full name')}
-                  />
+                  <div data-input-field>
+                    <input
+                      className='w-full rounded-xl border border-teal-200 bg-white px-4 py-3 text-2xl font-bold text-gray-950 outline-none focus:ring-4 focus:ring-teal-100 sm:text-3xl'
+                      type='text'
+                      value={userData.name || ''}
+                      onChange={(e) => setField('name', e.target.value)}
+                      placeholder={t('Full name')}
+                    />
+                  </div>
                 ) : (
                   <h1 className='break-words text-3xl font-bold text-gray-950'>{displayPersonName(userData.name)}</h1>
                 )}
@@ -316,21 +318,27 @@ const MyProfile = () => {
                 </Field>
                 <Field label={t('Phone number')}>
                   {isEdit ? (
-                    <input className='w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-teal-50' type='text' value={userData.phone || ''} onChange={(e) => setField('phone', e.target.value)} />
+                  <div data-input-field>
+                    <input className='w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-teal-50 sm:text-sm' type='text' value={userData.phone || ''} onChange={(e) => setField('phone', e.target.value)} />
+                  </div>
                   ) : (
                     <ReadValue muted={!userData.phone || userData.phone === '000000000'}>{cleanValue(userData.phone === '000000000' ? '' : userData.phone)}</ReadValue>
                   )}
                 </Field>
                 <Field label={t('Address line 1')}>
                   {isEdit ? (
-                    <input className='w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-teal-50' value={address.line1 || ''} onChange={(e) => setAddressField('line1', e.target.value)} placeholder={t('Street, building, area')} />
+                  <div data-input-field>
+                    <input className='w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-teal-50 sm:text-sm' value={address.line1 || ''} onChange={(e) => setAddressField('line1', e.target.value)} placeholder={t('Street, building, area')} />
+                  </div>
                   ) : (
                     <ReadValue muted={!address.line1}>{cleanValue(address.line1)}</ReadValue>
                   )}
                 </Field>
                 <Field label={t('Address line 2')}>
                   {isEdit ? (
-                    <input className='w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-teal-50' value={address.line2 || ''} onChange={(e) => setAddressField('line2', e.target.value)} placeholder={t('Apartment, floor, landmark')} />
+                  <div data-input-field>
+                    <input className='w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-teal-50 sm:text-sm' value={address.line2 || ''} onChange={(e) => setAddressField('line2', e.target.value)} placeholder={t('Apartment, floor, landmark')} />
+                  </div>
                   ) : (
                     <ReadValue muted={!address.line2}>{cleanValue(address.line2)}</ReadValue>
                   )}
@@ -353,18 +361,22 @@ const MyProfile = () => {
                 </Field>
                 <Field label={t('Gender')}>
                   {isEdit ? (
-                    <select className='w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-teal-50' onChange={(e) => setField('gender', e.target.value)} value={userData.gender || 'Not Selected'}>
+                    <div data-input-field>
+                      <select className='w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-teal-50 sm:text-sm' onChange={(e) => setField('gender', e.target.value)} value={userData.gender || 'Not Selected'}>
                       <option value='Not Selected'>{t('Prefer not to say')}</option>
                       <option value='Male'>{t('Male')}</option>
                       <option value='Female'>{t('Female')}</option>
                     </select>
+                    </div>
                   ) : (
                     <ReadValue muted={!userData.gender || userData.gender === 'Not Selected'}>{genderLabel(userData.gender)}</ReadValue>
                   )}
                 </Field>
                 <Field label={t('Birth date')}>
                   {isEdit ? (
-                    <input className='w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-teal-50' type='date' max={today} onChange={(e) => setField('dob', e.target.value)} value={userData.dob && userData.dob !== 'Not Selected' ? userData.dob : ''} />
+                    <div data-input-field>
+                      <input className='date-field-input w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-teal-50 sm:text-sm' type='date' max={today} onChange={(e) => setField('dob', e.target.value)} value={userData.dob && userData.dob !== 'Not Selected' ? userData.dob : ''} />
+                    </div>
                   ) : (
                     <ReadValue muted={!userData.dob || userData.dob === 'Not Selected'}>{formatDate(userData.dob)}</ReadValue>
                   )}
@@ -423,7 +435,9 @@ const MyProfile = () => {
               {mfaSetup ? (
                 <div className='space-y-3'>
                   <MfaSetupBox mode='setup' setup={mfaSetup} />
-                  <input value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder={t('6-digit code')} className='w-full rounded-xl border border-gray-200 px-3 py-2.5 text-center text-sm font-bold tracking-[0.35em] outline-none focus:border-primary focus:ring-4 focus:ring-teal-50' inputMode='numeric' />
+                  <div data-input-field>
+                    <input value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder={t('6-digit code')} className='w-full rounded-xl border border-gray-200 px-3 py-2.5 text-center text-base font-bold tracking-[0.35em] outline-none focus:border-primary focus:ring-4 focus:ring-teal-50 sm:text-sm' inputMode='numeric' />
+                  </div>
                   <button type='button' onClick={enableMfa} className='inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-dark'>
                     <ShieldCheck className='h-4 w-4' />
                     {t('Verify and enable')}
@@ -439,7 +453,9 @@ const MyProfile = () => {
                   )}
                   {mfaStatus?.enabled && !mfaStatus?.required && (
                     <>
-                      <input value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder={t('6-digit code')} className='w-full rounded-xl border border-gray-200 px-3 py-2.5 text-center text-sm font-bold tracking-[0.35em] outline-none focus:border-primary focus:ring-4 focus:ring-teal-50' inputMode='numeric' />
+                      <div data-input-field>
+                        <input value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder={t('6-digit code')} className='w-full rounded-xl border border-gray-200 px-3 py-2.5 text-center text-base font-bold tracking-[0.35em] outline-none focus:border-primary focus:ring-4 focus:ring-teal-50 sm:text-sm' inputMode='numeric' />
+                      </div>
                       <button type='button' onClick={disableMfa} className='inline-flex w-full items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-50'>
                         {t('Disable MFA')}
                       </button>

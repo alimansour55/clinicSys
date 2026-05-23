@@ -755,19 +755,52 @@ const Appointment = () => {
                     )}
                   </div>
                   <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-                  <input
-                    value={homeVisitAddress.street}
-                    onChange={(event) => {
-                      setHomeVisitAddress((previous) => ({ ...previous, street: event.target.value }))
-                      setPendingPayment(null)
-                    }}
-                    className='rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400'
-                    placeholder={t('Street name and number')}
-                  />
-                  <input value={homeVisitAddress.building} onChange={(event) => setHomeVisitAddress((previous) => ({ ...previous, building: event.target.value }))} className='rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400' placeholder={t('Building')} />
-                  <input value={homeVisitAddress.floor} onChange={(event) => setHomeVisitAddress((previous) => ({ ...previous, floor: event.target.value }))} className='rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400' placeholder={t('Floor')} />
-                  <input value={homeVisitAddress.apartment} onChange={(event) => setHomeVisitAddress((previous) => ({ ...previous, apartment: event.target.value }))} className='rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400' placeholder={t('Apartment')} />
-                  <input value={homeVisitAddress.notes} onChange={(event) => setHomeVisitAddress((previous) => ({ ...previous, notes: event.target.value }))} className='rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400' placeholder={t('Landmark or notes')} />
+                  {[
+                    {
+                      key: 'street',
+                      placeholderKey: 'Street name and number',
+                      value: homeVisitAddress.street,
+                      onChange: (value) => setHomeVisitAddress((previous) => ({ ...previous, street: value })),
+                    },
+                    {
+                      key: 'building',
+                      placeholderKey: 'Building',
+                      value: homeVisitAddress.building,
+                      onChange: (value) => setHomeVisitAddress((previous) => ({ ...previous, building: value })),
+                    },
+                    {
+                      key: 'floor',
+                      placeholderKey: 'Floor',
+                      value: homeVisitAddress.floor,
+                      onChange: (value) => setHomeVisitAddress((previous) => ({ ...previous, floor: value })),
+                    },
+                    {
+                      key: 'apartment',
+                      placeholderKey: 'Apartment',
+                      value: homeVisitAddress.apartment,
+                      onChange: (value) => setHomeVisitAddress((previous) => ({ ...previous, apartment: value })),
+                    },
+                    {
+                      key: 'notes',
+                      placeholderKey: 'Landmark or notes',
+                      value: homeVisitAddress.notes,
+                      onChange: (value) => setHomeVisitAddress((previous) => ({ ...previous, notes: value })),
+                      className: 'sm:col-span-2',
+                    },
+                  ].map((field) => (
+                    <div key={field.key} data-input-field className={field.className || ''}>
+                      <input
+                        value={field.value}
+                        onChange={(event) => {
+                          field.onChange(event.target.value)
+                          setPendingPayment(null)
+                        }}
+                        className='w-full rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-emerald-400 sm:text-sm'
+                        placeholder={t(field.placeholderKey)}
+                        autoComplete='off'
+                      />
+                    </div>
+                  ))}
                   </div>
                 </div>
                 <p className='mt-2 text-xs text-emerald-700'>{t('Home visit areas note')}</p>
@@ -1094,6 +1127,7 @@ const Appointment = () => {
         )}
         
         <button
+          type='button'
           onClick={bookAppointment} 
           disabled={!doctorAcceptsBookings || isBooking || pendingPayment || (docInfo.acceptsCash === false && docInfo.acceptsOnlinePayment === false)}
           className={`flex items-center justify-center gap-2 text-white text-sm font-bold px-8 py-3 rounded-full ${pendingPayment ? 'mt-3 mb-2' : 'my-6'} cursor-pointer ${!doctorAcceptsBookings || isBooking || pendingPayment || (docInfo.acceptsCash === false && docInfo.acceptsOnlinePayment === false) ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'}`}>

@@ -24,33 +24,15 @@ function isFormControlTouch(node) {
   return Boolean(node.closest(FORM_CONTROL_SELECTOR))
 }
 
-const FOCUSABLE_CONTROL_SELECTOR =
-  'input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea, select'
-
-function handleFormControlTouch(node) {
-  if (!node?.closest) return
-
-  const label = node.closest('label')
-  if (
-    label &&
-    label.querySelector('input[type="file"], input[type="checkbox"], input[type="radio"]') &&
-    !node.matches(FOCUSABLE_CONTROL_SELECTOR)
-  ) {
-    return
-  }
-
-  const field = node.closest('[data-input-field]')
-  const control = field
-    ? field.querySelector(FOCUSABLE_CONTROL_SELECTOR)
-    : node.closest(FOCUSABLE_CONTROL_SELECTOR)
-
+function focusFieldControl(node) {
+  const field = node?.closest?.('[data-input-field]')
+  if (!field) return
+  const control = field.querySelector(
+    'input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select',
+  )
   if (control && document.activeElement !== control) {
     control.focus()
   }
-}
-
-function focusFieldControl(node) {
-  handleFormControlTouch(node)
 }
 
 function findTapTarget(node) {

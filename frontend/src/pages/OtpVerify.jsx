@@ -87,7 +87,7 @@ const OtpVerify = () => {
         </div>
 
         {/* OTP Inputs - Responsive */}
-        <div className="flex justify-between gap-1.5 sm:gap-2 mb-6" onPaste={handlePaste}>
+        <div className="flex justify-between gap-1.5 sm:gap-2 mb-6" onPaste={handlePaste} data-input-field>
           {[...Array(6)].map((_, i) => (
             <input
               key={i}
@@ -98,7 +98,7 @@ const OtpVerify = () => {
               ref={(el) => (inputRefs.current[i] = el)}
               onInput={(e) => handleInput(e, i)}
               onKeyDown={(e) => handleKeyDown(e, i)}
-              className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 text-center text-lg sm:text-xl md:text-2xl border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              className="h-11 w-10 min-h-[44px] min-w-[44px] sm:h-12 sm:w-12 md:h-14 md:w-14 text-center text-lg sm:text-xl md:text-2xl border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
           ))}
         </div>

@@ -243,14 +243,15 @@ const Login = () => {
         {mfaStep && <MfaSetupBox mode={mfaStep} setup={mfaSetup} />}
         <div className='w-full'>
           <p>{t('Email')}</p>
-          <input disabled={Boolean(mfaStep)} onChange={(e) => setEmail(e.target.value)} value={email} className='border border-[#DADADA] rounded w-full p-2 mt-1 disabled:bg-gray-100' type="email" required />
+          <input disabled={Boolean(mfaStep)} onChange={(e) => setEmail(e.target.value)} value={email} className='min-h-[44px] w-full rounded border border-[#DADADA] p-2.5 mt-1 text-sm disabled:bg-gray-100' type="email" required autoComplete='email' />
         </div>
         {!mfaStep && <div className='w-full'>
           <p>{t('Password')}</p>
           <div className='relative' >
-          <input onChange={(e) => setPassword(e.target.value)} value={password} className='border border-[#DADADA] rounded w-full p-2 mt-1'
+          <input onChange={(e) => setPassword(e.target.value)} value={password} className='min-h-[44px] w-full rounded border border-[#DADADA] p-2.5 pr-10 mt-1 text-sm'
           type={showPassword ? "text" : "password"}
-          required 
+          required
+          autoComplete='current-password'
           />
           <button
             type='button'
@@ -264,10 +265,10 @@ const Login = () => {
         {mfaStep && (
           <div className='w-full'>
             <p>MFA Code</p>
-            <input value={mfaCode} onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className='border border-[#DADADA] rounded w-full p-2 mt-1 tracking-[0.4em] text-center font-semibold' inputMode='numeric' required />
+            <input value={mfaCode} onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className='min-h-[44px] w-full rounded border border-[#DADADA] p-2.5 mt-1 text-center text-sm font-semibold tracking-[0.4em]' inputMode='numeric' required />
           </div>
         )}
-        <button className='bg-primary text-white w-full py-2 rounded-md text-base cursor-pointer '>{mfaStep ? 'Continue' : t('Login')}</button>
+        <button className='min-h-[44px] w-full cursor-pointer rounded-md bg-primary py-2.5 text-base font-medium text-white transition active:scale-[0.98]'>{mfaStep ? 'Continue' : t('Login')}</button>
         {mfaStep && <button type='button' onClick={resetMfaFlow} className='w-full rounded-md border border-gray-200 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50'>Back to login</button>}
         {!mfaStep && <div className='flex w-full gap-2 pt-1'>
           {['Admin', 'Doctor', 'Receptionist'].map((role) => (

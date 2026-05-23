@@ -3,7 +3,7 @@ import { AppContext } from '../context/AppContext'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Eye, EyeOff, FileUp, Lock, Mail, User } from 'lucide-react'
+import { Check, Eye, EyeOff, FileUp, Lock, Mail, User } from 'lucide-react'
 import MfaSetupBox from '../components/MfaSetupBox'
 import EgyptPhoneInput from '../components/EgyptPhoneInput'
 import SignupInlineVerify from '../components/SignupInlineVerify'
@@ -331,14 +331,27 @@ const Login = () => {
             </div>
 
             <div className='mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4'>
-              <label className='flex items-center gap-2 text-sm font-semibold text-gray-800 cursor-pointer'>
-                <input type='checkbox' checked={insuranceEnabled} onChange={(e) => setInsuranceEnabled(e.target.checked)} className='w-4 h-4 accent-primary' />
-                Add Insurance
-              </label>
+              <button
+                type='button'
+                role='checkbox'
+                aria-checked={insuranceEnabled}
+                onClick={() => setInsuranceEnabled((value) => !value)}
+                className='flex w-full min-h-[44px] items-center gap-3 rounded-lg py-2 text-left text-sm font-semibold text-gray-800 transition active:bg-gray-100'
+              >
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition ${
+                    insuranceEnabled ? 'border-primary bg-primary text-white' : 'border-gray-300 bg-white'
+                  }`}
+                  aria-hidden='true'
+                >
+                  {insuranceEnabled ? <Check className='h-3.5 w-3.5' strokeWidth={3} /> : null}
+                </span>
+                <span>Add Insurance</span>
+              </button>
 
               {insuranceEnabled && (
                 <div className='mt-4 space-y-3'>
-                  <div>
+                  <div data-input-field>
                     <label className='block text-xs font-medium text-gray-700 mb-1'>Insurance provider *</label>
                     <select
                       value={insuranceProvider}
@@ -354,28 +367,28 @@ const Login = () => {
                       ))}
                     </select>
                   </div>
-                  <div>
+                  <div data-input-field>
                     <label className='block text-xs font-medium text-gray-700 mb-1'>Full Name *</label>
-                    <input value={insuranceFullName} onChange={(e) => setInsuranceFullName(e.target.value)} className='w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20' required={insuranceEnabled} />
+                    <input value={insuranceFullName} onChange={(e) => setInsuranceFullName(e.target.value)} className='w-full border border-gray-300 rounded-md px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm' required={insuranceEnabled} />
                   </div>
                   <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-                    <div>
+                    <div data-input-field>
                       <label htmlFor='insurance-dob' className='block text-xs font-medium text-gray-700 mb-1'>Birth Date *</label>
-                      <input id='insurance-dob' type='date' max={today} value={insuranceBirthDate} onChange={(e) => setInsuranceBirthDate(e.target.value)} className='date-field-input w-full min-h-[44px] rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20' required={insuranceEnabled} />
+                      <input id='insurance-dob' type='date' max={today} value={insuranceBirthDate} onChange={(e) => setInsuranceBirthDate(e.target.value)} className='date-field-input w-full min-h-[44px] rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm' required={insuranceEnabled} />
                     </div>
-                    <div>
+                    <div data-input-field>
                       <label className='block text-xs font-medium text-gray-700 mb-1'>ID Number *</label>
-                      <input value={insuranceIdNumber} onChange={(e) => setInsuranceIdNumber(e.target.value)} className='w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20' required={insuranceEnabled} />
+                      <input value={insuranceIdNumber} onChange={(e) => setInsuranceIdNumber(e.target.value)} className='w-full border border-gray-300 rounded-md px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm' required={insuranceEnabled} />
                     </div>
                   </div>
                   <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-                    <div>
+                    <div data-input-field>
                       <label className='block text-xs font-medium text-gray-700 mb-1'>Expiry Date *</label>
-                      <input id='insurance-expiry' type='date' value={insuranceExpiryDate} onChange={(e) => setInsuranceExpiryDate(e.target.value)} className='date-field-input w-full min-h-[44px] rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20' required={insuranceEnabled} />
+                      <input id='insurance-expiry' type='date' value={insuranceExpiryDate} onChange={(e) => setInsuranceExpiryDate(e.target.value)} className='date-field-input w-full min-h-[44px] rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm' required={insuranceEnabled} />
                     </div>
                     <div>
                       <label className='block text-xs font-medium text-gray-700 mb-1'>Photo of Medical Card *</label>
-                      <label className='flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2 text-sm text-gray-600 cursor-pointer hover:border-primary'>
+                      <label className='flex min-h-[44px] items-center gap-2 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2 text-sm text-gray-600 cursor-pointer hover:border-primary active:bg-gray-50'>
                         <FileUp className='w-4 h-4' />
                         <span className='truncate'>{insuranceCardPhoto ? insuranceCardPhoto.name : 'Attach file'}</span>
                         <input type='file' accept='image/*,.pdf' onChange={(e) => setInsuranceCardPhoto(e.target.files?.[0] || null)} hidden required={insuranceEnabled} />

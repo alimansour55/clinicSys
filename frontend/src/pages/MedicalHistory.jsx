@@ -161,12 +161,14 @@ const MedicalHistory = () => {
                 {t(field.labelKey)}
               </span>
               <span className='block text-xs sm:text-sm text-gray-500 mt-1 mb-3'>{t(field.hintKey)}</span>
-              <textarea
-                value={history[field.name] || ''}
-                onChange={(event) => updateField(field.name, event.target.value)}
-                className='w-full min-h-28 resize-y border border-gray-200 rounded-lg p-3 text-sm text-gray-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10'
-                placeholder={t('Write here')}
-              />
+              <div data-input-field>
+                <textarea
+                  value={history[field.name] || ''}
+                  onChange={(event) => updateField(field.name, event.target.value)}
+                  className='w-full min-h-28 resize-y border border-gray-200 rounded-lg p-3 text-base text-gray-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 sm:text-sm'
+                  placeholder={t('Write here')}
+                />
+              </div>
             </label>
           ))}
         </div>
