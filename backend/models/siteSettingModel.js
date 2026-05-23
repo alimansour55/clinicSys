@@ -158,7 +158,7 @@ const footerSchema = new mongoose.Schema({
   },
   phoneNumber: {
     type: String,
-    default: '+92 343 2705821',
+    default: '+20 101 881 1142',
     trim: true
   },
   emailLabel: {
@@ -168,7 +168,7 @@ const footerSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    default: 'marqum987@gmail.com',
+    default: 'contact@clinivo.com',
     trim: true
   },
   copyrightText: {

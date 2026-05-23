@@ -32,9 +32,9 @@ const Footer = () => {
   const companyTitle = footer.companyTitle || 'Quick links'
   const contactTitle = footer.contactTitle || 'Get in touch'
   const phoneLabel = footer.phoneLabel || 'Phone'
-  const phoneNumber = footer.phoneNumber || '+92 343 2705821'
+  const phoneNumber = footer.phoneNumber || '+20 101 881 1142'
   const emailLabel = footer.emailLabel || 'Email'
-  const email = footer.email || 'marqum987@gmail.com'
+  const email = footer.email || 'contact@clinivo.com'
   const copyrightText = footer.copyrightText || DEFAULT_FOOTER_COPYRIGHT
   const footerLinks = [
     { label: footer.homeLabel || 'Home', path: '/', show: footer.showHomeLink !== false },

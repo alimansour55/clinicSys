@@ -101,7 +101,7 @@ export const PASSWORD_RESET_TEMPLATE = `
     
     <div class="footer">
       © {{FOOTER_YEAR}} {{FOOTER_BRAND}}. All rights reserved.<br>
-      Need help? Contact marqum987@gmail.com
+      Need help? Contact contact@clinivo.com
     </div>
   </div>
 </body>
