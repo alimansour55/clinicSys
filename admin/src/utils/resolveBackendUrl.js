@@ -19,6 +19,12 @@ function isHostedDeployHostname(hostname) {
   return /\.vercel\.(app|dev)$/.test(hostname) || hostname.endsWith('.netlify.app')
 }
 
+/** Hosts that serve the admin app with /api → backend proxy (see admin/vercel.json). */
+function usesSameOriginApiProxy(hostname) {
+  if (isHostedDeployHostname(hostname)) return true
+  return /(^|\.)clinivo\.shop$/.test(hostname)
+}
+
 function envPointsToLocalApi(fromEnv) {
   if (!fromEnv) return true
   try {
@@ -48,7 +54,7 @@ export function resolveBackendUrl() {
   const fallback = 'http://localhost:4000'
 
   if (import.meta.env.PROD) {
-    if (typeof window !== 'undefined' && isHostedDeployHostname(window.location.hostname)) {
+    if (typeof window !== 'undefined' && usesSameOriginApiProxy(window.location.hostname)) {
       return window.location.origin
     }
     const api = productionApiFromEnv(fromEnv)
@@ -72,7 +78,7 @@ export function resolveBackendUrl() {
   const api = productionApiFromEnv(fromEnv)
   if (api) return api
 
-  if (isHostedDeployHostname(hostname)) {
+  if (usesSameOriginApiProxy(hostname)) {
     return window.location.origin
   }
 

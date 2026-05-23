@@ -8,6 +8,7 @@ export const PRODUCTION_CORS_ORIGINS = [
   'https://admin-zeta-one-45.vercel.app',
   'https://www.clinivo.shop',
   'https://clinivo.shop',
+  'https://admin.clinivo.shop',
 ]
 
 function parseOrigins(value) {

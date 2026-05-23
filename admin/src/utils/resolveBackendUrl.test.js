@@ -64,6 +64,19 @@ describe('resolveBackendUrl', () => {
     })
     expect(resolveBackendUrl()).toBe('https://adm-snowy.vercel.app')
   })
+
+  it('production build on admin.clinivo.shop uses same origin (api proxy) even when env points at API host', () => {
+    vi.stubEnv('PROD', true)
+    vi.stubEnv('VITE_BACKEND_URL', 'https://clinic-sys-eight.vercel.app')
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'admin.clinivo.shop',
+        protocol: 'https:',
+        origin: 'https://admin.clinivo.shop',
+      },
+    })
+    expect(resolveBackendUrl()).toBe('https://admin.clinivo.shop')
+  })
 })
 
 describe('shouldShowMobileApiHint', () => {
