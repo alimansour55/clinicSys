@@ -17,9 +17,12 @@ export const fetchChatbotDoctors = async (backendUrl, { speciality = '' } = {}) 
   return data
 }
 
-export const fetchChatbotSlots = async (backendUrl, { docId, days = 14, clinicLocation = '' }) => {
+export const fetchChatbotSlots = async (
+  backendUrl,
+  { docId, days = 14, clinicLocation = '', appointmentType = 'Clinic' }
+) => {
   const { data } = await axios.get(`${backendUrl}/api/chatbot/available-slots`, {
-    params: { docId, days, clinicLocation }
+    params: { docId, days, clinicLocation, appointmentType }
   })
   return data
 }

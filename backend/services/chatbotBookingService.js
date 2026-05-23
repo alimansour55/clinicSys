@@ -20,6 +20,7 @@ import { notifyAppointmentBooked } from './notificationService.js'
 import { logAudit } from './auditService.js'
 import { normalizeVisitFeeType } from './globalVisitFeesService.js'
 import { normalizeEgyptPhone, isValidEgyptPhone } from '../utils/egyptPhone.js'
+import { normalizeHomeVisitAddress, validateHomeVisitAddress } from './homeVisitService.js'
 
 const normalizePhone = (phone = '') => {
   const egypt = normalizeEgyptPhone(phone)
@@ -40,6 +41,7 @@ export const bookChatbotAppointment = async ({
   appointmentType = 'Clinic',
   visitFeeType = 'examination',
   promoCode = '',
+  homeVisitAddress = {},
   symptoms = '',
   req
 }) => {
@@ -87,6 +89,14 @@ export const bookChatbotAppointment = async ({
 
   if (usesClinicWeeklySchedule(normalizedType) && doctorLocations.length > 1 && !resolvedClinicLocation) {
     return { success: false, message: 'Please choose a clinic location' }
+  }
+
+  const normalizedHomeAddress = normalizeHomeVisitAddress(homeVisitAddress || {})
+  if (normalizedType === 'Home Visit') {
+    const addressError = validateHomeVisitAddress(normalizedHomeAddress, docData)
+    if (addressError) {
+      return { success: false, message: addressError }
+    }
   }
 
   const pricing = await applyAppointmentPricing(docData, {
@@ -160,7 +170,10 @@ export const bookChatbotAppointment = async ({
     clinicLocation: usesClinicWeeklySchedule(normalizedType) ? resolvedClinicLocation : '',
     appointmentType: normalizedType,
     teleconsultationLink,
-    homeVisitAddress: {},
+    homeVisitAddress:
+      normalizedType === 'Home Visit'
+        ? { ...normalizedHomeAddress, updatedBy: 'Patient', updatedAt: Date.now() }
+        : {},
     date: Date.now(),
     appointmentStatus: 'Booked',
     paymentStatus: 'Not Paid',

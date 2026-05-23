@@ -7,7 +7,8 @@ import { AppContext } from '../../context/AppContext'
 import { useLanguage } from '../../i18n'
 import { formatLocationLine } from '../../utils/placeTranslations'
 import { isValidEgyptPhone, normalizeEgyptPhone } from '../../utils/egyptPhone'
-import { isDoctorComingSoon } from '../../utils/doctorBooking'
+import { isDoctorComingSoon, usesClinicWeeklySchedule } from '../../utils/doctorBooking'
+import { getDoctorHomeVisitAreas } from '../../utils/homeVisitAreas'
 import {
   detectLanguage,
   detectSpecialtyFromMessage,
@@ -17,19 +18,32 @@ import {
   getDoctorSpecialty,
   SPECIALTY_IDS
 } from '../../utils/chatbotSpecialty'
+import {
+  findDoctorsByNameQuery,
+  shouldUseDoctorNameSearch
+} from '../../utils/chatbotDoctorMatch'
+import {
+  CHATBOT_APPOINTMENT_TYPES,
+  CHATBOT_VISIT_FEE_TYPES,
+  computeChatbotTotalPrice,
+  getDoctorAppointmentTypeOptions,
+  probeDoctorBranchesForType
+} from '../../utils/chatbotBookingHelpers'
 import axios from 'axios'
-import { fetchChatbotSlots, bookChatbotAppointment } from '../../utils/chatbotApi'
+import { bookChatbotAppointment } from '../../utils/chatbotApi'
+import { useMediaQuery } from '../../utils/useMediaQuery'
 import DoctorChatCard from './DoctorChatCard'
 
 const CHAT_STEPS = {
   WAITING_SYMPTOMS: 'waiting_for_symptoms',
   CLARIFY_AUDIENCE: 'clarifying_audience',
   SHOWING_DOCTORS: 'showing_doctors',
+  WAITING_APPOINTMENT_TYPE: 'waiting_for_appointment_type',
   WAITING_LOCATION: 'waiting_for_location',
+  WAITING_HOME_AREA: 'waiting_for_home_area',
   WAITING_DATE: 'waiting_for_date',
   WAITING_TIME: 'waiting_for_time',
-  WAITING_NAME: 'waiting_for_patient_name',
-  WAITING_PHONE: 'waiting_for_phone',
+  WAITING_VISIT_FEE: 'waiting_for_visit_fee',
   CONFIRMING: 'confirming_booking',
   SUCCESS: 'booking_success',
   FAILED: 'booking_failed'
@@ -52,8 +66,10 @@ const ChatbotWidget = () => {
     getDoctorsData,
     displayPersonName,
     placeTranslationOverrides,
-    currencySymbol
+    currencySymbol,
+    siteSettings
   } = useContext(AppContext)
+  const isLaptopUp = useMediaQuery('(min-width: 1024px)')
   const { language: siteLanguage, t, tc, localizeDigits } = useLanguage()
   const navigate = useNavigate()
 
@@ -71,11 +87,17 @@ const ChatbotWidget = () => {
   const [dateOptions, setDateOptions] = useState([])
   const [timeOptions, setTimeOptions] = useState([])
   const [locationOptions, setLocationOptions] = useState([])
+  const [appointmentTypeOptions, setAppointmentTypeOptions] = useState([])
+  const [homeVisitAreaOptions, setHomeVisitAreaOptions] = useState([])
+  const [canBookConsultation, setCanBookConsultation] = useState(false)
 
   const [bookingData, setBookingData] = useState({
     symptoms: '',
     detectedSpecialty: '',
     selectedDoctor: null,
+    appointmentType: 'Clinic',
+    visitFeeType: 'examination',
+    homeVisitArea: '',
     date: null,
     slotDate: '',
     time: '',
@@ -159,13 +181,13 @@ const ChatbotWidget = () => {
 
   useEffect(() => {
     if (typeof document === 'undefined') return
-    if (!open) {
+    if (!open || !isLaptopUp) {
       document.body.classList.remove('chatbot-open')
       return
     }
     document.body.classList.add('chatbot-open')
     return () => document.body.classList.remove('chatbot-open')
-  }, [open])
+  }, [open, isLaptopUp])
 
   useEffect(() => {
     if (userData?.name) {
@@ -178,7 +200,18 @@ const ChatbotWidget = () => {
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, typing, matchedDoctors, quickReplies, dateOptions, timeOptions, chatStep])
+  }, [
+    messages,
+    typing,
+    matchedDoctors,
+    quickReplies,
+    dateOptions,
+    timeOptions,
+    locationOptions,
+    appointmentTypeOptions,
+    homeVisitAreaOptions,
+    chatStep
+  ])
 
   const resolveDoctorsList = async () => {
     if (doctors?.length) return doctors
@@ -248,9 +281,31 @@ const ChatbotWidget = () => {
     )
   }
 
+  const showMatchedDoctors = (list, symptomsText = '') => {
+    setBookingData((b) => ({
+      ...b,
+      symptoms: symptomsText || b.symptoms
+    }))
+    setMatchedDoctors(list)
+    setQuickReplies([])
+    setChatStep(CHAT_STEPS.SHOWING_DOCTORS)
+    pushBot(
+      list.length === 1
+        ? L('Here is the doctor you asked for:', 'ده الدكتور اللي طلبته:')
+        : L('I found these doctors. Please choose one:', 'لقيت الدكاترة دول. اختار واحد:')
+    )
+  }
+
   const handleSymptomMessage = async (text) => {
     const lang = detectLanguage(text)
     setChatLang(lang)
+
+    const source = await resolveDoctorsList()
+    const byName = findDoctorsByNameQuery(source, text)
+    if (shouldUseDoctorNameSearch(text, byName)) {
+      showMatchedDoctors(byName, text)
+      return
+    }
 
     const { specialty, needsClarification } = detectSpecialtyFromMessage(text)
 
@@ -304,45 +359,102 @@ const ChatbotWidget = () => {
     )
   }
 
-  const loadSlotsForDoctor = async (doctor, branch = '') => {
-    const data = await fetchChatbotSlots(backendUrl, {
-      docId: doctor._id,
-      days: 14,
-      clinicLocation: branch || clinicLocation
-    })
-    if (!data.success) throw new Error(data.message || 'Failed to load slots')
-    return data
+  const beginSlotSelection = (doctor, appointmentType, days, branch = '') => {
+    if (branch) setClinicLocation(branch)
+    applySlotDays(days)
+    setChatStep(CHAT_STEPS.WAITING_DATE)
+    const typeLabel = t(
+      CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === appointmentType)?.labelKey || 'In clinic'
+    )
+    pushBot(
+      L(
+        `Available times for ${typeLabel}. What date works for you?`,
+        `المواعيد المتاحة لـ ${typeLabel}. اختار اليوم المناسب:`
+      )
+    )
   }
 
-  const probeDoctorBranches = async (doctor) => {
-    const locs = getDoctorLocations(doctor)
-    if (locs.length <= 1) {
-      const branch = locs[0] || ''
-      const data = await loadSlotsForDoctor(doctor, branch)
-      if (data.clinicLocation) setClinicLocation(data.clinicLocation)
-      return { mode: 'ready', branch, days: data.days || [] }
+  const afterAppointmentTypeChosen = async (doctor, appointmentType) => {
+    if (appointmentType === 'Home Visit') {
+      const areas = getDoctorHomeVisitAreas(doctor)
+      if (areas.length > 1) {
+        setHomeVisitAreaOptions(areas)
+        setChatStep(CHAT_STEPS.WAITING_HOME_AREA)
+        pushBot(L('Please choose your area for the home visit:', 'اختار المنطقة لزيارة المنزل:'))
+        return
+      }
+      if (areas.length === 1) {
+        setBookingData((b) => ({ ...b, homeVisitArea: areas[0] }))
+      }
     }
 
-    const results = await Promise.all(
-      locs.map(async (loc) => {
-        try {
-          const data = await loadSlotsForDoctor(doctor, loc)
-          const days = data.days || []
-          const slotCount = days.reduce((n, d) => n + (d.slots?.length || 0), 0)
-          return { loc, days, slotCount }
-        } catch {
-          return { loc, days: [], slotCount: 0 }
-        }
-      })
-    )
+    const result = probeDoctorBranchesForType(doctor, appointmentType, 14)
 
-    const withSlots = results.filter((r) => r.slotCount > 0)
-    if (!withSlots.length) return { mode: 'empty', branches: results }
-    if (withSlots.length === 1) {
-      setClinicLocation(withSlots[0].loc)
-      return { mode: 'ready', branch: withSlots[0].loc, days: withSlots[0].days }
+    if (result.mode === 'empty') {
+      pushBot(
+        L(
+          'No available slots for this visit type right now. Try another option or doctor.',
+          'مفيش مواعيد متاحة لنوع الزيارة ده حالياً. جرب خيار أو دكتور تاني.'
+        )
+      )
+      setAppointmentTypeOptions(getDoctorAppointmentTypeOptions(doctor))
+      setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
+      return
     }
-    return { mode: 'pick_branch', branches: withSlots }
+
+    if (result.mode === 'pick_branch') {
+      setLocationOptions(result.branches)
+      setChatStep(CHAT_STEPS.WAITING_LOCATION)
+      pushBot(
+        L(
+          `${displayPersonName(doctor.name)} works at more than one clinic. Please choose a location:`,
+          `${displayPersonName(doctor.name)} متاح في أكثر من فرع. اختار فرع العيادة:`
+        )
+      )
+      return
+    }
+
+    beginSlotSelection(doctor, appointmentType, result.days, result.branch || '')
+  }
+
+  const chooseAppointmentType = async (type) => {
+    const doctor = bookingData.selectedDoctor
+    if (!doctor) return
+    const label = t(CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === type)?.labelKey || type)
+    pushUser(label)
+    setAppointmentTypeOptions([])
+    setBookingData((b) => ({
+      ...b,
+      appointmentType: type,
+      date: null,
+      slotDate: '',
+      time: ''
+    }))
+    setLocationOptions([])
+    setDateOptions([])
+    setTimeOptions([])
+    if (!usesClinicWeeklySchedule(type)) setClinicLocation('')
+
+    await withTyping(() => afterAppointmentTypeChosen(doctor, type))
+  }
+
+  const chooseHomeArea = async (area) => {
+    pushUser(area)
+    setHomeVisitAreaOptions([])
+    setBookingData((b) => ({ ...b, homeVisitArea: area }))
+    const doctor = bookingData.selectedDoctor
+    if (!doctor) return
+
+    await withTyping(() => {
+      const result = probeDoctorBranchesForType(doctor, 'Home Visit', 14)
+      if (result.mode === 'empty') {
+        pushBot(
+          L('No home visit slots available right now.', 'مفيش مواعيد زيارة منزلية متاحة حالياً.')
+        )
+        return
+      }
+      beginSlotSelection(doctor, 'Home Visit', result.days, result.branch || '')
+    })
   }
 
   const chooseLocation = async (branch) => {
@@ -351,23 +463,7 @@ const ChatbotWidget = () => {
     setClinicLocation(branch.loc)
     setLocationOptions([])
     pushUser(translateLoc(branch.loc))
-
-    await withTyping(async () => {
-      try {
-        applySlotDays(branch.days)
-        setChatStep(CHAT_STEPS.WAITING_DATE)
-        pushBot(
-          L(
-            `Available times at ${translateLoc(branch.loc)}. What date works for you?`,
-            `المواعيد المتاحة في ${translateLoc(branch.loc)}. اختار اليوم المناسب:`
-          )
-        )
-      } catch {
-        pushBot(
-          L('Sorry, I could not load available times.', 'آسف، لم أتمكن من تحميل المواعيد.')
-        )
-      }
-    })
+    beginSlotSelection(doctor, bookingData.appointmentType, branch.days, branch.loc)
   }
 
   const chooseDoctor = async (doctor) => {
@@ -376,6 +472,9 @@ const ChatbotWidget = () => {
     setBookingData((b) => ({
       ...b,
       selectedDoctor: doctor,
+      appointmentType: 'Clinic',
+      visitFeeType: 'examination',
+      homeVisitArea: '',
       date: null,
       slotDate: '',
       time: ''
@@ -384,52 +483,36 @@ const ChatbotWidget = () => {
     setLocationOptions([])
     setDateOptions([])
     setTimeOptions([])
+    setHomeVisitAreaOptions([])
     setClinicLocation('')
 
     await withTyping(async () => {
-      try {
-        const result = await probeDoctorBranches(doctor)
-
-        if (result.mode === 'empty') {
-          pushBot(
-            L(
-              'This doctor has no available slots right now. Please choose another doctor.',
-              'لا توجد مواعيد متاحة لهذا الطبيب حالياً. اختار دكتوراً آخر.'
-            )
-          )
-          setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
-          return
-        }
-
-        if (result.mode === 'pick_branch') {
-          setLocationOptions(result.branches)
-          setChatStep(CHAT_STEPS.WAITING_LOCATION)
-          pushBot(
-            L(
-              `${displayPersonName(doctor.name)} works at more than one clinic. Please choose a location:`,
-              `${displayPersonName(doctor.name)} متاح في أكثر من فرع. اختار فرع العيادة:`
-            )
-          )
-          return
-        }
-
-        applySlotDays(result.days)
-        setChatStep(CHAT_STEPS.WAITING_DATE)
-        const fee = formatDoctorFee(doctor)
+      const options = getDoctorAppointmentTypeOptions(doctor)
+      if (!options.length) {
         pushBot(
           L(
-            `Great. You chose ${displayPersonName(doctor.name)}${fee ? ` (${L('Consultation fee', 'رسوم الكشف')}: ${fee})` : ''}. What date works for you?`,
-            `تمام. اخترت ${displayPersonName(doctor.name)}${fee ? ` (${L('Consultation fee', 'رسوم الكشف')}: ${fee})` : ''}. اختار اليوم المناسب:`
+            'This doctor has no booking options available right now.',
+            'الدكتور ده مش متاح للحجز حالياً.'
           )
         )
-      } catch {
-        pushBot(
-          L(
-            'Sorry, I could not load available times. Please try again.',
-            'آسف، لم أتمكن من تحميل المواعيد. حاول مرة أخرى.'
-          )
-        )
+        setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
+        return
       }
+
+      if (options.length === 1) {
+        setBookingData((b) => ({ ...b, appointmentType: options[0].value }))
+        await afterAppointmentTypeChosen(doctor, options[0].value)
+        return
+      }
+
+      setAppointmentTypeOptions(options)
+      setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
+      pushBot(
+        L(
+          `You chose ${displayPersonName(doctor.name)}. How would you like to visit?`,
+          `اخترت ${displayPersonName(doctor.name)}. إزاي تحب الزيارة تكون؟`
+        )
+      )
     })
   }
 
@@ -454,30 +537,79 @@ const ChatbotWidget = () => {
     pushBot(L('Please choose a time:', 'اختار الوقت المناسب:'))
   }
 
+  const loadVisitFeeStep = async (next) => {
+    if (!token) {
+      pushBot(
+        L('Please log in to complete your booking.', 'يرجى تسجيل الدخول لإتمام الحجز.')
+      )
+      toast.info(L('Please log in to complete booking', 'يرجى تسجيل الدخول لإتمام الحجز'))
+      navigate('/login')
+      return
+    }
+
+    const name = userData?.name || next.patientName || ''
+    const phone = userData?.phone || next.phone || ''
+    if (!name.trim() || !phone.trim()) {
+      pushBot(
+        L(
+          'Your profile is missing name or phone. Please update your profile first.',
+          'ملفك ناقص الاسم أو رقم الهاتف. حدّث بياناتك من الملف الشخصي أولاً.'
+        )
+      )
+      return
+    }
+
+    setBookingData((b) => ({ ...b, ...next, patientName: name, phone }))
+
+    let canConsult = false
+    try {
+      const { data } = await axios.get(
+        `${backendUrl}/api/user/visit-fee-eligibility/${next.selectedDoctor._id}`,
+        { headers: { token } }
+      )
+      canConsult = Boolean(data?.canBookConsultation)
+    } catch {
+      canConsult = false
+    }
+    setCanBookConsultation(canConsult)
+
+    if (!canConsult) {
+      const auto = { ...next, patientName: name, phone, visitFeeType: 'examination' }
+      setBookingData((b) => ({ ...b, ...auto }))
+      goToConfirm(auto)
+      return
+    }
+
+    setChatStep(CHAT_STEPS.WAITING_VISIT_FEE)
+    pushBot(
+      L(
+        'Please choose visit type: examination or follow-up consultation.',
+        'اختار نوع الزيارة: كشف أو استشارة متابعة.'
+      )
+    )
+  }
+
+  const chooseVisitFeeType = (visitFeeType) => {
+    const label = t(
+      CHATBOT_VISIT_FEE_TYPES.find((o) => o.value === visitFeeType)?.labelKey || 'Examination (Kashf)'
+    )
+    pushUser(label)
+    const next = { ...bookingData, visitFeeType }
+    setBookingData(next)
+    goToConfirm(next)
+  }
+
   const chooseTime = (slot) => {
     const next = {
       ...bookingData,
       time: slot.time,
-      patientName: bookingData.patientName || userData?.name || '',
-      phone: bookingData.phone || userData?.phone || ''
+      patientName: userData?.name || bookingData.patientName || '',
+      phone: userData?.phone || bookingData.phone || ''
     }
     setBookingData(next)
     setTimeOptions([])
     pushUser(localizeDigits(slot.time))
-
-    if (token && next.patientName && next.phone) {
-      goToConfirm(next)
-      return
-    }
-
-    if (token && next.patientName) {
-      setChatStep(CHAT_STEPS.WAITING_PHONE)
-      pushBot(L('Please enter your phone number:', 'من فضلك أدخل رقم هاتفك:'))
-      return
-    }
-
-    setChatStep(CHAT_STEPS.WAITING_NAME)
-    pushBot(L('Please enter your full name:', 'من فضلك أدخل اسمك الكامل:'))
+    loadVisitFeeStep(next)
   }
 
   const goToConfirm = (data = bookingData) => {
@@ -490,12 +622,35 @@ const ChatbotWidget = () => {
           day: 'numeric'
         })
       : ''
-    const fee = formatDoctorFee(d)
-    const branchLine = clinicLocation ? translateLoc(clinicLocation) : ''
+    const branchLine =
+      usesClinicWeeklySchedule(data.appointmentType) && clinicLocation
+        ? translateLoc(clinicLocation)
+        : ''
+    const appointmentLabel = t(
+      CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === data.appointmentType)?.labelKey ||
+        'In clinic'
+    )
+    const visitLabel = t(
+      CHATBOT_VISIT_FEE_TYPES.find((o) => o.value === data.visitFeeType)?.labelKey ||
+        'Examination (Kashf)'
+    )
+    const { total } = computeChatbotTotalPrice({
+      doctor: d,
+      visitFeeType: data.visitFeeType,
+      appointmentType: data.appointmentType,
+      siteSettings
+    })
+    const totalStr =
+      total > 0 ? `${currencySymbol}${localizeDigits(String(total))}` : L('Free', 'مجاني')
+    const homeLine =
+      data.appointmentType === 'Home Visit' && data.homeVisitArea
+        ? `\n• ${L('Area', 'المنطقة')}: ${data.homeVisitArea}`
+        : ''
+
     pushBot(
       L(
-        `Booking summary:\n• Doctor: ${displayPersonName(d?.name)}\n• Specialty: ${tc(getDoctorSpecialty(d))}${fee ? `\n• Consultation fee: ${fee}` : ''}${branchLine ? `\n• Clinic: ${branchLine}` : ''}\n• Date: ${dateLabel}\n• Time: ${data.time}\n• Name: ${data.patientName}\n• Phone: ${data.phone}\n\nTap Confirm to book.`,
-        `ملخص الحجز:\n• الدكتور: ${displayPersonName(d?.name)}\n• التخصص: ${tc(getDoctorSpecialty(d))}${fee ? `\n• رسوم الكشف: ${fee}` : ''}${branchLine ? `\n• الفرع: ${branchLine}` : ''}\n• التاريخ: ${dateLabel}\n• الوقت: ${localizeDigits(data.time)}\n• الاسم: ${data.patientName}\n• الهاتف: ${data.phone}\n\nاضغط تأكيد لإتمام الحجز.`
+        `Booking summary:\n• Patient: ${data.patientName}\n• Phone: ${data.phone}\n• Doctor: ${displayPersonName(d?.name)}\n• Specialty: ${tc(getDoctorSpecialty(d))}\n• Visit: ${appointmentLabel}\n• Visit type: ${visitLabel}${branchLine ? `\n• Clinic: ${branchLine}` : ''}${homeLine}\n• Date: ${dateLabel}\n• Time: ${data.time}\n• Total price: ${totalStr}\n\nTap Confirm to book.`,
+        `ملخص الحجز:\n• المريض: ${data.patientName}\n• الهاتف: ${localizeDigits(data.phone)}\n• الدكتور: ${displayPersonName(d?.name)}\n• التخصص: ${tc(getDoctorSpecialty(d))}\n• الزيارة: ${appointmentLabel}\n• نوع الكشف: ${visitLabel}${branchLine ? `\n• الفرع: ${branchLine}` : ''}${homeLine}\n• التاريخ: ${dateLabel}\n• الوقت: ${localizeDigits(data.time)}\n• الإجمالي: ${totalStr}\n\nاضغط تأكيد لإتمام الحجز.`
       )
     )
   }
@@ -504,15 +659,23 @@ const ChatbotWidget = () => {
     const { selectedDoctor, slotDate, time, patientName, phone, symptoms } = bookingData
     if (!selectedDoctor || !slotDate || !time) return
 
-    if (!token && (!patientName?.trim() || !phone?.trim())) {
+    if (!token) {
       toast.info(L('Please log in to complete booking', 'يرجى تسجيل الدخول لإتمام الحجز'))
       navigate('/login')
       return
     }
 
-    if (!isValidEgyptPhone(phone)) {
-      pushBot(L('Please enter a valid phone number.', 'من فضلك أدخل رقم هاتف صحيح.'))
-      setChatStep(CHAT_STEPS.WAITING_PHONE)
+    const profileName = userData?.name || patientName || ''
+    const profilePhone = userData?.phone || phone || ''
+    if (!profileName.trim() || !profilePhone.trim()) {
+      pushBot(
+        L('Please complete your profile (name and phone) first.', 'أكمل بيانات ملفك (الاسم والهاتف) أولاً.')
+      )
+      return
+    }
+
+    if (!isValidEgyptPhone(profilePhone)) {
+      pushBot(L('Your profile phone number is not valid.', 'رقم الهاتف في ملفك غير صحيح.'))
       return
     }
 
@@ -525,10 +688,16 @@ const ChatbotWidget = () => {
           slotDate,
           slotTime: time,
           clinicLocation,
+          appointmentType: bookingData.appointmentType || 'Clinic',
+          visitFeeType: bookingData.visitFeeType || 'examination',
+          homeVisitAddress:
+            bookingData.appointmentType === 'Home Visit' && bookingData.homeVisitArea
+              ? { area: bookingData.homeVisitArea }
+              : {},
           paymentMethod: 'Cash',
           symptoms,
-          patientName: patientName.trim(),
-          patientPhone: normalizeEgyptPhone(phone) || phone
+          patientName: profileName.trim(),
+          patientPhone: normalizeEgyptPhone(profilePhone) || profilePhone
         },
         token
       )
@@ -621,24 +790,29 @@ const ChatbotWidget = () => {
           break
         }
 
-        case CHAT_STEPS.WAITING_NAME:
-          setBookingData((b) => ({ ...b, patientName: text }))
-          setChatStep(CHAT_STEPS.WAITING_PHONE)
-          pushBot(L('Please enter your phone number:', 'من فضلك أدخل رقم هاتفك:'))
+        case CHAT_STEPS.WAITING_VISIT_FEE:
+          pushBot(
+            L(
+              'Please tap examination or follow-up below.',
+              'من فضلك اختار كشف أو استشارة من الأزرار بالأسفل.'
+            )
+          )
           break
 
-        case CHAT_STEPS.WAITING_PHONE: {
-          if (!isValidEgyptPhone(text)) {
-            pushBot(L('Please enter a valid phone number.', 'من فضلك أدخل رقم هاتف صحيح.'))
-            break
-          }
-          setBookingData((b) => {
-            const next = { ...b, phone: normalizeEgyptPhone(text) || text }
-            goToConfirm(next)
-            return next
-          })
+        case CHAT_STEPS.WAITING_APPOINTMENT_TYPE:
+          pushBot(
+            L(
+              'Please tap how you would like to visit (clinic, home, voice, or video).',
+              'اختار نوع الزيارة من الأزرار (عيادة، منزل، صوت، فيديو).'
+            )
+          )
           break
-        }
+
+        case CHAT_STEPS.WAITING_HOME_AREA:
+          pushBot(
+            L('Please tap your area below.', 'اختار المنطقة من الأزرار بالأسفل.')
+          )
+          break
 
         default:
           if (
@@ -753,6 +927,67 @@ const ChatbotWidget = () => {
                   {q.label}
                 </button>
               ))}
+            </div>
+          )}
+
+          {appointmentTypeOptions.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {appointmentTypeOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => chooseAppointmentType(opt.value)}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-left text-xs font-semibold text-gray-800 shadow-sm hover:border-primary"
+                >
+                  {t(opt.labelKey)}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {homeVisitAreaOptions.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {homeVisitAreaOptions.map((area) => (
+                <button
+                  key={area}
+                  type="button"
+                  onClick={() => chooseHomeArea(area)}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold shadow-sm hover:border-primary"
+                >
+                  {area}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {chatStep === CHAT_STEPS.WAITING_VISIT_FEE && (
+            <div className="flex flex-col gap-2">
+              {CHATBOT_VISIT_FEE_TYPES.map((opt) => {
+                const disabled = opt.value === 'consultation' && !canBookConsultation
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => !disabled && chooseVisitFeeType(opt.value)}
+                    className={`rounded-xl border px-3 py-3 text-left text-xs font-semibold shadow-sm ${
+                      disabled
+                        ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400'
+                        : 'border-gray-200 bg-white text-gray-800 hover:border-primary'
+                    }`}
+                  >
+                    {t(opt.labelKey)}
+                    {disabled && (
+                      <span className="mt-1 block text-[10px] font-normal">
+                        {L(
+                          'Available within 30 days after examination with this doctor',
+                          'متاح خلال ٣٠ يوم من كشف مكتمل مع نفس الدكتور'
+                        )}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           )}
 

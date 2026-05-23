@@ -154,10 +154,12 @@ body > section.Toastify .Toastify__toast {
   }
 }
 
-/* Chatbot: prevent iOS zoom on focus + lock page scroll when open */
-body.chatbot-open {
-  overflow: hidden;
-  width: 100%;
+/* Chatbot: lock page scroll only on laptop/desktop (mobile stays scrollable) */
+@media (min-width: 1024px) {
+  body.chatbot-open {
+    overflow: hidden;
+    width: 100%;
+  }
 }
 
 .chatbot-panel .chatbot-input,

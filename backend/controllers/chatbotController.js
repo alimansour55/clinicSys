@@ -267,9 +267,11 @@ export const getChatbotAvailableSlots = async (req, res) => {
       })
     }
 
+    const appointmentType = String(req.query.appointmentType || 'Clinic').trim() || 'Clinic'
+
     const slotDays = buildAvailableSlotsForDoctor(doctor, {
       days: dayCount,
-      appointmentType: 'Clinic',
+      appointmentType,
       clinicLocation
     })
 
@@ -295,6 +297,9 @@ export const postChatbotBookAppointment = async (req, res) => {
       slotTime,
       clinicLocation = '',
       paymentMethod = 'Cash',
+      appointmentType = 'Clinic',
+      visitFeeType = 'examination',
+      homeVisitAddress = {},
       symptoms = '',
       patientName = '',
       patientPhone = ''
@@ -331,6 +336,9 @@ export const postChatbotBookAppointment = async (req, res) => {
       slotTime,
       clinicLocation,
       paymentMethod,
+      appointmentType,
+      visitFeeType,
+      homeVisitAddress,
       symptoms,
       req
     })
