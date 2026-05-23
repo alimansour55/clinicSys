@@ -39,12 +39,17 @@ export const computeAppointmentPayable = (fees, discountAmount, appointmentType,
   return consult + surcharge
 }
 
-export const getPromoOfferLabel = (doctor, currencySymbol = '', translate, language = 'en') => {
+const resolveFormatAmount = (currencySymbolOrFormat) =>
+  typeof currencySymbolOrFormat === 'function'
+    ? currencySymbolOrFormat
+    : (n) => `${currencySymbolOrFormat}${n}`
+
+export const getPromoOfferLabel = (doctor, currencySymbolOrFormat = '', translate, language = 'en') => {
   const promo = doctor?.promoCode || {}
   if (!promo.active || !Number(promo.discountValue || 0)) return ''
 
   const pct = Number(promo.discountValue || 0)
-  const fixedAmount = `${currencySymbol}${pct}`
+  const fixedAmount = resolveFormatAmount(currencySymbolOrFormat)(pct)
 
   if (typeof translate === 'function') {
     return promo.discountType === 'fixed'

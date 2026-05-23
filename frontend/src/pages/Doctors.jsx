@@ -10,6 +10,7 @@ import { getPromoOfferLabel } from '../utils/promo'
 import { formatLocationLine } from '../utils/placeTranslations'
 import { isDoctorBookableForPatients, isDoctorComingSoon, resolveClinicLocationForSlots } from '../utils/doctorBooking'
 import { doctorBelongsToClinicSection } from '../utils/doctorClinicPlaces'
+import { formatSlotsThisWeekLabel } from '../utils/arabicMedicalUi'
 import { useMediaQuery } from '../utils/useMediaQuery'
 
 const MOBILE_PAGE_SIZE = 10
@@ -28,7 +29,7 @@ const Doctors = () => {
   const isMobile = useMediaQuery('(max-width: 1023px)')
   const doctorsListRef = useRef(null)
 
-  const { token, doctors, getDoctorsData, t, tc, currencySymbol, displayPersonName, language, placeTranslationOverrides, localizeDigits } = useContext(AppContext)
+  const { token, doctors, getDoctorsData, t, tc, formatMoney, displayPersonName, language, placeTranslationOverrides, localizeDigits } = useContext(AppContext)
 
   useEffect(() => {
     getDoctorsData()
@@ -199,7 +200,7 @@ const Doctors = () => {
     if (isDoctorComingSoon(doctor)) return t('Coming Soon')
     const slots = buildDoctorSlots(doctor, 7, 'Clinic', location)
     const count = slots.reduce((sum, day) => sum + day.slots.filter((slot) => slot.available).length, 0)
-    return count > 0 ? fillT('{{count}} slots this week', { count }) : t('No branch slots this week')
+    return formatSlotsThisWeekLabel(count, language, localizeDigits)
   }
 
   const activeFilterCount = [selectedSpeciality, selectedClinic, searchTerm, selectedTitle, selectedGender, selectedPayment].filter(Boolean).length
@@ -350,7 +351,7 @@ const Doctors = () => {
   )
 
   const renderDoctorCard = (item, index) => {
-    const promoOffer = getPromoOfferLabel(item, currencySymbol, t, language)
+    const promoOffer = getPromoOfferLabel(item, formatMoney, t, language)
     return (
       <button
         type='button'
@@ -370,7 +371,7 @@ const Doctors = () => {
         <div className={`relative overflow-hidden rounded-lg bg-blue-50 ${isMobile ? 'mx-2 mt-2 h-[110px]' : 'mx-3 mt-3 h-[146px]'}`}>
           <img className='h-full w-full object-cover transition duration-300 group-hover:scale-105' src={item.image} alt={displayPersonName(item.name)} />
           <RatingBadge summary={item.ratingSummary} className='absolute left-2 top-2' />
-          <PromoOfferBadge doctor={item} currencySymbol={currencySymbol} className='absolute bottom-2 left-2' />
+          <PromoOfferBadge doctor={item} formatMoney={formatMoney} className='absolute bottom-2 left-2' />
         </div>
 
         <div className={isMobile ? 'px-2 py-2' : 'px-3 py-2.5'}>

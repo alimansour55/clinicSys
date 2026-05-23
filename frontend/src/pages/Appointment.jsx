@@ -23,6 +23,7 @@ import {
 } from '../utils/visitFees'
 import { doctorOffersHomeVisit, emptyHomeVisitAddress, getDoctorHomeVisitAreas } from '../utils/homeVisitAreas'
 import { formatLocationLine, translatePlaceSegment } from '../utils/placeTranslations'
+import { formatSlotCountLabel, formatSlotsThisWeekLabel } from '../utils/arabicMedicalUi'
 import { getTranslatedDoctorAbout } from '../utils/doctorAboutTranslate'
 import { formatExperienceEn, parseExperienceYears } from '../utils/doctorExperience'
 import { hasDoctorPublishedSchedule, isDoctorBookableForPatients } from '../utils/doctorBooking'
@@ -42,7 +43,7 @@ const VISIT_FEE_OPTIONS = [
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51Om5RIFYci1ONXhwffRNoKDSSkbwm6HLTtHRqHo4fG9VVWB74kE41EZG0Q65BvZU0QXQt7BCddGNcMnnOTRzia2500UZzolAxd')
 
-const StripePaymentForm = ({ pendingPayment, confirmBookingStripePayment, onPaid, currencySymbol }) => {
+const StripePaymentForm = ({ pendingPayment, confirmBookingStripePayment, onPaid, formatMoney }) => {
   const stripe = useStripe()
   const elements = useElements()
   const [isPaying, setIsPaying] = useState(false)
@@ -87,7 +88,7 @@ const StripePaymentForm = ({ pendingPayment, confirmBookingStripePayment, onPaid
         </div>
       </div>
       <div className='mb-3 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800'>
-        {t('Amount to pay')}: {localizeDigits(`${currencySymbol}${pendingPayment.amount}`)}
+        {t('Amount to pay')}: {formatMoney(pendingPayment.amount)}
       </div>
       <label className='mb-2 block text-sm font-medium text-gray-700'>{t('Card information')}</label>
       <div className='rounded-lg border border-gray-300 bg-white p-4 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20'>
@@ -107,7 +108,7 @@ const Appointment = () => {
   const navigate = useNavigate()
   const {
     doctors,
-    currencySymbol,
+    formatMoney,
     backendUrl,
     token,
     getDoctorsData,
@@ -230,8 +231,8 @@ const Appointment = () => {
   const activePromoCode = String(docInfo?.promoCode?.code || '').trim().toUpperCase()
   const promoActive = Boolean(docInfo?.promoCode?.active && activePromoCode)
   const promoLabel = useMemo(
-    () => (promoActive && docInfo ? getPromoOfferLabel(docInfo, currencySymbol, t, language) : ''),
-    [promoActive, docInfo, currencySymbol, t, language]
+    () => (promoActive && docInfo ? getPromoOfferLabel(docInfo, formatMoney, t, language) : ''),
+    [promoActive, docInfo, formatMoney, t, language]
   )
   const globalVisitFees = useMemo(
     () => normalizeGlobalVisitFees(siteSettings?.globalVisitFees),
@@ -258,12 +259,12 @@ const Appointment = () => {
     ? computeHomeVisitSurcharge(examinationBaseFee, homeVisitPricing)
     : 0
   const homeVisitFeeLabel = useMemo(
-    () => getHomeVisitFeeLabel(homeVisitPricing, t, currencySymbol),
-    [homeVisitPricing, t, currencySymbol]
+    () => getHomeVisitFeeLabel(homeVisitPricing, t, formatMoney),
+    [homeVisitPricing, t, formatMoney]
   )
   const homeVisitPricingHint = useMemo(
-    () => getHomeVisitPricingHint(homeVisitPricing, t, currencySymbol, homeVisitSurcharge),
-    [homeVisitPricing, t, currencySymbol, homeVisitSurcharge]
+    () => getHomeVisitPricingHint(homeVisitPricing, t, formatMoney, homeVisitSurcharge),
+    [homeVisitPricing, t, formatMoney, homeVisitSurcharge]
   )
   const payableAmount = docInfo
     ? computeAppointmentPayableForVisit(
@@ -526,7 +527,7 @@ const Appointment = () => {
           <div className='relative overflow-hidden rounded-2xl bg-primary shadow-sm'>
             <img className='h-80 w-full object-cover sm:h-full sm:min-h-80' src={docInfo.image} alt={displayPersonName(docInfo.name)} />
             <RatingBadge summary={docInfo.ratingSummary || ratingsData.summary} className='absolute left-3 top-3' />
-            <PromoOfferBadge doctor={docInfo} currencySymbol={currencySymbol} className='absolute bottom-3 left-3' />
+            <PromoOfferBadge doctor={docInfo} formatMoney={formatMoney} className='absolute bottom-3 left-3' />
           </div>
         </div>
 
@@ -550,10 +551,10 @@ const Appointment = () => {
             <div className='mt-4 flex flex-wrap gap-3'>
               <div className='rounded-xl border border-gray-100 bg-gray-50 px-4 py-3'>
                 <p className='text-xs font-semibold uppercase tracking-wide text-gray-400'>{t('Examination fee label')}</p>
-                <p className='mt-1 text-lg font-bold text-gray-900'>{localizeDigits(`${currencySymbol}${examinationBaseFee}`)}</p>
+                <p className='mt-1 text-lg font-bold text-gray-900'>{formatMoney(examinationBaseFee)}</p>
                 {consultationBaseFee < examinationBaseFee && (
                   <p className='mt-1 text-xs text-gray-500'>
-                    {t('Follow-up consultation fee label')}: {localizeDigits(`${currencySymbol}${consultationBaseFee}`)}
+                    {t('Follow-up consultation fee label')}: {formatMoney(consultationBaseFee)}
                   </p>
                 )}
               </div>
@@ -657,7 +658,7 @@ const Appointment = () => {
                           {label}
                         </span>
                         <span className={`text-sm font-bold ${isDisabled ? 'text-gray-400' : 'text-gray-900'}`}>
-                          {localizeDigits(`${currencySymbol}${displayFee}`)}
+                          {formatMoney(displayFee)}
                         </span>
                       </span>
                       <span className={`mt-1 block text-xs ${isDisabled ? 'text-gray-400' : 'text-gray-500'}`}>{hint}</span>
@@ -692,7 +693,9 @@ const Appointment = () => {
                       className={`shrink-0 rounded-xl border px-4 py-2 text-left text-sm font-medium ${selectedClinicLocation === location ? 'border-primary bg-white text-primary shadow-sm' : 'border-blue-200 bg-white/70 text-gray-700 hover:border-primary'}`}
                     >
                       <span className='block'>{formatLocationLine(location, language, t, placeTranslationOverrides)}</span>
-                      <span className='mt-0.5 block text-xs font-semibold text-gray-500'>{fillT('{{count}} slots this week', { count: availableCount })}</span>
+                      <span className='mt-0.5 block text-xs font-semibold text-gray-500'>
+                        {formatSlotsThisWeekLabel(availableCount, language, localizeDigits)}
+                      </span>
                     </button>
                     )
                   })}
@@ -914,7 +917,13 @@ const Appointment = () => {
              >
               <p className={isMobile ? 'text-[10px] font-semibold uppercase' : ''}>{weekShortLabels[item.dateTime.getDay()]}</p>
               <p className={isMobile ? 'text-base' : ''}>{localizeDigits(String(item.dateTime.getDate()))}</p>
-              <p className={`mt-1 font-medium opacity-80 ${isMobile ? 'text-[10px]' : 'text-[11px]'}`}>{fillT('{{n}} slots', { n: item.slots.filter((slot) => slot.available).length })}</p>
+              <p className={`mt-1 font-medium opacity-80 ${isMobile ? 'text-[10px]' : 'text-[11px]'}`}>
+                {formatSlotCountLabel(
+                  item.slots.filter((slot) => slot.available).length,
+                  language,
+                  localizeDigits
+                )}
+              </p>
              </button>
             ))
           }
@@ -984,12 +993,12 @@ const Appointment = () => {
                   {t('Promo applied automatically')}
                 </span>
                 <span className='mt-1 block text-sm text-emerald-700'>
-                  {fillT('{{code}} — {{promo}}. You save {{save}}.', { code: activePromoCode, promo: promoLabel, save: `${currencySymbol}${discountAmount}` })}
+                  {fillT('{{code}} — {{promo}}. You save {{save}}.', { code: activePromoCode, promo: promoLabel, save: formatMoney(discountAmount) })}
                 </span>
                 <span className='mt-2 inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700'>
                   {homeVisitSurcharge > 0
-                    ? fillT('Total (incl. home visit): {{amount}}', { amount: `${currencySymbol}${payableAmount}` })
-                    : `${t('Total after promo')}: ${localizeDigits(`${currencySymbol}${payableAmount}`)}`}
+                    ? fillT('Total (incl. home visit): {{amount}}', { amount: formatMoney(payableAmount) })
+                    : `${t('Total after promo')}: ${formatMoney(payableAmount)}`}
                 </span>
               </span>
             </button>
@@ -1085,14 +1094,14 @@ const Appointment = () => {
                   : t('Examination fee label')}
               </span>
               <span className='font-semibold text-gray-900'>
-                {localizeDigits(`${currencySymbol}${selectedBaseFee}`)}
+                {formatMoney(selectedBaseFee)}
               </span>
             </div>
             {discountAmount > 0 && (
               <div className='flex justify-between gap-4 text-emerald-700'>
                 <span>{fillT('Promo discount ({{code}})', { code: activePromoCode })}</span>
                 <span className='font-semibold'>
-                  −{localizeDigits(`${currencySymbol}${discountAmount}`)}
+                  −{formatMoney(discountAmount)}
                 </span>
               </div>
             )}
@@ -1100,14 +1109,14 @@ const Appointment = () => {
               <div className='flex justify-between gap-4 text-emerald-800'>
                 <span>{homeVisitFeeLabel}</span>
                 <span className='font-semibold'>
-                  +{localizeDigits(`${currencySymbol}${homeVisitSurcharge}`)}
+                  +{formatMoney(homeVisitSurcharge)}
                 </span>
               </div>
             )}
             <div className='flex justify-between gap-4 border-t border-gray-200 pt-3 text-base'>
               <span className='font-bold text-gray-900'>{t('Total to pay')}</span>
               <span className='font-bold text-primary'>
-                {localizeDigits(`${currencySymbol}${payableAmount}`)}
+                {formatMoney(payableAmount)}
               </span>
             </div>
           </div>
@@ -1119,7 +1128,7 @@ const Appointment = () => {
               <StripePaymentForm
                 pendingPayment={pendingPayment}
                 confirmBookingStripePayment={confirmBookingStripePayment}
-                currencySymbol={currencySymbol}
+                formatMoney={formatMoney}
                 onPaid={() => navigate('/my-appointments')}
               />
             </Elements>

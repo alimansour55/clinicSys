@@ -26,10 +26,16 @@ export const computeHomeVisitSurcharge = (fees, homeVisitPricing = DEFAULT_HOME_
   return Math.round((baseMinor * settings.percentageValue) / 100) / 100
 }
 
-export const getHomeVisitFeeLabel = (homeVisitPricing, t, currencySymbol = '') => {
+const resolveFormatAmount = (currencySymbolOrFormat) =>
+  typeof currencySymbolOrFormat === 'function'
+    ? currencySymbolOrFormat
+    : (n) => `${currencySymbolOrFormat}${n}`
+
+export const getHomeVisitFeeLabel = (homeVisitPricing, t, currencySymbolOrFormat = '') => {
+  const formatAmount = resolveFormatAmount(currencySymbolOrFormat)
   const settings = normalizeHomeVisitPricing(homeVisitPricing)
   if (settings.pricingType === 'fixed') {
-    const amount = `${currencySymbol}${settings.fixedAmount}`
+    const amount = formatAmount(settings.fixedAmount)
     return typeof t === 'function'
       ? t('Home visit fee (fixed {{amount}})').replace(/\{\{amount\}\}/g, amount)
       : `Home visit fee (${amount})`
@@ -40,15 +46,16 @@ export const getHomeVisitFeeLabel = (homeVisitPricing, t, currencySymbol = '') =
     : `Home visit fee (+${pct}%)`
 }
 
-export const getHomeVisitPricingHint = (homeVisitPricing, t, currencySymbol = '', surchargeAmount = 0) => {
+export const getHomeVisitPricingHint = (homeVisitPricing, t, currencySymbolOrFormat = '', surchargeAmount = 0) => {
+  const formatAmount = resolveFormatAmount(currencySymbolOrFormat)
   const settings = normalizeHomeVisitPricing(homeVisitPricing)
   if (settings.pricingType === 'fixed') {
-    const amount = `${currencySymbol}${settings.fixedAmount}`
+    const amount = formatAmount(settings.fixedAmount)
     return typeof t === 'function'
       ? t('Home visit adds a fixed fee of {{amount}}.').replace(/\{\{amount\}\}/g, amount)
       : `Home visit adds ${amount}.`
   }
-  const amount = `${currencySymbol}${surchargeAmount}`
+  const amount = formatAmount(surchargeAmount)
   return typeof t === 'function'
     ? t('Home visit adds {{pct}}% of the consultation fee ({{amount}}).')
         .replace(/\{\{pct\}\}/g, String(settings.percentageValue))

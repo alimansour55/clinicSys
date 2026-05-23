@@ -23,7 +23,7 @@ const sortDoctorsForTopSection = (list = []) =>
 const TopDoctors = () => {
 
    const navigate = useNavigate()
-   const { doctors, t, tc, currencySymbol, language, displayPersonName, placeTranslationOverrides } = useContext(AppContext)
+   const { doctors, t, tc, formatMoney, language, displayPersonName, placeTranslationOverrides } = useContext(AppContext)
    const topDoctors = useMemo(
      () => sortDoctorsForTopSection(doctors).slice(0, 4),
      [doctors]
@@ -69,7 +69,7 @@ const TopDoctors = () => {
                <div className='relative mx-2 mt-2 h-[120px] overflow-hidden rounded-lg bg-blue-50 sm:mx-3 sm:mt-3 sm:h-[146px]'>
                  <img className='h-full w-full object-cover transition duration-300 group-hover:scale-105' src={item.image} alt="" />
                  <RatingBadge summary={item.ratingSummary} className='absolute left-2 top-2' />
-                 <PromoOfferBadge doctor={item} currencySymbol={currencySymbol} className='absolute bottom-2 left-2' />
+                 <PromoOfferBadge doctor={item} formatMoney={formatMoney} className='absolute bottom-2 left-2' />
                </div>
               
                <div className='px-2.5 py-2 sm:px-3 sm:py-2.5'>

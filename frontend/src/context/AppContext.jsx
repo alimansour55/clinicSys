@@ -7,6 +7,7 @@ import { displayPersonName as displayPersonNameAr } from '../utils/personNameAra
 import { collectPlaceStringsNeedingTranslate } from '../utils/placeTranslations.js'
 import { collectDoctorAboutTextsNeedingTranslate } from '../utils/doctorAboutTranslate.js'
 import { resolveBackendUrl } from '../utils/resolveBackendUrl.js'
+import { formatMoney as formatMoneyAmount } from '../utils/arabicMedicalUi.js'
 
 export const AppContext = createContext()
 
@@ -15,6 +16,7 @@ const AppContextProvider = (props) => {
   const backendUrl = resolveBackendUrl()
   const { language, t, tc, localizeDigits } = useLanguage()
   const currencySymbol = language === 'ar' ? 'ج.م ' : 'EGP '
+  const formatMoney = (amount) => formatMoneyAmount(amount, language, localizeDigits)
   
   const [doctors, setDoctors] = useState([])
   const [clinics, setClinics] = useState([])
@@ -466,6 +468,7 @@ const AppContextProvider = (props) => {
     appointments,
     siteSettings,
     currencySymbol,
+    formatMoney,
     backendUrl,
     language,
     t,

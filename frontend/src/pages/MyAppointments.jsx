@@ -12,7 +12,7 @@ const MyAppointments = () => {
     appointments,
     calculateAge,
     slotDateFormat,
-    currencySymbol,
+    formatMoney,
     getUserAppointments,
     cancelAppointment,
     getUserPrescription,
@@ -235,7 +235,7 @@ const MyAppointments = () => {
                     <Banknote className='w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600' />
                     <span className='font-medium text-xs sm:text-sm text-gray-700'>{t('Fees')}</span>
                   </div>
-                  <span className='font-bold text-base sm:text-lg text-green-700'>{currencySymbol}{selectedPrescription.amount}</span>
+                  <span className='font-bold text-base sm:text-lg text-green-700'>{formatMoney(selectedPrescription.amount)}</span>
                 </div>
 
               </div>
@@ -465,7 +465,7 @@ return (
                   {paymentStatusLabel(item.paymentStatus)}
                 </span>
                 <span className='rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700'>
-                  {localizeDigits(`${currencySymbol}${item.amount || 0}`)}
+                  {formatMoney(item.amount || 0)}
                 </span>
                 {item.paymentStatus === 'Paid' && item.paymentMethod && (
                   <span className='rounded-full bg-blue-50 px-3 py-1 text-blue-700'>

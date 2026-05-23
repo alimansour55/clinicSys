@@ -7,7 +7,7 @@ import { isDoctorBookableForPatients, isDoctorComingSoon } from '../utils/doctor
 
 const RelatedDoctors = ({speciality ,docId}) => {
   
-  const { doctors, currencySymbol, t, tc, displayPersonName } = useContext(AppContext)
+  const { doctors, formatMoney, t, tc, displayPersonName } = useContext(AppContext)
   const navigate = useNavigate()
   
   const [relDoc, setRelDocs] = useState([])
@@ -51,7 +51,7 @@ return (
               <div className='relative'>
                 <img className='bg-blue-50 w-full h-40 sm:h-56 object-cover' src={item.image} alt="" />
                 <RatingBadge summary={item.ratingSummary} className='absolute left-2 top-2' />
-                <PromoOfferBadge doctor={item} currencySymbol={currencySymbol} className='absolute bottom-2 left-2' />
+                <PromoOfferBadge doctor={item} formatMoney={formatMoney} className='absolute bottom-2 left-2' />
               </div>
                
                

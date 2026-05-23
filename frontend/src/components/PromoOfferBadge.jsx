@@ -1,11 +1,14 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { Tag } from 'lucide-react'
 import { useLanguage } from '../i18n'
+import { AppContext } from '../context/AppContext'
 import { getPromoOfferLabel } from '../utils/promo'
 
-const PromoOfferBadge = ({ doctor, currencySymbol = '', className = '' }) => {
+const PromoOfferBadge = ({ doctor, currencySymbol, formatMoney: formatMoneyProp, className = '' }) => {
+  const ctx = useContext(AppContext)
+  const formatMoney = formatMoneyProp || ctx?.formatMoney
   const { t, language, localizeDigits } = useLanguage()
-  const offerLabel = getPromoOfferLabel(doctor, currencySymbol, t, language)
+  const offerLabel = getPromoOfferLabel(doctor, formatMoney || currencySymbol || '', t, language)
   if (!offerLabel) return null
 
   return (

@@ -29,7 +29,7 @@ const Footer = () => {
   const footer = siteSettings?.footer || {}
   const logoImgClassName = patientFooterLogoClassName
   const description = footer.description || DEFAULT_FOOTER_DESCRIPTION
-  const companyTitle = footer.companyTitle || 'Company'
+  const companyTitle = footer.companyTitle || 'Quick links'
   const contactTitle = footer.contactTitle || 'Get in touch'
   const phoneLabel = footer.phoneLabel || 'Phone'
   const phoneNumber = footer.phoneNumber || '+92 343 2705821'

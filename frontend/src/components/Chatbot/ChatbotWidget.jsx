@@ -55,6 +55,7 @@ import {
 } from '../../utils/chatbotNavigation'
 import { CHAT_STEPS } from '../../utils/chatbotSteps'
 import { messageText } from '../../utils/chatbotMessages'
+import { formatMoney as formatMoneyAmount } from '../../utils/arabicMedicalUi'
 import { resolveClinicSectionLabel } from '../../utils/chatbotOpeningSuggestions'
 import DoctorChatCard from './DoctorChatCard'
 
@@ -78,6 +79,7 @@ const ChatbotWidget = () => {
     displayPersonName,
     placeTranslationOverrides,
     currencySymbol,
+    formatMoney,
     siteSettings
   } = useContext(AppContext)
   const isLaptopUp = useMediaQuery('(min-width: 1024px)')
@@ -148,7 +150,7 @@ const ChatbotWidget = () => {
   const formatDoctorFee = (doctor) => {
     const amount = Number(doctor?.fees)
     if (!Number.isFinite(amount) || amount <= 0) return ''
-    return `${currencySymbol}${localizeDigits(String(amount))}`
+    return formatMoney(amount)
   }
 
   const formatDoctorLocationsLine = (doctor) => {
@@ -1017,9 +1019,9 @@ const ChatbotWidget = () => {
       siteSettings
     })
     const totalStrEn =
-      total > 0 ? `EGP ${localizeDigits(String(total))}` : 'Free'
+      total > 0 ? formatMoneyAmount(total, 'en', localizeDigits) : 'Free'
     const totalStrAr =
-      total > 0 ? `ج.م ${localizeDigits(String(total))}` : 'مجاني'
+      total > 0 ? formatMoneyAmount(total, 'ar', localizeDigits) : 'مجاني'
     const homeLineEn =
       data.appointmentType === 'Home Visit' && data.homeVisitArea
         ? `\n• Area: ${data.homeVisitArea}`
@@ -1219,7 +1221,7 @@ const ChatbotWidget = () => {
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-gray-900">
-            {L('Clinic Assistant', 'مساعد العيادة')}
+            {t('Clinic Assistant')}
           </p>
           <p className="text-[11px] text-gray-500">{L('Online', 'متصل')}</p>
         </div>
@@ -1536,7 +1538,7 @@ const ChatbotWidget = () => {
               handleTextSubmit()
             }
           }}
-          placeholder={L('Describe your symptoms or question...', 'اكتب أعراضك أو سؤالك...')}
+          placeholder={t('Describe your symptoms or question...')}
           className="chatbot-input max-h-[120px] min-h-[48px] flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-base leading-snug outline-none focus:border-primary"
           dir={isRtl ? 'rtl' : 'ltr'}
           disabled={chatStep === CHAT_STEPS.SUCCESS}

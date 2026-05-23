@@ -6,6 +6,7 @@ import { RatingBadge } from "./DoctorRating";
 import PromoOfferBadge from "./PromoOfferBadge";
 import { formatLocationLine } from "../utils/placeTranslations";
 import { resolveClinicSectionLabel } from "../utils/chatbotOpeningSuggestions";
+import { formatDoctorCountLabel } from "../utils/arabicMedicalUi";
 import { isDoctorComingSoon } from "../utils/doctorBooking";
 import { doctorBelongsToClinicSection } from "../utils/doctorClinicPlaces";
 import { useMediaQuery } from "../utils/useMediaQuery";
@@ -18,7 +19,7 @@ const SpecialityMenu = () => {
   const navigate = useNavigate();
   const doctorsRef = useRef(null);
   const clinicsRef = useRef(null);
-  const { doctors, clinics, siteSettings, t, tc, currencySymbol, language, displayPersonName, placeTranslationOverrides } = useContext(AppContext);
+  const { doctors, clinics, siteSettings, t, tc, formatMoney, language, displayPersonName, placeTranslationOverrides, localizeDigits } = useContext(AppContext);
   const [selectedSection, setSelectedSection] = useState({ name: "All Specialities", id: null });
   const isMobile = useMediaQuery("(max-width: 1023px)");
 
@@ -152,7 +153,7 @@ const SpecialityMenu = () => {
           className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
         />
         <RatingBadge summary={doctor.ratingSummary} className="absolute left-2 top-2" />
-        <PromoOfferBadge doctor={doctor} currencySymbol={currencySymbol} className="absolute bottom-2 left-2" />
+        <PromoOfferBadge doctor={doctor} formatMoney={formatMoney} className="absolute bottom-2 left-2" />
       </div>
 
       <div className="px-2.5 py-2 sm:px-3 sm:py-2.5">
@@ -259,7 +260,9 @@ const SpecialityMenu = () => {
               }`}
             >
               <span className="text-sm font-semibold leading-tight">{t("All doctors")}</span>
-              <span className="mt-1 text-[11px] font-medium text-gray-500">{fillT("{{count}} doctors", { count: getClinicDoctorCount("All Specialities") })}</span>
+              <span className="mt-1 text-[11px] font-medium text-gray-500">
+                {formatDoctorCountLabel(getClinicDoctorCount("All Specialities"), language, localizeDigits)}
+              </span>
             </button>
             {activeClinics.length ? activeClinics.map((clinic) => {
               const isActive = selectedSection.name === clinic.name;
@@ -280,7 +283,7 @@ const SpecialityMenu = () => {
                     {resolveClinicSectionLabel(clinic.name, language, t, tc, placeTranslationOverrides)}
                   </span>
                   <span className={`mt-1 text-[11px] font-medium ${isActive ? "text-emerald-700" : "text-gray-500"}`}>
-                    {fillT("{{count}} doctors", { count })}
+                    {formatDoctorCountLabel(count, language, localizeDigits)}
                   </span>
                 </button>
               );

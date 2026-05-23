@@ -12,17 +12,17 @@ const norm = (value) => String(value || '').trim().toLowerCase()
 
 /** Homepage / chatbot clinic section chips — short labels for AR / EN. */
 export const CLINIC_SECTION_LABELS = {
-  dermatologist: { en: 'Dermatologist', ar: 'جلدية' },
-  gastroenterologist: { en: 'Gastroenterologist', ar: 'جهاز هضمي' },
-  'general physician': { en: 'General physician', ar: 'عام' },
-  gynecologist: { en: 'Gynecologist', ar: 'نساء وتوليد' },
-  neurologist: { en: 'Neurologist', ar: 'أعصاب' },
-  pediatricians: { en: 'Pediatricians', ar: 'أطفال' },
-  pediatrician: { en: 'Pediatricians', ar: 'أطفال' },
-  cardiologist: { en: 'Cardiologist', ar: 'قلب' },
-  dentist: { en: 'Dentist', ar: 'أسنان' },
-  orthopedic: { en: 'Orthopedic', ar: 'عظام' },
-  psychiatrist: { en: 'Psychiatrist', ar: 'نفسي' }
+  dermatologist: { en: 'Dermatologist', ar: 'الجلدية' },
+  gastroenterologist: { en: 'Gastroenterologist', ar: 'الجهاز الهضمي' },
+  'general physician': { en: 'General physician', ar: 'الطب العام' },
+  gynecologist: { en: 'Gynecologist', ar: 'النساء والتوليد' },
+  neurologist: { en: 'Neurologist', ar: 'طب الأعصاب' },
+  pediatricians: { en: 'Pediatricians', ar: 'طب الأطفال' },
+  pediatrician: { en: 'Pediatricians', ar: 'طب الأطفال' },
+  cardiologist: { en: 'Cardiologist', ar: 'أمراض القلب' },
+  dentist: { en: 'Dentist', ar: 'طب الأسنان' },
+  orthopedic: { en: 'Orthopedic', ar: 'العظام' },
+  psychiatrist: { en: 'Psychiatrist', ar: 'الطب النفسي' }
 }
 
 const CLINIC_SECTION_NAME_SET = new Set(
