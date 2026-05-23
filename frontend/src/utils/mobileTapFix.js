@@ -23,6 +23,7 @@ function findTapTarget(node) {
   if (el.disabled || el.getAttribute('aria-disabled') === 'true') return null
   if (el.tagName === 'A' && !el.getAttribute('href')) return null
   if (el.matches('input[type="file"], input[type="range"], input[type="color"]')) return null
+  if (el.closest('select, textarea, input:not([type="button"]):not([type="submit"]):not([type="reset"])')) return null
   return el
 }
 

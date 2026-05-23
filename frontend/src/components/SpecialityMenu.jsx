@@ -18,6 +18,14 @@ const SpecialityMenu = () => {
   const { doctors, clinics, siteSettings, t, tc, currencySymbol, language, displayPersonName, placeTranslationOverrides } = useContext(AppContext);
   const [selectedSection, setSelectedSection] = useState({ name: "All Specialities", id: null });
 
+  const fillT = (key, vars = {}) => {
+    let s = String(t(key));
+    Object.entries(vars).forEach(([k, v]) => {
+      s = s.split(`{{${k}}}`).join(String(v));
+    });
+    return s;
+  };
+
   const activeClinics = useMemo(
     () =>
       clinics
@@ -35,6 +43,11 @@ const SpecialityMenu = () => {
       doctorBelongsToClinicSection(doctor, selectedSection.name, { clinicId: selectedSection.id })
     );
   }, [doctors, selectedSection]);
+
+  const getClinicDoctorCount = (name, id = null) => {
+    if (name === "All Specialities") return doctors.length;
+    return doctors.filter((doctor) => doctorBelongsToClinicSection(doctor, name, { clinicId: id })).length;
+  };
 
   const doctorPages = useMemo(() => {
     const pages = [];
@@ -199,59 +212,66 @@ const SpecialityMenu = () => {
           )}
         </div>
 
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-              <Building2 className="h-5 w-5" />
-            </span>
-            <p className="font-bold text-gray-900">{t("Clinic sections")}</p>
+        <div className="mb-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Building2 className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-bold text-gray-900">{t("Clinic sections")}</p>
+                <p className="text-xs text-gray-500">{t("Select clinic section")}</p>
+              </div>
+            </div>
+            <div className="hidden shrink-0 gap-2 sm:flex">
+              <button type="button" onClick={() => scrollRail(clinicsRef, "prev")} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600" aria-label={t("Previous clinics")}>
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => scrollRail(clinicsRef, "next")} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600" aria-label={t("Next clinics")}>
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-          <div className="hidden shrink-0 gap-2 sm:flex">
-            <button type="button" onClick={() => scrollRail(clinicsRef, "prev")} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600" aria-label={t("Previous clinics")}>
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button type="button" onClick={() => scrollRail(clinicsRef, "next")} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600" aria-label={t("Next clinics")}>
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
 
-        <div
-          ref={clinicsRef}
-          className="mb-7 flex flex-wrap gap-2 pb-1 sm:flex-nowrap sm:gap-3 sm:overflow-x-auto sm:pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
-          <div className="flex w-full flex-wrap gap-2 sm:min-w-max sm:flex-nowrap sm:gap-3">
+          <div ref={clinicsRef} className="grid grid-cols-2 gap-2 sm:flex sm:flex-nowrap sm:gap-3 sm:overflow-x-auto sm:pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               key="all-doctors"
               type="button"
               onClick={() => handleSectionClick("All Specialities", null)}
-              className={`h-12 rounded-lg border px-4 text-sm font-medium transition whitespace-nowrap ${
+              className={`flex min-h-[3.25rem] flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-left transition sm:min-w-[9.5rem] ${
                 selectedSection.name === "All Specialities"
-                  ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                  : "border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200"
+                  ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm"
+                  : "border-gray-200 bg-white text-gray-800 hover:border-emerald-200"
               }`}
             >
-              {t("All doctors")}
+              <span className="text-sm font-semibold leading-tight">{t("All doctors")}</span>
+              <span className="mt-1 text-[11px] font-medium text-gray-500">{fillT("{{count}} doctors", { count: getClinicDoctorCount("All Specialities") })}</span>
             </button>
             {activeClinics.length ? activeClinics.map((clinic) => {
               const isActive = selectedSection.name === clinic.name;
+              const count = getClinicDoctorCount(clinic.name, clinic.id);
 
               return (
                 <button
                   key={clinic.id || clinic.name}
                   type="button"
                   onClick={() => handleSectionClick(clinic.name, clinic.id)}
-                  className={`h-12 rounded-lg border px-4 text-sm font-medium transition whitespace-nowrap ${
+                  className={`flex min-h-[3.25rem] flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-left transition sm:min-w-[9.5rem] sm:shrink-0 ${
                     isActive
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                      : "border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200"
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm"
+                      : "border-gray-200 bg-white text-gray-800 hover:border-emerald-200"
                   }`}
                 >
-                  {translatePlaceSegment(clinic.name, language, t, placeTranslationOverrides)}
+                  <span className="line-clamp-2 text-sm font-semibold leading-tight">
+                    {translatePlaceSegment(clinic.name, language, t, placeTranslationOverrides)}
+                  </span>
+                  <span className={`mt-1 text-[11px] font-medium ${isActive ? "text-emerald-700" : "text-gray-500"}`}>
+                    {fillT("{{count}} doctors", { count })}
+                  </span>
                 </button>
               );
             }) : (
-              <span className="rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">{t("No clinics added yet")}</span>
+              <span className="col-span-2 rounded-xl border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 sm:col-span-1">{t("No clinics added yet")}</span>
             )}
           </div>
         </div>

@@ -4,6 +4,7 @@ import { AppContext } from '../context/AppContext'
 import {
   CalendarDays,
   ChevronDown,
+  ChevronRight,
   CreditCard,
   HeartPulse,
   Home,
@@ -69,8 +70,10 @@ const Navbar = () => {
   }, [showMenu])
 
   const drawerLinkClass = (isActive) =>
-    `flex w-full items-center gap-3 rounded-xl px-4 py-3 font-medium transition ${
-      isActive ? 'bg-primary text-white' : 'text-gray-700 hover:bg-teal-50 hover:text-primary'
+    `flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-[15px] font-medium transition ${
+      isActive
+        ? 'border-primary/20 bg-primary text-white shadow-sm'
+        : 'border-transparent bg-gray-50 text-gray-800 active:bg-teal-50'
     }`
 
   return (
@@ -212,11 +215,12 @@ const Navbar = () => {
           <button
             type='button'
             onClick={() => setShowMenu(true)}
-            className='rounded-full border border-teal-100 bg-teal-50 p-2 text-primary md:hidden'
+            className='inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm transition active:bg-teal-50 md:hidden'
             aria-label={t('Menu')}
             aria-expanded={showMenu}
           >
-            <Menu className='h-5 w-5' />
+            <Menu className='h-5 w-5 text-primary' />
+            <span>{t('Menu')}</span>
           </button>
         </div>
       </div>
@@ -224,37 +228,41 @@ const Navbar = () => {
       {showMenu ? (
         <div className='fixed inset-0 z-[60] md:hidden' role='dialog' aria-modal='true' aria-label={t('Menu')}>
           <div
-            className='absolute inset-0 bg-gray-950/40'
+            className='absolute inset-0 bg-gray-950/50 backdrop-blur-[2px]'
             onClick={() => setShowMenu(false)}
             role='presentation'
           />
 
-          <aside className='absolute top-0 right-0 bottom-0 flex h-full w-[min(100vw-2.5rem,20rem)] max-w-sm flex-col overflow-y-auto bg-white shadow-2xl'>
-            <div className='flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3'>
-              <button type='button' onClick={() => closeAndNavigate('/')} className='min-w-0 text-left'>
-                <BrandLogo siteSettings={siteSettings} imgClassName={patientDrawerLogoClassName} />
-              </button>
-              <button
-                type='button'
-                onClick={() => setShowMenu(false)}
-                className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600'
-                aria-label='Close'
-              >
-                <X className='h-5 w-5' />
-              </button>
+          <aside className='absolute top-0 right-0 bottom-0 flex h-full w-[min(100vw-1.25rem,22rem)] max-w-sm flex-col overflow-hidden bg-white shadow-2xl'>
+            <div className='border-b border-teal-100 bg-gradient-to-br from-teal-50 via-white to-blue-50 px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))]'>
+              <div className='flex items-center justify-between gap-3'>
+                <button type='button' onClick={() => closeAndNavigate('/')} className='min-w-0 text-left'>
+                  <BrandLogo siteSettings={siteSettings} imgClassName={patientDrawerLogoClassName} />
+                </button>
+                <button
+                  type='button'
+                  onClick={() => setShowMenu(false)}
+                  className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm'
+                  aria-label={t('Close')}
+                >
+                  <X className='h-5 w-5' />
+                </button>
+              </div>
+
+              {token && userData ? (
+                <div className='mt-4 flex items-center gap-3 rounded-2xl border border-white/80 bg-white/90 p-3 shadow-sm'>
+                  <img className='h-12 w-12 shrink-0 rounded-full border-2 border-teal-100 object-cover' src={userData.image} alt='' />
+                  <div className='min-w-0 flex-1'>
+                    <p className='truncate text-sm font-bold text-gray-900'>{displayPersonName(userData.name) || t('User')}</p>
+                    <p className='truncate text-xs text-gray-500'>{userData.email}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className='mt-3 text-sm leading-relaxed text-gray-600'>{t('Menu welcome guest')}</p>
+              )}
             </div>
 
-            {token && userData && (
-              <div className='mx-4 mt-4 flex items-center gap-3 rounded-xl bg-teal-50 p-4'>
-                <img className='h-12 w-12 shrink-0 rounded-full border-2 border-white object-cover shadow-sm' src={userData.image} alt='' />
-                <div className='min-w-0'>
-                  <p className='truncate font-semibold text-gray-900'>{displayPersonName(userData.name) || t('User')}</p>
-                  <p className='truncate text-xs text-gray-500'>{userData.email}</p>
-                </div>
-              </div>
-            )}
-
-            <div className='flex-1 px-4 py-4'>
+            <div className='flex-1 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]'>
               <p className='mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400'>{t('Browse')}</p>
               <ul className='flex flex-col gap-1'>
                 {publicLinks.map(({ to, label, icon: Icon }) => (
@@ -265,8 +273,11 @@ const Navbar = () => {
                       onClick={() => setShowMenu(false)}
                       className={({ isActive }) => drawerLinkClass(isActive)}
                     >
-                      <Icon className='h-4 w-4 shrink-0' />
-                      {t(label)}
+                      <span className='flex items-center gap-3'>
+                        <Icon className='h-4 w-4 shrink-0' />
+                        {t(label)}
+                      </span>
+                      <ChevronRight className='h-4 w-4 shrink-0 opacity-60' />
                     </NavLink>
                   </li>
                 ))}
@@ -278,15 +289,21 @@ const Navbar = () => {
                   <ul className='flex flex-col gap-1'>
                     <li>
                       <NavLink to='/my-appointments' onClick={() => setShowMenu(false)} className={({ isActive }) => drawerLinkClass(isActive)}>
-                        <CalendarDays className='h-4 w-4 shrink-0' />
-                        {t('My Appointments')}
+                        <span className='flex items-center gap-3'>
+                          <CalendarDays className='h-4 w-4 shrink-0' />
+                          {t('My Appointments')}
+                        </span>
+                        <ChevronRight className='h-4 w-4 shrink-0 opacity-60' />
                       </NavLink>
                     </li>
                     {accountLinks.map(({ to, label, icon: Icon }) => (
                       <li key={to}>
                         <NavLink to={to} onClick={() => setShowMenu(false)} className={({ isActive }) => drawerLinkClass(isActive)}>
-                          <Icon className='h-4 w-4 shrink-0' />
-                          {t(label)}
+                          <span className='flex items-center gap-3'>
+                            <Icon className='h-4 w-4 shrink-0' />
+                            {t(label)}
+                          </span>
+                          <ChevronRight className='h-4 w-4 shrink-0 opacity-60' />
                         </NavLink>
                       </li>
                     ))}
@@ -328,7 +345,7 @@ const Navbar = () => {
                     setShowMenu(false)
                     logout()
                   }}
-                  className='mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 py-3 font-semibold text-white transition hover:bg-red-600'
+                  className='mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3.5 text-sm font-semibold text-red-600 transition active:bg-red-100'
                 >
                   <LogOut className='h-4 w-4' />
                   {t('Logout')}

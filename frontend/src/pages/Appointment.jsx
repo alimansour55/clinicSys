@@ -10,7 +10,7 @@ import { buildDoctorSlots, slotDateForCalendarOffset } from '../utils/schedule'
 import { usesClinicWeeklySchedule } from '../utils/doctorBooking'
 import { Elements, CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
-import { Banknote, CalendarDays, CheckCircle2, CreditCard, MapPin, Phone, Receipt, ShieldCheck, Stethoscope, Tag, Video, Building2, Home, MessageCircle } from 'lucide-react'
+import { Banknote, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, CreditCard, MapPin, Phone, Receipt, ShieldCheck, Stethoscope, Tag, Video, Building2, Home, MessageCircle } from 'lucide-react'
 import { RatingBadge, RatingsList, StarRow } from '../components/DoctorRating'
 import PromoOfferBadge from '../components/PromoOfferBadge'
 import { computeDoctorPromoDiscountAmount, getPromoOfferLabel } from '../utils/promo'
@@ -26,6 +26,7 @@ import { formatLocationLine, translatePlaceSegment } from '../utils/placeTransla
 import { getTranslatedDoctorAbout } from '../utils/doctorAboutTranslate'
 import { formatExperienceEn, parseExperienceYears } from '../utils/doctorExperience'
 import { hasDoctorPublishedSchedule, isDoctorBookableForPatients } from '../utils/doctorBooking'
+import { useMediaQuery } from '../utils/useMediaQuery'
 
 const APPOINTMENT_TYPE_OPTIONS = [
   { value: 'Clinic', labelKey: 'In clinic', hintKey: 'Visit the clinic', icon: Building2 },
@@ -146,6 +147,8 @@ const Appointment = () => {
 
   const [slotIndex, setSlotIndex] = useState(null)
   const [slotTime, setSlotTime] = useState('')
+  const [weekOffset, setWeekOffset] = useState(0)
+  const isMobile = useMediaQuery('(max-width: 1023px)')
 
   const [isBooking, setIsBooking] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('Cash')
@@ -211,6 +214,19 @@ const Appointment = () => {
     () => docInfo ? buildDoctorSlots(docInfo, 31, activeAppointmentType, selectedClinicLocation, crossBranchHold) : [],
     [docInfo, activeAppointmentType, selectedClinicLocation, crossBranchHold]
   )
+  const maxWeekOffset = Math.max(0, Math.ceil(docSlots.length / 7) - 1)
+  const visibleSlots = useMemo(() => {
+    if (!isMobile) return docSlots.map((item, index) => ({ item, globalIndex: index }))
+    const start = weekOffset * 7
+    return docSlots.slice(start, start + 7).map((item, index) => ({ item, globalIndex: start + index }))
+  }, [docSlots, isMobile, weekOffset])
+  const weekRangeLabel = useMemo(() => {
+    if (!visibleSlots.length) return ''
+    const first = visibleSlots[0].item.dateTime
+    const last = visibleSlots[visibleSlots.length - 1].item.dateTime
+    const fmt = (date) => `${date.getDate()}/${date.getMonth() + 1}`
+    return `${fmt(first)} – ${fmt(last)}`
+  }, [visibleSlots])
   const activePromoCode = String(docInfo?.promoCode?.code || '').trim().toUpperCase()
   const promoActive = Boolean(docInfo?.promoCode?.active && activePromoCode)
   const promoLabel = useMemo(
@@ -314,6 +330,18 @@ const Appointment = () => {
       setPendingPayment(null)
     }
   }, [activeAppointmentType, doctorHomeVisitAreas, homeVisitAddress.area])
+
+  useEffect(() => {
+    setWeekOffset(0)
+    setSlotIndex(null)
+    setSlotTime('')
+    setSlotBranch('')
+    setPendingPayment(null)
+  }, [activeAppointmentType, selectedClinicLocation, docId])
+
+  useEffect(() => {
+    if (weekOffset > maxWeekOffset) setWeekOffset(maxWeekOffset)
+  }, [weekOffset, maxWeekOffset])
 
   useEffect(() => {
     const loadRatings = async () => {
@@ -769,25 +797,61 @@ const Appointment = () => {
           )}
         </div>
 
-        <div className='tap-row-mobile-wrap flex w-full items-center gap-3 overflow-x-auto pb-2'>
+        {isMobile && docSlots.length > 7 && (
+          <div className='mb-4 flex items-center justify-between gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5'>
+            <button
+              type='button'
+              disabled={weekOffset === 0}
+              onClick={() => {
+                setWeekOffset((value) => Math.max(0, value - 1))
+                setSlotIndex(null)
+                setSlotTime('')
+                setSlotBranch('')
+                setPendingPayment(null)
+              }}
+              className='inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40'
+            >
+              <ChevronLeft className='h-4 w-4' />
+              {t('Previous week')}
+            </button>
+            <p className='text-center text-xs font-semibold text-gray-600'>{localizeDigits(weekRangeLabel)}</p>
+            <button
+              type='button'
+              disabled={weekOffset >= maxWeekOffset}
+              onClick={() => {
+                setWeekOffset((value) => Math.min(maxWeekOffset, value + 1))
+                setSlotIndex(null)
+                setSlotTime('')
+                setSlotBranch('')
+                setPendingPayment(null)
+              }}
+              className='inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40'
+            >
+              {t('Next week')}
+              <ChevronRight className='h-4 w-4' />
+            </button>
+          </div>
+        )}
+
+        <div className={isMobile ? 'grid grid-cols-4 gap-2' : 'tap-row-mobile-wrap flex w-full items-center gap-3 overflow-x-auto pb-2'}>
           {
-            docSlots.length && docSlots.map((item, index) => (
+            visibleSlots.length > 0 && visibleSlots.map(({ item, globalIndex }) => (
              <button
               type='button'
               disabled={!item.slots.length}
               onClick={() => {
                 if (!item.slots.length) return
-                setSlotIndex(slotIndex === index ? null : index)
+                setSlotIndex(slotIndex === globalIndex ? null : globalIndex)
                 setSlotTime('')
                 setSlotBranch('')
                 setPendingPayment(null)
               }}
-                className={`min-w-20 rounded-2xl px-4 py-3 text-center text-sm font-bold transition ${item.slots.length ? 'hover:border-primary/40 hover:bg-teal-50' : 'cursor-not-allowed bg-gray-100 text-gray-500 opacity-50'} ${slotIndex === index ? 'bg-primary text-white shadow-sm' : 'border border-gray-200'}`}
-              key={index}
+                className={`${isMobile ? 'min-w-0 rounded-xl px-2 py-2.5' : 'min-w-20 rounded-2xl px-4 py-3'} text-center text-sm font-bold transition ${item.slots.length ? 'hover:border-primary/40 hover:bg-teal-50' : 'cursor-not-allowed bg-gray-100 text-gray-500 opacity-50'} ${slotIndex === globalIndex ? 'bg-primary text-white shadow-sm' : 'border border-gray-200'}`}
+              key={globalIndex}
              >
-              <p>{weekShortLabels[item.dateTime.getDay()]}</p>
-              <p>{localizeDigits(String(item.dateTime.getDate()))}</p>
-              <p className='mt-1 text-[11px] font-medium opacity-80'>{fillT('{{n}} slots', { n: item.slots.filter((slot) => slot.available).length })}</p>
+              <p className={isMobile ? 'text-[10px] font-semibold uppercase' : ''}>{weekShortLabels[item.dateTime.getDay()]}</p>
+              <p className={isMobile ? 'text-base' : ''}>{localizeDigits(String(item.dateTime.getDate()))}</p>
+              <p className={`mt-1 font-medium opacity-80 ${isMobile ? 'text-[10px]' : 'text-[11px]'}`}>{fillT('{{n}} slots', { n: item.slots.filter((slot) => slot.available).length })}</p>
              </button>
             ))
           }
