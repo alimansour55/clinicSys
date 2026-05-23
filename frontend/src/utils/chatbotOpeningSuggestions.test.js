@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildClinicSectionSuggestions,
-  DEFAULT_CLINIC_SECTION_NAMES
+  buildFallbackOpeningSuggestions,
+  DEFAULT_CLINIC_SECTION_NAMES,
+  resolveClinicSectionLabel
 } from './chatbotOpeningSuggestions'
 
 describe('chatbotOpeningSuggestions', () => {
@@ -30,6 +32,24 @@ describe('chatbotOpeningSuggestions', () => {
       t: (k) => k,
       tc: (k) => k
     })
-    expect(suggestions).toHaveLength(DEFAULT_CLINIC_SECTION_NAMES.length)
+    expect(suggestions).toHaveLength(6)
+  })
+
+  it('uses Arabic clinic section labels', () => {
+    expect(resolveClinicSectionLabel('Dermatologist', 'ar')).toBe('جلدية')
+    expect(resolveClinicSectionLabel('Pediatricians', 'ar')).toBe('أطفال')
+    expect(resolveClinicSectionLabel('Neurologist', 'ar')).toBe('مخ وأعصاب')
+    expect(resolveClinicSectionLabel('Gynecologist', 'ar')).toBe('نساء وتوليد')
+    expect(resolveClinicSectionLabel('General physician', 'ar')).toBe('طبيب عام')
+    expect(resolveClinicSectionLabel('Gastroenterologist', 'ar')).toBe('جهاز هضمي')
+
+    const arSuggestions = buildClinicSectionSuggestions({
+      doctors: [],
+      clinics: [{ _id: '1', name: 'Dermatologist' }],
+      language: 'ar',
+      t: (k) => k,
+      tc: (k) => k
+    })
+    expect(arSuggestions[0].label).toBe('جلدية')
   })
 })

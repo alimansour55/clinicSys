@@ -14,6 +14,29 @@ export const DEFAULT_CLINIC_SECTION_NAMES = [
 
 const norm = (value) => String(value || '').trim().toLowerCase()
 
+/** Chatbot clinic section chips — short labels for AR / EN. */
+export const CLINIC_SECTION_LABELS = {
+  dermatologist: { en: 'Dermatologist', ar: 'جلدية' },
+  gastroenterologist: { en: 'Gastroenterologist', ar: 'جهاز هضمي' },
+  'general physician': { en: 'General Physician', ar: 'طبيب عام' },
+  gynecologist: { en: 'Gynecologist', ar: 'نساء وتوليد' },
+  neurologist: { en: 'Neurologist', ar: 'مخ وأعصاب' },
+  pediatricians: { en: 'Pediatricians', ar: 'أطفال' },
+  pediatrician: { en: 'Pediatricians', ar: 'أطفال' }
+}
+
+export const resolveClinicSectionLabel = (name, language = 'en', t = (k) => k, tc = (k) => k, placeTranslationOverrides) => {
+  const key = norm(name)
+  const mapped = CLINIC_SECTION_LABELS[key]
+  if (mapped) return language === 'ar' ? mapped.ar : mapped.en
+
+  return (
+    translatePlaceSegment(name, language, t, placeTranslationOverrides) ||
+    (language === 'ar' ? tc(name) : name) ||
+    name
+  )
+}
+
 const bookableDoctors = (doctors) =>
   (doctors || []).filter((d) => isDoctorBookableForPatients(d) && !isDoctorComingSoon(d))
 
@@ -22,8 +45,7 @@ const toClinicRow = (clinic, language, t, tc, placeTranslationOverrides) => {
   const name = String(clinic?.name || clinic || '').trim()
   if (!name) return null
 
-  const label =
-    translatePlaceSegment(name, language, t, placeTranslationOverrides) || tc(name) || name
+  const label = resolveClinicSectionLabel(name, language, t, tc, placeTranslationOverrides)
 
   return {
     id: `clinic-${id || name}`,
@@ -84,11 +106,11 @@ export const buildClinicSectionSuggestions = ({
 /** @deprecated use buildClinicSectionSuggestions */
 export const buildOpeningSuggestions = (opts) => buildClinicSectionSuggestions(opts)
 
-export const buildFallbackOpeningSuggestions = (isRtl) =>
+export const buildFallbackOpeningSuggestions = (language = 'en') =>
   DEFAULT_CLINIC_SECTION_NAMES.map((name) => ({
     id: `clinic-${norm(name)}`,
     kind: 'clinic',
-    label: name,
+    label: resolveClinicSectionLabel(name, language),
     clinicName: name,
     clinicId: null,
     doctorCount: 0

@@ -160,16 +160,16 @@ const ChatbotWidget = () => {
         clinics,
         t,
         tc,
-        language: siteLanguage,
+        language: chatLang,
         placeTranslationOverrides
       }),
-    [doctors, clinics, t, tc, siteLanguage, placeTranslationOverrides]
+    [doctors, clinics, t, tc, chatLang, placeTranslationOverrides]
   )
 
   const fallbackQuickReplies = () =>
     clinicSectionSuggestions.length
       ? clinicSectionSuggestions
-      : buildFallbackOpeningSuggestions(isRtl)
+      : buildFallbackOpeningSuggestions(chatLang)
 
   const audienceQuickReplies = () => [
     { id: 'adult', label: L('Adult', 'شخص بالغ'), specialty: SPECIALTY_IDS.GENERAL },
@@ -183,7 +183,7 @@ const ChatbotWidget = () => {
     setChatLang(siteLanguage)
     setMessages([{ role: 'assistant', content: initialGreeting() }])
     setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
-    setQuickReplies(buildFallbackOpeningSuggestions(siteLanguage === 'ar'))
+    setQuickReplies(buildFallbackOpeningSuggestions(siteLanguage))
     getDoctorsData?.()
     getClinicsData?.()
   }, [open, siteLanguage])
@@ -193,9 +193,9 @@ const ChatbotWidget = () => {
     if (matchedDoctors.length > 0 || typing || booking) return
     const next = clinicSectionSuggestions.length
       ? clinicSectionSuggestions
-      : buildFallbackOpeningSuggestions(isRtl)
+      : buildFallbackOpeningSuggestions(chatLang)
     setQuickReplies(next)
-  }, [open, chatStep, clinicSectionSuggestions, matchedDoctors.length, typing, booking, isRtl])
+  }, [open, chatStep, clinicSectionSuggestions, matchedDoctors.length, typing, booking, chatLang])
 
   const getSnapshot = () =>
     captureChatSnapshot({
