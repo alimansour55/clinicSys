@@ -2,6 +2,7 @@ import { buildDoctorSlots } from './schedule'
 import {
   hasDoctorPublishedSchedule,
   isDoctorBookableForPatients,
+  isTeleconsultationType,
   usesClinicWeeklySchedule
 } from './doctorBooking'
 import { doctorOffersHomeVisit } from './homeVisitAreas'
@@ -47,7 +48,8 @@ const toSlotDate = (date) =>
   `${date.getDate()}_${date.getMonth() + 1}_${date.getFullYear()}`
 
 export const buildChatbotSlotDays = (doctor, appointmentType, clinicLocation = '', days = 14) => {
-  const rows = buildDoctorSlots(doctor, days, appointmentType, clinicLocation)
+  const branch = String(clinicLocation || '').trim()
+  const rows = buildDoctorSlots(doctor, days, appointmentType, branch)
   return rows
     .map((row) => {
       const availableSlots = (row.slots || []).filter((s) => s.available)
@@ -55,10 +57,46 @@ export const buildChatbotSlotDays = (doctor, appointmentType, clinicLocation = '
       return {
         slotDate: toSlotDate(row.dateTime),
         date: row.dateTime.toISOString(),
-        slots: availableSlots.map((s) => ({ time: s.time }))
+        slots: availableSlots.map((s) => ({
+          time: s.time,
+          ...(branch ? { branch } : {})
+        }))
       }
     })
     .filter(Boolean)
+}
+
+/** Merge available slots across branches (voice/video — no location picker). */
+export const mergeMultiBranchChatbotSlots = (doctor, appointmentType, locations, days = 14) => {
+  const dayMap = new Map()
+
+  for (const loc of locations) {
+    const branchDays = buildChatbotSlotDays(doctor, appointmentType, loc, days)
+    for (const day of branchDays) {
+      if (!dayMap.has(day.slotDate)) {
+        dayMap.set(day.slotDate, {
+          slotDate: day.slotDate,
+          date: day.date,
+          slots: []
+        })
+      }
+      const entry = dayMap.get(day.slotDate)
+      for (const slot of day.slots) {
+        const exists = entry.slots.some((s) => s.time === slot.time && s.branch === loc)
+        if (!exists) {
+          entry.slots.push({ time: slot.time, branch: loc })
+        }
+      }
+    }
+  }
+
+  return [...dayMap.values()]
+    .map((day) => ({
+      ...day,
+      slots: day.slots.sort((a, b) => a.time.localeCompare(b.time))
+    }))
+    .filter((day) => day.slots.length)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
 }
 
 export const countSlotsInDays = (days) =>
@@ -66,6 +104,16 @@ export const countSlotsInDays = (days) =>
 
 export const probeDoctorBranchesForType = (doctor, appointmentType, days = 14) => {
   const locs = (doctor?.locations || []).map((l) => String(l || '').trim()).filter(Boolean)
+
+  if (isTeleconsultationType(appointmentType) && locs.length > 1) {
+    const slotDays = mergeMultiBranchChatbotSlots(doctor, appointmentType, locs, days)
+    return {
+      mode: countSlotsInDays(slotDays) ? 'ready' : 'empty',
+      branch: '',
+      days: slotDays,
+      mergedTeleconsultation: true
+    }
+  }
 
   if (!usesClinicWeeklySchedule(appointmentType) || locs.length <= 1) {
     const branch = locs[0] || ''

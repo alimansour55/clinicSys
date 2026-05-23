@@ -10,6 +10,7 @@ import { isValidEgyptPhone, normalizeEgyptPhone } from '../../utils/egyptPhone'
 import {
   isDoctorComingSoon,
   isDoctorBookableForPatients,
+  isTeleconsultationType,
   usesClinicWeeklySchedule,
   hasDoctorPublishedSchedule
 } from '../../utils/doctorBooking'
@@ -668,7 +669,8 @@ const ChatbotWidget = () => {
 
   const beginSlotSelection = (doctor, appointmentType, days, branch = '') => {
     pushHistory()
-    if (branch) setClinicLocation(branch)
+    if (branch && !isTeleconsultationType(appointmentType)) setClinicLocation(branch)
+    else if (isTeleconsultationType(appointmentType)) setClinicLocation('')
     applySlotDays(days)
     setChatStep(CHAT_STEPS.WAITING_DATE)
     const typeLabel = t(
@@ -744,7 +746,7 @@ const ChatbotWidget = () => {
     setLocationOptions([])
     setDateOptions([])
     setTimeOptions([])
-    if (!usesClinicWeeklySchedule(type)) setClinicLocation('')
+    if (!usesClinicWeeklySchedule(type) || isTeleconsultationType(type)) setClinicLocation('')
 
     await withTyping(() => afterAppointmentTypeChosen(doctor, type))
   }
@@ -915,6 +917,8 @@ const ChatbotWidget = () => {
 
   const chooseTime = (slot) => {
     pushHistory()
+    if (slot.branch) setClinicLocation(slot.branch)
+
     const next = {
       ...bookingData,
       time: slot.time,
@@ -939,7 +943,9 @@ const ChatbotWidget = () => {
         })
       : ''
     const branchLine =
-      usesClinicWeeklySchedule(data.appointmentType) && clinicLocation
+      usesClinicWeeklySchedule(data.appointmentType) &&
+      !isTeleconsultationType(data.appointmentType) &&
+      clinicLocation
         ? translateLoc(clinicLocation)
         : ''
     const appointmentLabel = t(

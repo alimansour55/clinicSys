@@ -30,6 +30,9 @@ export const isDoctorComingSoon = (doctor) => !hasDoctorPublishedSchedule(doctor
 export const usesClinicWeeklySchedule = (appointmentType) =>
   appointmentType === 'Clinic' || appointmentType === 'Voice Call' || appointmentType === 'Video Call'
 
+export const isTeleconsultationType = (appointmentType) =>
+  appointmentType === 'Voice Call' || appointmentType === 'Video Call'
+
 /** Resolve which clinic branch schedule applies (auto-picks when only one location). */
 export const resolveClinicLocationForSlots = (doctor, clinicLocation = '') => {
   const key = String(clinicLocation || '').trim()
