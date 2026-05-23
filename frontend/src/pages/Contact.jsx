@@ -8,7 +8,7 @@ const DEFAULT_CONTACT_EMAIL = 'contact@clinivo.com'
 
 const Contact = () => {
   const { siteSettings } = useContext(AppContext)
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const footer = siteSettings?.footer || {}
   const phoneNumber = footer.phoneNumber || DEFAULT_CONTACT_PHONE
   const email = footer.email || DEFAULT_CONTACT_EMAIL
@@ -17,8 +17,13 @@ const Contact = () => {
     <div>
       <div className='text-center text-2xl pt-10 text-gray-500'>
         <p>
-          {t('Contact page title prefix')}{' '}
-          <span className='text-gray-700 font-semibold'>{t('Contact page title emphasis')}</span>
+          {language === 'ar' ? (
+            <span className='text-gray-700 font-semibold'>{t('Contact us heading')}</span>
+          ) : (
+            <>
+              CONTACT <span className='text-gray-700 font-semibold'>US</span>
+            </>
+          )}
         </p>
       </div>
 
