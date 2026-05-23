@@ -9,6 +9,8 @@ const DoctorChatCard = ({
   specialtyLabel,
   locationLabel,
   feesLabel,
+  feeHintLabel,
+  locationsLabel,
   chooseLabel,
   unavailableLabel,
   comingSoonLabel,
@@ -48,13 +50,23 @@ const DoctorChatCard = ({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-bold text-gray-900">{displayName}</p>
         <p className="truncate text-xs text-gray-600">{specialtyLabel}</p>
-        {locationLabel && (
+        {feesLabel && (
+          <p className="mt-1.5 inline-flex rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800">
+            {feeHintLabel ? `${feeHintLabel}: ` : ''}
+            {feesLabel}
+          </p>
+        )}
+        {locationsLabel ? (
+          <p className="mt-1 flex items-start gap-1 text-[11px] text-gray-500">
+            <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-blue-500" />
+            <span className="line-clamp-3">{locationsLabel}</span>
+          </p>
+        ) : locationLabel ? (
           <p className="mt-1 flex items-start gap-1 text-[11px] text-gray-500">
             <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-blue-500" />
             <span className="line-clamp-2">{locationLabel}</span>
           </p>
-        )}
-        {feesLabel && <p className="mt-1 text-[11px] font-semibold text-emerald-700">{feesLabel}</p>}
+        ) : null}
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <RatingBadge summary={doctor.ratingSummary} className="static" />
           <span

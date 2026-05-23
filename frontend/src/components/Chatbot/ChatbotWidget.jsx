@@ -12,6 +12,7 @@ import {
   detectLanguage,
   detectSpecialtyFromMessage,
   filterDoctorsBySpecialty,
+  getDoctorLocations,
   getDoctorPrimaryLocation,
   getDoctorSpecialty,
   SPECIALTY_IDS
@@ -24,6 +25,7 @@ const CHAT_STEPS = {
   WAITING_SYMPTOMS: 'waiting_for_symptoms',
   CLARIFY_AUDIENCE: 'clarifying_audience',
   SHOWING_DOCTORS: 'showing_doctors',
+  WAITING_LOCATION: 'waiting_for_location',
   WAITING_DATE: 'waiting_for_date',
   WAITING_TIME: 'waiting_for_time',
   WAITING_NAME: 'waiting_for_patient_name',
@@ -68,6 +70,7 @@ const ChatbotWidget = () => {
   const [clinicLocation, setClinicLocation] = useState('')
   const [dateOptions, setDateOptions] = useState([])
   const [timeOptions, setTimeOptions] = useState([])
+  const [locationOptions, setLocationOptions] = useState([])
 
   const [bookingData, setBookingData] = useState({
     symptoms: '',
@@ -110,6 +113,21 @@ const ChatbotWidget = () => {
   const translateLoc = (loc) =>
     formatLocationLine(loc, isRtl ? 'ar' : 'en', t, placeTranslationOverrides)
 
+  const formatDoctorFee = (doctor) => {
+    const amount = Number(doctor?.fees)
+    if (!Number.isFinite(amount) || amount <= 0) return ''
+    return `${currencySymbol}${localizeDigits(String(amount))}`
+  }
+
+  const formatDoctorLocationsLine = (doctor) => {
+    const locs = getDoctorLocations(doctor)
+    if (!locs.length) {
+      const fallback = getDoctorPrimaryLocation(doctor)
+      return fallback ? translateLoc(fallback) : t('Clinic location')
+    }
+    return locs.map((loc) => translateLoc(loc)).join(' · ')
+  }
+
   const initialGreeting = () =>
     L(
       'Hi 👋 I can help you choose the right doctor and book an appointment. Tell me what problem you have.',
@@ -138,6 +156,16 @@ const ChatbotWidget = () => {
     setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
     getDoctorsData?.()
   }, [open, siteLanguage])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (!open) {
+      document.body.classList.remove('chatbot-open')
+      return
+    }
+    document.body.classList.add('chatbot-open')
+    return () => document.body.classList.remove('chatbot-open')
+  }, [open])
 
   useEffect(() => {
     if (userData?.name) {
@@ -261,15 +289,7 @@ const ChatbotWidget = () => {
     await showDoctorsForSpecialty(reply.specialty, reply.label)
   }
 
-  const loadSlotsForDoctor = async (doctor) => {
-    const data = await fetchChatbotSlots(backendUrl, {
-      docId: doctor._id,
-      days: 14,
-      clinicLocation
-    })
-    if (!data.success) throw new Error(data.message || 'Failed to load slots')
-    if (data.clinicLocation) setClinicLocation(data.clinicLocation)
-    const days = data.days || []
+  const applySlotDays = (days) => {
     setSlotDays(days)
     setDateOptions(
       days.map((d) => ({
@@ -282,7 +302,72 @@ const ChatbotWidget = () => {
         })
       }))
     )
-    return days
+  }
+
+  const loadSlotsForDoctor = async (doctor, branch = '') => {
+    const data = await fetchChatbotSlots(backendUrl, {
+      docId: doctor._id,
+      days: 14,
+      clinicLocation: branch || clinicLocation
+    })
+    if (!data.success) throw new Error(data.message || 'Failed to load slots')
+    return data
+  }
+
+  const probeDoctorBranches = async (doctor) => {
+    const locs = getDoctorLocations(doctor)
+    if (locs.length <= 1) {
+      const branch = locs[0] || ''
+      const data = await loadSlotsForDoctor(doctor, branch)
+      if (data.clinicLocation) setClinicLocation(data.clinicLocation)
+      return { mode: 'ready', branch, days: data.days || [] }
+    }
+
+    const results = await Promise.all(
+      locs.map(async (loc) => {
+        try {
+          const data = await loadSlotsForDoctor(doctor, loc)
+          const days = data.days || []
+          const slotCount = days.reduce((n, d) => n + (d.slots?.length || 0), 0)
+          return { loc, days, slotCount }
+        } catch {
+          return { loc, days: [], slotCount: 0 }
+        }
+      })
+    )
+
+    const withSlots = results.filter((r) => r.slotCount > 0)
+    if (!withSlots.length) return { mode: 'empty', branches: results }
+    if (withSlots.length === 1) {
+      setClinicLocation(withSlots[0].loc)
+      return { mode: 'ready', branch: withSlots[0].loc, days: withSlots[0].days }
+    }
+    return { mode: 'pick_branch', branches: withSlots }
+  }
+
+  const chooseLocation = async (branch) => {
+    const doctor = bookingData.selectedDoctor
+    if (!doctor) return
+    setClinicLocation(branch.loc)
+    setLocationOptions([])
+    pushUser(translateLoc(branch.loc))
+
+    await withTyping(async () => {
+      try {
+        applySlotDays(branch.days)
+        setChatStep(CHAT_STEPS.WAITING_DATE)
+        pushBot(
+          L(
+            `Available times at ${translateLoc(branch.loc)}. What date works for you?`,
+            `المواعيد المتاحة في ${translateLoc(branch.loc)}. اختار اليوم المناسب:`
+          )
+        )
+      } catch {
+        pushBot(
+          L('Sorry, I could not load available times.', 'آسف، لم أتمكن من تحميل المواعيد.')
+        )
+      }
+    })
   }
 
   const chooseDoctor = async (doctor) => {
@@ -296,12 +381,16 @@ const ChatbotWidget = () => {
       time: ''
     }))
     setMatchedDoctors([])
-    setChatStep(CHAT_STEPS.WAITING_DATE)
+    setLocationOptions([])
+    setDateOptions([])
+    setTimeOptions([])
+    setClinicLocation('')
 
     await withTyping(async () => {
       try {
-        const days = await loadSlotsForDoctor(doctor)
-        if (!days.length) {
+        const result = await probeDoctorBranches(doctor)
+
+        if (result.mode === 'empty') {
           pushBot(
             L(
               'This doctor has no available slots right now. Please choose another doctor.',
@@ -311,10 +400,26 @@ const ChatbotWidget = () => {
           setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
           return
         }
+
+        if (result.mode === 'pick_branch') {
+          setLocationOptions(result.branches)
+          setChatStep(CHAT_STEPS.WAITING_LOCATION)
+          pushBot(
+            L(
+              `${displayPersonName(doctor.name)} works at more than one clinic. Please choose a location:`,
+              `${displayPersonName(doctor.name)} متاح في أكثر من فرع. اختار فرع العيادة:`
+            )
+          )
+          return
+        }
+
+        applySlotDays(result.days)
+        setChatStep(CHAT_STEPS.WAITING_DATE)
+        const fee = formatDoctorFee(doctor)
         pushBot(
           L(
-            `Great. You chose ${displayPersonName(doctor.name)}. What date works for you?`,
-            `تمام. اخترت ${displayPersonName(doctor.name)}. إيه اليوم المناسب ليك؟`
+            `Great. You chose ${displayPersonName(doctor.name)}${fee ? ` (${L('Consultation fee', 'رسوم الكشف')}: ${fee})` : ''}. What date works for you?`,
+            `تمام. اخترت ${displayPersonName(doctor.name)}${fee ? ` (${L('Consultation fee', 'رسوم الكشف')}: ${fee})` : ''}. اختار اليوم المناسب:`
           )
         )
       } catch {
@@ -385,10 +490,12 @@ const ChatbotWidget = () => {
           day: 'numeric'
         })
       : ''
+    const fee = formatDoctorFee(d)
+    const branchLine = clinicLocation ? translateLoc(clinicLocation) : ''
     pushBot(
       L(
-        `Booking summary:\n• Doctor: ${displayPersonName(d?.name)}\n• Specialty: ${tc(getDoctorSpecialty(d))}\n• Date: ${dateLabel}\n• Time: ${data.time}\n• Name: ${data.patientName}\n• Phone: ${data.phone}\n\nTap Confirm to book.`,
-        `ملخص الحجز:\n• الدكتور: ${displayPersonName(d?.name)}\n• التخصص: ${tc(getDoctorSpecialty(d))}\n• التاريخ: ${dateLabel}\n• الوقت: ${localizeDigits(data.time)}\n• الاسم: ${data.patientName}\n• الهاتف: ${data.phone}\n\nاضغط تأكيد لإتمام الحجز.`
+        `Booking summary:\n• Doctor: ${displayPersonName(d?.name)}\n• Specialty: ${tc(getDoctorSpecialty(d))}${fee ? `\n• Consultation fee: ${fee}` : ''}${branchLine ? `\n• Clinic: ${branchLine}` : ''}\n• Date: ${dateLabel}\n• Time: ${data.time}\n• Name: ${data.patientName}\n• Phone: ${data.phone}\n\nTap Confirm to book.`,
+        `ملخص الحجز:\n• الدكتور: ${displayPersonName(d?.name)}\n• التخصص: ${tc(getDoctorSpecialty(d))}${fee ? `\n• رسوم الكشف: ${fee}` : ''}${branchLine ? `\n• الفرع: ${branchLine}` : ''}\n• التاريخ: ${dateLabel}\n• الوقت: ${localizeDigits(data.time)}\n• الاسم: ${data.patientName}\n• الهاتف: ${data.phone}\n\nاضغط تأكيد لإتمام الحجز.`
       )
     )
   }
@@ -492,6 +599,15 @@ const ChatbotWidget = () => {
           break
         }
 
+        case CHAT_STEPS.WAITING_LOCATION:
+          pushBot(
+            L(
+              'Please tap one of the clinic locations below.',
+              'من فضلك اختار فرع العيادة من الأزرار بالأسفل.'
+            )
+          )
+          break
+
         case CHAT_STEPS.WAITING_TIME: {
           const match = timeOptions.find((s) =>
             s.time.toLowerCase().includes(text.toLowerCase())
@@ -540,14 +656,14 @@ const ChatbotWidget = () => {
 
   const panel = (
     <div
-      className={`fixed z-[9998] flex flex-col overflow-hidden border border-gray-200 bg-white shadow-2xl transition-all
-        left-2 right-2 bottom-[4.5rem] max-h-[min(85dvh,calc(100dvh-5rem))] rounded-2xl
-        sm:left-auto sm:right-6 sm:bottom-6 sm:w-[min(100%,400px)] sm:max-h-[min(88dvh,680px)]
+      className={`chatbot-panel fixed z-[9998] flex flex-col overflow-hidden border border-gray-200 bg-white shadow-2xl transition-all
+        left-2 right-2 bottom-[4.5rem] h-[min(85dvh,680px)] min-h-[min(520px,85dvh)] max-h-[min(85dvh,calc(100dvh-5rem))] rounded-2xl
+        sm:left-auto sm:right-6 sm:bottom-6 sm:w-[min(100%,400px)]
         ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}
       `}
       dir={isRtl ? 'rtl' : 'ltr'}
     >
-      <header className="flex shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-3 py-2.5">
+      <header className="flex shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-4 py-3">
         <span className="relative flex h-2.5 w-2.5 shrink-0">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
@@ -568,7 +684,10 @@ const ChatbotWidget = () => {
         </button>
       </header>
 
-      <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 p-2.5">
+      <div
+        ref={listRef}
+        className="min-h-[min(300px,45dvh)] flex-1 overflow-y-auto overscroll-contain bg-slate-50 p-3"
+      >
         <div className="flex flex-col gap-2">
           {messages.map((msg, i) => (
             <div
@@ -604,11 +723,9 @@ const ChatbotWidget = () => {
                   displayName={displayPersonName(doc.name)}
                   specialtyLabel={tc(getDoctorSpecialty(doc))}
                   locationLabel={translateLoc(getDoctorPrimaryLocation(doc))}
-                  feesLabel={
-                    doc.fees
-                      ? `${currencySymbol}${localizeDigits(String(doc.fees))}`
-                      : ''
-                  }
+                  locationsLabel={formatDoctorLocationsLine(doc)}
+                  feeHintLabel={L('Consultation fee', 'رسوم الكشف')}
+                  feesLabel={formatDoctorFee(doc)}
                   chooseLabel={L('Choose this doctor', 'اختر هذا الطبيب')}
                   unavailableLabel={L(
                     'Not available for booking yet',
@@ -634,6 +751,29 @@ const ChatbotWidget = () => {
                   className="rounded-full border border-primary/30 bg-white px-3 py-1.5 text-xs font-medium text-primary shadow-sm hover:bg-primary/5"
                 >
                   {q.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {locationOptions.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {locationOptions.map((branch) => (
+                <button
+                  key={branch.loc}
+                  type="button"
+                  onClick={() => chooseLocation(branch)}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-left text-sm font-semibold text-gray-800 shadow-sm hover:border-primary"
+                >
+                  <span className="block">{translateLoc(branch.loc)}</span>
+                  {branch.slotCount > 0 && (
+                    <span className="mt-0.5 block text-xs font-normal text-gray-500">
+                      {L(
+                        `${branch.slotCount} available slot(s)`,
+                        `${localizeDigits(String(branch.slotCount))} موعد متاح`
+                      )}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -684,25 +824,31 @@ const ChatbotWidget = () => {
       </div>
 
       <form
-        className="flex shrink-0 gap-2 border-t border-gray-100 bg-white p-2.5"
+        className="flex shrink-0 items-end gap-2 border-t border-gray-100 bg-white p-3"
         onSubmit={(e) => {
           e.preventDefault()
           handleTextSubmit()
         }}
       >
-        <input
-          type="text"
+        <textarea
+          rows={2}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={L('Type your message...', 'اكتب رسالتك...')}
-          className="min-h-[40px] flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              handleTextSubmit()
+            }
+          }}
+          placeholder={L('Describe your symptoms or question...', 'اكتب أعراضك أو سؤالك...')}
+          className="chatbot-input max-h-[120px] min-h-[48px] flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-base leading-snug outline-none focus:border-primary"
           dir={isRtl ? 'rtl' : 'ltr'}
           disabled={chatStep === CHAT_STEPS.SUCCESS}
         />
         <button
           type="submit"
           disabled={typing || !input.trim() || chatStep === CHAT_STEPS.SUCCESS}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white disabled:opacity-50"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white disabled:opacity-50"
         >
           {typing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
         </button>

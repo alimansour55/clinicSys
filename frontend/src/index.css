@@ -154,6 +154,19 @@ body > section.Toastify .Toastify__toast {
   }
 }
 
+/* Chatbot: prevent iOS zoom on focus + lock page scroll when open */
+body.chatbot-open {
+  overflow: hidden;
+  width: 100%;
+}
+
+.chatbot-panel .chatbot-input,
+.chatbot-panel input,
+.chatbot-panel textarea,
+.chatbot-panel select {
+  font-size: 16px;
+}
+
 /* Printing: hide toast layer; keep page content normal */
 @media print {
   section.Toastify,

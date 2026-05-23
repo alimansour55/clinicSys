@@ -176,8 +176,11 @@ export const filterDoctorsBySpecialty = (doctors, specialty) => {
   return (doctors || []).filter((doctor) => normalizeText(getDoctorSpecialty(doctor)) === target)
 }
 
+export const getDoctorLocations = (doctor) =>
+  (doctor?.locations || []).map((l) => String(l || '').trim()).filter(Boolean)
+
 export const getDoctorPrimaryLocation = (doctor) => {
-  const locs = (doctor?.locations || []).map((l) => String(l || '').trim()).filter(Boolean)
+  const locs = getDoctorLocations(doctor)
   if (locs.length) return locs[0]
   const addr = doctor?.address
   if (typeof addr === 'string') return addr
