@@ -39,25 +39,18 @@ import axios from 'axios'
 import { bookChatbotAppointment } from '../../utils/chatbotApi'
 import { useMediaQuery } from '../../utils/useMediaQuery'
 import {
-  buildFallbackOpeningSuggestions,
-  buildOpeningSuggestions
+  buildClinicSectionSuggestions,
+  buildFallbackOpeningSuggestions
 } from '../../utils/chatbotOpeningSuggestions'
+import {
+  captureChatSnapshot,
+  canGoBack as navCanGoBack,
+  canShowNavControls,
+  emptyBookingData,
+  getChangeSelectionStep
+} from '../../utils/chatbotNavigation'
+import { CHAT_STEPS } from '../../utils/chatbotSteps'
 import DoctorChatCard from './DoctorChatCard'
-
-const CHAT_STEPS = {
-  WAITING_SYMPTOMS: 'waiting_for_symptoms',
-  CLARIFY_AUDIENCE: 'clarifying_audience',
-  SHOWING_DOCTORS: 'showing_doctors',
-  WAITING_APPOINTMENT_TYPE: 'waiting_for_appointment_type',
-  WAITING_LOCATION: 'waiting_for_location',
-  WAITING_HOME_AREA: 'waiting_for_home_area',
-  WAITING_DATE: 'waiting_for_date',
-  WAITING_TIME: 'waiting_for_time',
-  WAITING_VISIT_FEE: 'waiting_for_visit_fee',
-  CONFIRMING: 'confirming_booking',
-  SUCCESS: 'booking_success',
-  FAILED: 'booking_failed'
-}
 
 const TypingIndicator = () => (
   <div className="flex items-center gap-1 px-3 py-2">
@@ -102,23 +95,15 @@ const ChatbotWidget = () => {
   const [appointmentTypeOptions, setAppointmentTypeOptions] = useState([])
   const [homeVisitAreaOptions, setHomeVisitAreaOptions] = useState([])
   const [canBookConsultation, setCanBookConsultation] = useState(false)
+  const [selectedClinicSection, setSelectedClinicSection] = useState(null)
+  const [navRevision, setNavRevision] = useState(0)
 
-  const [bookingData, setBookingData] = useState({
-    symptoms: '',
-    detectedSpecialty: '',
-    selectedDoctor: null,
-    appointmentType: 'Clinic',
-    visitFeeType: 'examination',
-    homeVisitArea: '',
-    date: null,
-    slotDate: '',
-    time: '',
-    patientName: '',
-    phone: ''
-  })
+  const [bookingData, setBookingData] = useState(emptyBookingData())
 
   const listRef = useRef(null)
   const booted = useRef(false)
+  const navStackRef = useRef([])
+  const skipHistoryRef = useRef(false)
 
   const isRtl = chatLang === 'ar'
   const L = useCallback(
@@ -164,28 +149,26 @@ const ChatbotWidget = () => {
 
   const initialGreeting = () =>
     L(
-      'Hi 👋 Tap a clinic or option below—or describe your symptoms—and I will help you book.',
-      'أهلاً 👋 اختار عيادة أو خيار من الأسفل، أو اكتب أعراضك، وأنا أساعدك تحجز موعد.'
+      'Hi 👋 Choose a clinic section below, or describe your symptoms to book.',
+      'أهلاً 👋 اختار قسم العيادة من الأسفل، أو اكتب أعراضك للحجز.'
     )
 
-  const openingSuggestions = useMemo(
+  const clinicSectionSuggestions = useMemo(
     () =>
-      buildOpeningSuggestions({
+      buildClinicSectionSuggestions({
         doctors,
         clinics,
-        siteSettings,
         t,
         tc,
-        displayPersonName,
         language: siteLanguage,
         placeTranslationOverrides
       }),
-    [doctors, clinics, siteSettings, t, tc, displayPersonName, siteLanguage, placeTranslationOverrides]
+    [doctors, clinics, t, tc, siteLanguage, placeTranslationOverrides]
   )
 
   const fallbackQuickReplies = () =>
-    openingSuggestions.length
-      ? openingSuggestions
+    clinicSectionSuggestions.length
+      ? clinicSectionSuggestions
       : buildFallbackOpeningSuggestions(isRtl)
 
   const audienceQuickReplies = () => [
@@ -208,11 +191,197 @@ const ChatbotWidget = () => {
   useEffect(() => {
     if (!open || chatStep !== CHAT_STEPS.WAITING_SYMPTOMS) return
     if (matchedDoctors.length > 0 || typing || booking) return
-    const next = openingSuggestions.length
-      ? openingSuggestions
+    const next = clinicSectionSuggestions.length
+      ? clinicSectionSuggestions
       : buildFallbackOpeningSuggestions(isRtl)
     setQuickReplies(next)
-  }, [open, chatStep, openingSuggestions, matchedDoctors.length, typing, booking, isRtl])
+  }, [open, chatStep, clinicSectionSuggestions, matchedDoctors.length, typing, booking, isRtl])
+
+  const getSnapshot = () =>
+    captureChatSnapshot({
+      chatStep,
+      bookingData,
+      matchedDoctors,
+      quickReplies,
+      slotDays,
+      clinicLocation,
+      dateOptions,
+      timeOptions,
+      locationOptions,
+      appointmentTypeOptions,
+      homeVisitAreaOptions,
+      canBookConsultation,
+      selectedClinicSection
+    })
+
+  const pushHistory = () => {
+    if (skipHistoryRef.current) return
+    navStackRef.current.push(getSnapshot())
+    setNavRevision((n) => n + 1)
+  }
+
+  const restoreSnapshot = (snap) => {
+    skipHistoryRef.current = true
+    setChatStep(snap.chatStep)
+    setBookingData(snap.bookingData)
+    setMatchedDoctors(snap.matchedDoctors || [])
+    setQuickReplies(snap.quickReplies || [])
+    setSlotDays(snap.slotDays || [])
+    setClinicLocation(snap.clinicLocation || '')
+    setDateOptions(snap.dateOptions || [])
+    setTimeOptions(snap.timeOptions || [])
+    setLocationOptions(snap.locationOptions || [])
+    setAppointmentTypeOptions(snap.appointmentTypeOptions || [])
+    setHomeVisitAreaOptions(snap.homeVisitAreaOptions || [])
+    setCanBookConsultation(Boolean(snap.canBookConsultation))
+    setSelectedClinicSection(snap.selectedClinicSection || null)
+    skipHistoryRef.current = false
+    setNavRevision((n) => n + 1)
+  }
+
+  const clearBookingFlow = (keepProfile = true) => {
+    setMatchedDoctors([])
+    setSlotDays([])
+    setClinicLocation('')
+    setDateOptions([])
+    setTimeOptions([])
+    setLocationOptions([])
+    setAppointmentTypeOptions([])
+    setHomeVisitAreaOptions([])
+    setCanBookConsultation(false)
+    setSelectedClinicSection(null)
+    setBookingData((b) => ({
+      ...emptyBookingData(),
+      patientName: keepProfile ? b.patientName : '',
+      phone: keepProfile ? b.phone : ''
+    }))
+  }
+
+  const resetToClinicSections = (botMessage) => {
+    navStackRef.current = []
+    setNavRevision((n) => n + 1)
+    clearBookingFlow(true)
+    setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
+    setQuickReplies(fallbackQuickReplies())
+    if (botMessage) pushBot(botMessage)
+  }
+
+  const handleStartOver = () => {
+    pushUser(L('Start Over', 'البدء من جديد'))
+    resetToClinicSections(
+      L(
+        'Starting fresh. Choose a clinic section or describe your symptoms.',
+        'بدأنا من جديد. اختار قسم العيادة أو اكتب أعراضك.'
+      )
+    )
+  }
+
+  const handleGoBack = () => {
+    const prev = navStackRef.current.pop()
+    if (!prev) return
+    setNavRevision((n) => n + 1)
+    pushUser(L('⬅ Back', '⬅ الرجوع'))
+    restoreSnapshot(prev)
+    pushBot(
+      L('Back to the previous step. You can adjust your choice.', 'رجعنا للخطوة السابقة. تقدر تعدّل اختيارك.')
+    )
+  }
+
+  const reShowDoctorList = async () => {
+    if (selectedClinicSection) {
+      await showDoctorsForClinic(
+        selectedClinicSection.name,
+        selectedClinicSection.id,
+        selectedClinicSection.label,
+        { skipHistory: true }
+      )
+      return
+    }
+    if (bookingData.detectedSpecialty) {
+      await showDoctorsForSpecialty(bookingData.detectedSpecialty, bookingData.symptoms, {
+        skipHistory: true
+      })
+      return
+    }
+    resetToClinicSections(
+      L('Choose a clinic section:', 'اختار قسم العيادة:')
+    )
+  }
+
+  const rebuildAppointmentTypeStep = () => {
+    const doctor = bookingData.selectedDoctor
+    if (!doctor) {
+      resetToClinicSections()
+      return
+    }
+    const options = getDoctorAppointmentTypeOptions(doctor)
+    setDateOptions([])
+    setTimeOptions([])
+    setLocationOptions([])
+    setHomeVisitAreaOptions([])
+    setAppointmentTypeOptions(options)
+    setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
+    pushBot(
+      L(
+        `How would you like to visit ${displayPersonName(doctor.name)}?`,
+        `إزاي تحب الزيارة مع ${displayPersonName(doctor.name)}؟`
+      )
+    )
+  }
+
+  const rebuildDateStep = () => {
+    applySlotDays(slotDays)
+    setTimeOptions([])
+    setBookingData((b) => ({ ...b, time: '', slotDate: '', date: null }))
+    setChatStep(CHAT_STEPS.WAITING_DATE)
+    pushBot(L('Pick a date:', 'اختار التاريخ:'))
+  }
+
+  const rebuildTimeStep = () => {
+    const day = slotDays.find((d) => d.slotDate === bookingData.slotDate)
+    const times = day?.slots || []
+    setDateOptions([])
+    setTimeOptions(times)
+    setBookingData((b) => ({ ...b, time: '' }))
+    setChatStep(CHAT_STEPS.WAITING_TIME)
+    pushBot(L('Please choose a time:', 'اختار الوقت المناسب:'))
+  }
+
+  const handleChangeSelection = async () => {
+    pushUser(L('Change Selection', 'تغيير الاختيار'))
+    const target = getChangeSelectionStep(chatStep)
+
+    await withTyping(async () => {
+      if (target === CHAT_STEPS.SHOWING_DOCTORS) {
+        await reShowDoctorList()
+        return
+      }
+
+      if (target === CHAT_STEPS.WAITING_SYMPTOMS) {
+        resetToClinicSections(
+          L('Choose a clinic section:', 'اختار قسم العيادة:')
+        )
+        return
+      }
+
+      if (target === CHAT_STEPS.WAITING_APPOINTMENT_TYPE) {
+        rebuildAppointmentTypeStep()
+        return
+      }
+
+      if (target === CHAT_STEPS.WAITING_DATE) {
+        rebuildDateStep()
+        return
+      }
+
+      if (target === CHAT_STEPS.WAITING_TIME) {
+        rebuildTimeStep()
+      }
+    })
+  }
+
+  const showNavBar = canShowNavControls(chatStep)
+  const backEnabled = navCanGoBack(chatStep, navStackRef.current.length)
 
   useEffect(() => {
     if (typeof document === 'undefined') return
@@ -263,7 +432,8 @@ const ChatbotWidget = () => {
     return []
   }
 
-  const showDoctorsForSpecialty = async (specialty, symptomsText) => {
+  const showDoctorsForSpecialty = async (specialty, symptomsText, options = {}) => {
+    if (!options.skipHistory) pushHistory()
     const source = await resolveDoctorsList()
     if (!source.length) {
       pushBot(
@@ -316,7 +486,8 @@ const ChatbotWidget = () => {
     )
   }
 
-  const showMatchedDoctors = (list, symptomsText = '') => {
+  const showMatchedDoctors = (list, symptomsText = '', options = {}) => {
+    if (!options.skipHistory) pushHistory()
     setBookingData((b) => ({
       ...b,
       symptoms: symptomsText || b.symptoms
@@ -345,6 +516,7 @@ const ChatbotWidget = () => {
     const { specialty, needsClarification } = detectSpecialtyFromMessage(text)
 
     if (needsClarification === 'adult_or_child') {
+      pushHistory()
       setChatStep(CHAT_STEPS.CLARIFY_AUDIENCE)
       setQuickReplies(audienceQuickReplies())
       pushBot(
@@ -357,8 +529,8 @@ const ChatbotWidget = () => {
       setQuickReplies(fallbackQuickReplies())
       pushBot(
         L(
-          'Can you describe your problem more clearly? For example: skin problem, child fever, headache, pregnancy, or flu.',
-          'ممكن توضح المشكلة أكثر؟ مثال: مشكلة جلدية، حرارة لطفل، صداع، حمل، أو برد.'
+          'Can you describe your problem? Or choose a clinic section above.',
+          'ممكن توضح المشكلة؟ أو اختار قسم العيادة من الأقسام بالأعلى.'
         )
       )
       return
@@ -367,7 +539,9 @@ const ChatbotWidget = () => {
     await showDoctorsForSpecialty(specialty, text)
   }
 
-  const showDoctorsForClinic = async (clinicName, clinicId, label) => {
+  const showDoctorsForClinic = async (clinicName, clinicId, label, options = {}) => {
+    if (!options.skipHistory) pushHistory()
+    setSelectedClinicSection({ name: clinicName, id: clinicId, label })
     const source = await resolveDoctorsList()
     const list = source.filter(
       (doctor) =>
@@ -480,6 +654,7 @@ const ChatbotWidget = () => {
   }
 
   const beginSlotSelection = (doctor, appointmentType, days, branch = '') => {
+    pushHistory()
     if (branch) setClinicLocation(branch)
     applySlotDays(days)
     setChatStep(CHAT_STEPS.WAITING_DATE)
@@ -498,6 +673,7 @@ const ChatbotWidget = () => {
     if (appointmentType === 'Home Visit') {
       const areas = getDoctorHomeVisitAreas(doctor)
       if (areas.length > 1) {
+        pushHistory()
         setHomeVisitAreaOptions(areas)
         setChatStep(CHAT_STEPS.WAITING_HOME_AREA)
         pushBot(L('Please choose your area for the home visit:', 'اختار المنطقة لزيارة المنزل:'))
@@ -523,6 +699,7 @@ const ChatbotWidget = () => {
     }
 
     if (result.mode === 'pick_branch') {
+      pushHistory()
       setLocationOptions(result.branches)
       setChatStep(CHAT_STEPS.WAITING_LOCATION)
       pushBot(
@@ -540,6 +717,7 @@ const ChatbotWidget = () => {
   const chooseAppointmentType = async (type) => {
     const doctor = bookingData.selectedDoctor
     if (!doctor) return
+    pushHistory()
     const label = t(CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === type)?.labelKey || type)
     pushUser(label)
     setAppointmentTypeOptions([])
@@ -588,6 +766,7 @@ const ChatbotWidget = () => {
 
   const chooseDoctor = async (doctor) => {
     if (isDoctorComingSoon(doctor)) return
+    pushHistory()
 
     setBookingData((b) => ({
       ...b,
@@ -637,6 +816,7 @@ const ChatbotWidget = () => {
   }
 
   const chooseDate = (opt) => {
+    pushHistory()
     const day = slotDays.find((d) => d.slotDate === opt.slotDate)
     const times = day?.slots || []
     if (!times.length) {
@@ -696,10 +876,11 @@ const ChatbotWidget = () => {
     if (!canConsult) {
       const auto = { ...next, patientName: name, phone, visitFeeType: 'examination' }
       setBookingData((b) => ({ ...b, ...auto }))
-      goToConfirm(auto)
+      goToConfirm(auto, { skipHistory: true })
       return
     }
 
+    pushHistory()
     setChatStep(CHAT_STEPS.WAITING_VISIT_FEE)
     pushBot(
       L(
@@ -720,6 +901,7 @@ const ChatbotWidget = () => {
   }
 
   const chooseTime = (slot) => {
+    pushHistory()
     const next = {
       ...bookingData,
       time: slot.time,
@@ -732,7 +914,8 @@ const ChatbotWidget = () => {
     loadVisitFeeStep(next)
   }
 
-  const goToConfirm = (data = bookingData) => {
+  const goToConfirm = (data = bookingData, options = {}) => {
+    if (!options.skipHistory) pushHistory()
     setChatStep(CHAT_STEPS.CONFIRMING)
     const d = data.selectedDoctor
     const dateLabel = data.date
@@ -1035,33 +1218,38 @@ const ChatbotWidget = () => {
             </div>
           )}
 
-          {quickReplies.length > 0 && (
-            <div className="space-y-2">
-              {chatStep === CHAT_STEPS.WAITING_SYMPTOMS && (
-                <p className="px-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                  {L('Quick suggestions', 'اقتراحات سريعة')}
-                </p>
-              )}
-              <div className="flex flex-wrap gap-2">
+          {quickReplies.length > 0 && chatStep === CHAT_STEPS.WAITING_SYMPTOMS && (
+            <div className="space-y-2.5">
+              <p className="px-0.5 text-xs font-bold text-gray-800">
+                {L('Clinic sections', 'أقسام العيادات')}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
                 {quickReplies.map((q) => (
                   <button
                     key={q.id}
                     type="button"
                     onClick={() => handleQuickReply(q)}
-                    className={`rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:bg-primary/5 ${
-                      q.kind === 'clinic'
-                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                        : q.kind === 'doctor'
-                          ? 'border-sky-300 bg-sky-50 text-sky-800'
-                          : q.kind === 'service'
-                            ? 'border-violet-300 bg-violet-50 text-violet-800'
-                            : 'border-primary/30 bg-white text-primary'
-                    }`}
+                    className="min-h-[3.25rem] rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2.5 text-left text-xs font-semibold leading-snug text-emerald-900 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100"
                   >
-                    {q.label}
+                    <span className="line-clamp-2">{q.label}</span>
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {quickReplies.length > 0 && chatStep !== CHAT_STEPS.WAITING_SYMPTOMS && (
+            <div className="flex flex-wrap gap-2">
+              {quickReplies.map((q) => (
+                <button
+                  key={q.id}
+                  type="button"
+                  onClick={() => handleQuickReply(q)}
+                  className="rounded-full border border-primary/30 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm hover:bg-primary/5"
+                >
+                  {q.label}
+                </button>
+              ))}
             </div>
           )}
 
@@ -1192,6 +1380,39 @@ const ChatbotWidget = () => {
           )}
         </div>
       </div>
+
+      {(showNavBar || chatStep === CHAT_STEPS.SUCCESS || chatStep === CHAT_STEPS.FAILED) && (
+        <div className="flex shrink-0 flex-wrap gap-1.5 border-t border-gray-100 bg-gray-50 px-3 py-2">
+          {showNavBar && (
+            <button
+              type="button"
+              disabled={!backEnabled || typing || booking}
+              onClick={handleGoBack}
+              className="min-h-[36px] flex-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {L('⬅ Back', '⬅ الرجوع')}
+            </button>
+          )}
+          {showNavBar && (
+            <button
+              type="button"
+              disabled={typing || booking}
+              onClick={handleChangeSelection}
+              className="min-h-[36px] flex-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 disabled:opacity-40"
+            >
+              {L('Change Selection', 'تغيير الاختيار')}
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={typing || booking}
+            onClick={handleStartOver}
+            className="min-h-[36px] flex-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-900 disabled:opacity-40"
+          >
+            {L('Start Over', 'البدء من جديد')}
+          </button>
+        </div>
+      )}
 
       <form
         className="flex shrink-0 items-end gap-2 border-t border-gray-100 bg-white p-3"

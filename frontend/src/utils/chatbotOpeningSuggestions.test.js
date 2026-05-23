@@ -1,45 +1,35 @@
 import { describe, it, expect } from 'vitest'
-import { buildOpeningSuggestions } from './chatbotOpeningSuggestions'
-
-const doctors = [
-  {
-    _id: '1',
-    name: 'Sara Ahmed',
-    speciality: 'Pediatricians',
-    schedule: { workingDays: [0, 1, 2, 3, 4] },
-    clinics: [{ _id: 'c1', name: 'Pediatricians' }]
-  },
-  {
-    _id: '2',
-    name: 'Martin Ali',
-    speciality: 'General physician',
-    schedule: { workingDays: [1, 2, 3] },
-    acceptsVoiceCall: true
-  }
-]
+import {
+  buildClinicSectionSuggestions,
+  DEFAULT_CLINIC_SECTION_NAMES
+} from './chatbotOpeningSuggestions'
 
 describe('chatbotOpeningSuggestions', () => {
-  it('includes clinic sections with bookable doctors', () => {
-    const suggestions = buildOpeningSuggestions({
-      doctors,
-      clinics: [{ _id: 'c1', name: 'Pediatricians' }],
+  it('returns all API clinic sections only', () => {
+    const clinics = DEFAULT_CLINIC_SECTION_NAMES.map((name, i) => ({
+      _id: String(i),
+      name
+    }))
+    const suggestions = buildClinicSectionSuggestions({
+      doctors: [],
+      clinics,
       language: 'en',
       t: (k) => k,
-      tc: (k) => k,
-      displayPersonName: (n) => n
+      tc: (k) => k
     })
-    expect(suggestions.some((s) => s.kind === 'clinic' && s.clinicName === 'Pediatricians')).toBe(true)
+    expect(suggestions).toHaveLength(6)
+    expect(suggestions.every((s) => s.kind === 'clinic')).toBe(true)
+    expect(suggestions.some((s) => s.service)).toBe(false)
   })
 
-  it('includes teleconsultation when doctors support it', () => {
-    const suggestions = buildOpeningSuggestions({
-      doctors,
+  it('falls back to default clinic names when clinics empty', () => {
+    const suggestions = buildClinicSectionSuggestions({
+      doctors: [],
       clinics: [],
       language: 'en',
       t: (k) => k,
-      tc: (k) => k,
-      displayPersonName: (n) => n
+      tc: (k) => k
     })
-    expect(suggestions.some((s) => s.kind === 'service' && s.service === 'teleconsultation')).toBe(true)
+    expect(suggestions).toHaveLength(DEFAULT_CLINIC_SECTION_NAMES.length)
   })
 })
