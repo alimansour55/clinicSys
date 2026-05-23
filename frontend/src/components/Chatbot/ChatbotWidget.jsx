@@ -1221,7 +1221,7 @@ const ChatbotWidget = () => {
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-gray-900">
-            {t('Clinic Assistant')}
+            {t('Medical Booking Assistant')}
           </p>
           <p className="text-[11px] text-gray-500">{L('Online', 'متصل')}</p>
         </div>
@@ -1538,7 +1538,7 @@ const ChatbotWidget = () => {
               handleTextSubmit()
             }
           }}
-          placeholder={t('Describe your symptoms or question...')}
+          placeholder={t('Type your symptoms or start booking...')}
           className="chatbot-input max-h-[120px] min-h-[48px] flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-base leading-snug outline-none focus:border-primary"
           dir={isRtl ? 'rtl' : 'ltr'}
           disabled={chatStep === CHAT_STEPS.SUCCESS}
@@ -1580,10 +1580,10 @@ const ChatbotWidget = () => {
             </span>
             <span className="chatbot-launcher-copy min-w-0 flex-1 text-left max-[380px]:hidden">
               <span className="block truncate text-sm font-bold leading-tight tracking-tight sm:text-[0.9375rem]">
-                {t('Booking assistant')}
+                {t('Medical Booking Assistant')}
               </span>
               <span className="mt-0.5 block truncate text-[11px] font-medium text-white/85 sm:text-xs">
-                {t('Chat with us to book')}
+                {t('Start Chat')}
               </span>
             </span>
           </>

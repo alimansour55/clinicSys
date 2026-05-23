@@ -13,7 +13,7 @@ const today = new Date().toISOString().split('T')[0]
 
 const Login = () => {
 
-  const { backendUrl, token, setToken, userData } = useContext(AppContext)
+  const { backendUrl, token, setToken, userData, t } = useContext(AppContext)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   
@@ -95,20 +95,20 @@ const Login = () => {
       if(state === 'Sign Up'){
         const phoneNormalized = normalizeEgyptPhone(phone)
         if (!isValidEgyptPhone(phoneNormalized)) {
-          toast.error('Enter a valid Egyptian mobile number (10 digits after +20)')
+          toast.error(t('Enter a valid Egyptian mobile number (10 digits after +20)'))
           setLoading(false)
           return
         }
 
         if (!emailVerified) {
-          toast.error('Please verify your email using Verify now')
+          toast.error(t('Please verify your email using Verify now'))
           setLoading(false)
           return
         }
 
         if (insuranceEnabled) {
           if (!insuranceProvider) {
-            toast.error('Please select an insurance provider')
+            toast.error(t('Please select an insurance provider'))
             setLoading(false)
             return
           }
@@ -216,10 +216,10 @@ const Login = () => {
         
         {/* Title */}
         <h1 className='text-xl sm:text-2xl font-semibold text-center mb-2 text-gray-800'>
-          {state === 'Sign Up' ? 'Create Account' : 'Welcome Back'}
+          {state === 'Sign Up' ? t('Create Account') : t('Welcome Back')}
         </h1>
         <p className='text-center text-gray-600 text-xs sm:text-sm mb-6'>
-          Please {state === 'Sign Up' ? 'sign up' : 'login'} to book appointment
+          {state === 'Sign Up' ? t('Please sign up to book appointment') : t('Please login to book appointment')}
         </p>
 
         {mfaStep && (
@@ -232,7 +232,7 @@ const Login = () => {
         {state === 'Sign Up' && (
           <div className='mb-4'>
             <label htmlFor='signup-name' className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
-              Full Name *
+              {t('Full Name *')}
             </label>
             <div className='relative' data-input-field>
               <User size={16} className='field-icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
@@ -242,7 +242,7 @@ const Login = () => {
                 type='text'
                 onChange={(e) => setName(e.target.value)}
                 value={name}
-                placeholder='Enter your full name'
+                placeholder={t('Enter your full name')}
                 required
               />
             </div>
@@ -252,7 +252,7 @@ const Login = () => {
         {/* Email Field */}
         <div className='mb-4'>
           <label htmlFor='login-email' className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
-            {state === 'Sign Up' ? 'Email *' : 'Email or Phone'}
+            {state === 'Sign Up' ? t('Email *') : t('Email or Phone')}
           </label>
           <div className='relative' data-input-field>
             <Mail size={16} className='field-icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
@@ -265,7 +265,7 @@ const Login = () => {
                 if (state === 'Sign Up') resetEmailVerification()
               }}
               value={email}
-              placeholder={state === 'Sign Up' ? 'Enter your email' : 'Enter email or phone number'}
+              placeholder={state === 'Sign Up' ? t('Enter your email') : t('Enter email or phone number')}
               disabled={Boolean(mfaStep)}
               required
               autoComplete='email'
@@ -282,7 +282,7 @@ const Login = () => {
               }}
               canSend={() => {
                 if (!email.trim()) {
-                  toast.error('Enter your email first')
+                  toast.error(t('Enter your email first'))
                   return false
                 }
                 return true
@@ -303,7 +303,7 @@ const Login = () => {
           <>
             <div className='mb-4' data-input-field>
               <label htmlFor='signup-phone' className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
-                Phone Number *
+                {t('Phone Number *')}
               </label>
               <EgyptPhoneInput
                 id='signup-phone'
@@ -312,13 +312,13 @@ const Login = () => {
                 required
               />
               <p className='mt-1.5 text-[11px] text-gray-500 sm:text-xs'>
-                Egypt only — enter your 10-digit mobile after +20 (e.g. 10 1234 5678).
+                {t('Egypt only — enter your 10-digit mobile after +20 (e.g. 10 1234 5678).')}
               </p>
             </div>
 
             <div className='mb-4' data-input-field>
               <label htmlFor='signup-dob' className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
-                Birth Date *
+                {t('Birth Date *')}
               </label>
               <input
                 id='signup-dob'
@@ -347,20 +347,20 @@ const Login = () => {
                 >
                   {insuranceEnabled ? <Check className='h-3.5 w-3.5' strokeWidth={3} /> : null}
                 </span>
-                <span>Add Insurance</span>
+                <span>{t('Add Insurance')}</span>
               </button>
 
               {insuranceEnabled && (
                 <div className='mt-4 space-y-3'>
                   <div data-input-field>
-                    <label className='block text-xs font-medium text-gray-700 mb-1'>Insurance provider *</label>
+                    <label className='block text-xs font-medium text-gray-700 mb-1'>{t('Insurance provider *')}</label>
                     <select
                       value={insuranceProvider}
                       onChange={(e) => setInsuranceProvider(e.target.value)}
                       className='w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white'
                       required={insuranceEnabled}
                     >
-                      <option value=''>Select provider</option>
+                      <option value=''>{t('Select provider')}</option>
                       {insuranceProvidersList.map((name) => (
                         <option key={name} value={name}>
                           {name}
@@ -369,33 +369,33 @@ const Login = () => {
                     </select>
                   </div>
                   <div data-input-field>
-                    <label className='block text-xs font-medium text-gray-700 mb-1'>Full Name *</label>
+                    <label className='block text-xs font-medium text-gray-700 mb-1'>{t('Full Name *')}</label>
                     <input value={insuranceFullName} onChange={(e) => setInsuranceFullName(e.target.value)} className='w-full border border-gray-300 rounded-md px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm' required={insuranceEnabled} />
                   </div>
                   <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                     <div data-input-field>
-                      <label htmlFor='insurance-dob' className='block text-xs font-medium text-gray-700 mb-1'>Birth Date *</label>
+                      <label htmlFor='insurance-dob' className='block text-xs font-medium text-gray-700 mb-1'>{t('Birth Date *')}</label>
                       <input id='insurance-dob' type='date' max={today} value={insuranceBirthDate} onChange={(e) => setInsuranceBirthDate(e.target.value)} className='date-field-input w-full min-h-[44px] rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm' required={insuranceEnabled} />
                     </div>
                     <div data-input-field>
-                      <label className='block text-xs font-medium text-gray-700 mb-1'>ID Number *</label>
+                      <label className='block text-xs font-medium text-gray-700 mb-1'>{t('ID Number *')}</label>
                       <input value={insuranceIdNumber} onChange={(e) => setInsuranceIdNumber(e.target.value)} className='w-full border border-gray-300 rounded-md px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm' required={insuranceEnabled} />
                     </div>
                   </div>
                   <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                     <div data-input-field>
-                      <label className='block text-xs font-medium text-gray-700 mb-1'>Expiry Date *</label>
+                      <label className='block text-xs font-medium text-gray-700 mb-1'>{t('Expiry Date *')}</label>
                       <input id='insurance-expiry' type='date' value={insuranceExpiryDate} onChange={(e) => setInsuranceExpiryDate(e.target.value)} className='date-field-input w-full min-h-[44px] rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm' required={insuranceEnabled} />
                     </div>
                     <div>
-                      <span className='block text-xs font-medium text-gray-700 mb-1'>Photo of Medical Card *</span>
+                      <span className='block text-xs font-medium text-gray-700 mb-1'>{t('Photo of Medical Card *')}</span>
                       <button
                         type='button'
                         onClick={() => insuranceCardInputRef.current?.click()}
                         className='flex min-h-[44px] w-full items-center gap-2 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-600 transition hover:border-primary active:bg-gray-50'
                       >
                         <FileUp className='h-4 w-4 shrink-0' />
-                        <span className='truncate'>{insuranceCardPhoto ? insuranceCardPhoto.name : 'Attach file'}</span>
+                        <span className='truncate'>{insuranceCardPhoto ? insuranceCardPhoto.name : t('Attach file')}</span>
                       </button>
                       <input
                         ref={insuranceCardInputRef}
@@ -418,7 +418,7 @@ const Login = () => {
         {/* Password Field */}
         {!mfaStep && <div className='mb-4'>
           <label htmlFor='login-password' className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
-            Password
+            {t('Password')}
           </label>
           <div className='relative' data-input-field>
             <Lock size={16} className='field-icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
@@ -428,7 +428,7 @@ const Login = () => {
               type={showPassword ? 'text' : 'password'}
               onChange={(e) => setPassword(e.target.value)}
               value={password}
-              placeholder='Enter your password'
+              placeholder={t('Enter your password')}
               required
               autoComplete={state === 'Sign Up' ? 'new-password' : 'current-password'}
             />
@@ -449,14 +449,14 @@ const Login = () => {
               onClick={() => navigate('/email-verify')}
               className='mt-2 block w-full text-right text-xs sm:text-sm text-primary underline hover:text-primary/80'
             >
-              Forgot Password?
+              {t('Forgot Password?')}
             </button>
           )}
         </div>}
 
         {mfaStep && (
           <div className='mb-4'>
-            <label className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>Authenticator code</label>
+            <label className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>{t('Authenticator code')}</label>
             <input
               value={mfaCode}
               onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -471,7 +471,7 @@ const Login = () => {
         {/* Submit Button */}
         {state === 'Sign Up' && !signupReady && (
           <p className='mb-3 text-center text-xs text-amber-700'>
-            Verify your email with &quot;Verify now&quot; before creating an account.
+            {t('Verify your email with "Verify now" before creating an account.')}
           </p>
         )}
 
@@ -485,13 +485,13 @@ const Login = () => {
           }`}
         >
           {loading 
-            ? (state === 'Sign Up' ? 'Creating Account...' : 'Logging in...') 
-            : (mfaStep ? 'Continue' : (state === 'Sign Up' ? 'Create Account' : 'Login'))
+            ? (state === 'Sign Up' ? t('Creating Account...') : t('Logging in...')) 
+            : (mfaStep ? t('Continue') : (state === 'Sign Up' ? t('Create Account') : t('Login')))
           }
         </button>
         {mfaStep && (
           <button type='button' onClick={resetMfaFlow} className='mt-3 w-full rounded-md border border-gray-200 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50'>
-            Back to login
+            {t('Back to login')}
           </button>
         )}
         
@@ -499,16 +499,16 @@ const Login = () => {
         <div className='text-center mt-4'>
           {!mfaStep && (state === 'Sign Up' ? (
             <p className='text-xs sm:text-sm text-gray-600'>
-              Already have an account?{' '}
+              {t('Already have an account?')}{' '}
               <button type='button' onClick={() => setState('Login')} className='text-primary font-medium underline hover:text-primary/80'>
-                Login here
+                {t('Login here')}
               </button>
             </p>
           ) : (
             <p className='text-xs sm:text-sm text-gray-600'>
-              Don&apos;t have an account?{' '}
+              {t("Don't have an account?")}{' '}
               <button type='button' onClick={() => setState('Sign Up')} className='text-primary font-medium underline hover:text-primary/80'>
-                Sign up here
+                {t('Sign up here')}
               </button>
             </p>
           ))}
