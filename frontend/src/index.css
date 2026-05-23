@@ -139,6 +139,14 @@ body > section.Toastify .Toastify__toast {
   touch-action: manipulation;
 }
 
+/* Decorative icons over inputs must not steal taps on touch devices */
+@media (pointer: coarse) {
+  .field-icon {
+    pointer-events: none;
+    user-select: none;
+  }
+}
+
 /* Printing: hide toast layer; keep page content normal */
 @media print {
   section.Toastify,

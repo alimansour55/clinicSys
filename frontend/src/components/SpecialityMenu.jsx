@@ -191,7 +191,11 @@ const SpecialityMenu = () => {
             </div>
           )}
           {serviceCards.showHomeVisit && (
-            <div className="min-h-28 overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-5">
+            <button
+              type="button"
+              onClick={() => openService("home")}
+              className="min-h-28 w-full overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-left transition active:border-emerald-400 sm:flex sm:items-center sm:justify-between sm:gap-5"
+            >
               <div className="flex min-w-0 gap-3">
                 <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-emerald-600 shadow-sm">
                   {serviceCards.homeVisitImage ? <img src={serviceCards.homeVisitImage} alt="" className="h-full w-full object-cover" /> : <Home className="h-6 w-6" />}
@@ -201,14 +205,10 @@ const SpecialityMenu = () => {
                   <p className="mt-1 text-sm text-gray-600">{t(serviceCards.homeVisitDescription)}</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => openService("home")}
-                className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 sm:mt-0 sm:w-auto"
-              >
+              <span className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm sm:mt-0 sm:w-auto sm:shrink-0">
                 {t(serviceCards.homeVisitButtonText)}
-              </button>
-            </div>
+              </span>
+            </button>
           )}
         </div>
 

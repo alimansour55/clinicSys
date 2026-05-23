@@ -230,18 +230,19 @@ const Login = () => {
         {/* Name Field (Sign Up Only) */}
         {state === 'Sign Up' && (
           <div className='mb-4'>
-            <label className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
+            <label htmlFor='signup-name' className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
               Full Name *
             </label>
-            <div className='relative'>
-              <User size={16} className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
-              <input 
-                className='w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all' 
-                type="text" 
-                onChange={(e) => setName(e.target.value)} 
+            <div className='relative' data-input-field>
+              <User size={16} className='field-icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
+              <input
+                id='signup-name'
+                className='w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
+                type='text'
+                onChange={(e) => setName(e.target.value)}
                 value={name}
                 placeholder='Enter your full name'
-                required 
+                required
               />
             </div>
           </div>
@@ -249,22 +250,24 @@ const Login = () => {
         
         {/* Email Field */}
         <div className='mb-4'>
-          <label className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
+          <label htmlFor='login-email' className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
             {state === 'Sign Up' ? 'Email *' : 'Email or Phone'}
           </label>
-          <div className='relative'>
-            <Mail size={16} className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
-            <input 
-              className='w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all' 
-              type={state === 'Sign Up' ? 'email' : 'text'} 
+          <div className='relative' data-input-field>
+            <Mail size={16} className='field-icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
+            <input
+              id='login-email'
+              className='w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
+              type={state === 'Sign Up' ? 'email' : 'text'}
               onChange={(e) => {
                 setEmail(e.target.value)
                 if (state === 'Sign Up') resetEmailVerification()
-              }} 
+              }}
               value={email}
               placeholder={state === 'Sign Up' ? 'Enter your email' : 'Enter email or phone number'}
               disabled={Boolean(mfaStep)}
-              required 
+              required
+              autoComplete='email'
             />
           </div>
           {state === 'Sign Up' && (
@@ -297,7 +300,7 @@ const Login = () => {
 
         {state === 'Sign Up' && (
           <>
-            <div className='mb-4'>
+            <div className='mb-4' data-input-field>
               <label htmlFor='signup-phone' className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
                 Phone Number *
               </label>
@@ -312,7 +315,7 @@ const Login = () => {
               </p>
             </div>
 
-            <div className='mb-4'>
+            <div className='mb-4' data-input-field>
               <label htmlFor='signup-dob' className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
                 Birth Date *
               </label>
@@ -387,18 +390,20 @@ const Login = () => {
         
         {/* Password Field */}
         {!mfaStep && <div className='mb-4'>
-          <label className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
+          <label htmlFor='login-password' className='block text-xs sm:text-sm font-medium mb-1.5 text-gray-700'>
             Password
           </label>
-          <div className='relative'>
-            <Lock size={16} className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
-            <input 
-              className='w-full pl-10 pr-10 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all' 
-              type={showPassword ? "text" : "password"} 
-              onChange={(e) => setPassword(e.target.value)} 
+          <div className='relative' data-input-field>
+            <Lock size={16} className='field-icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
+            <input
+              id='login-password'
+              className='w-full pl-10 pr-10 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
+              type={showPassword ? 'text' : 'password'}
+              onChange={(e) => setPassword(e.target.value)}
               value={password}
               placeholder='Enter your password'
-              required 
+              required
+              autoComplete={state === 'Sign Up' ? 'new-password' : 'current-password'}
             />
 
             <button
@@ -412,12 +417,13 @@ const Login = () => {
           
           {/* Forgot Password Link */}
           {state === 'Login' && (
-            <p
-              onClick={() => navigate("/email-verify")}
-              className="text-primary text-xs sm:text-sm underline cursor-pointer text-right mt-2 hover:text-primary/80 transition-colors"
+            <button
+              type='button'
+              onClick={() => navigate('/email-verify')}
+              className='mt-2 block w-full text-right text-xs sm:text-sm text-primary underline hover:text-primary/80'
             >
               Forgot Password?
-            </p>
+            </button>
           )}
         </div>}
 
@@ -467,16 +473,16 @@ const Login = () => {
           {!mfaStep && (state === 'Sign Up' ? (
             <p className='text-xs sm:text-sm text-gray-600'>
               Already have an account?{' '}
-              <span onClick={() => setState('Login')} className='text-primary font-medium underline cursor-pointer hover:text-primary/80 transition-colors'>
+              <button type='button' onClick={() => setState('Login')} className='text-primary font-medium underline hover:text-primary/80'>
                 Login here
-              </span>
+              </button>
             </p>
           ) : (
             <p className='text-xs sm:text-sm text-gray-600'>
-              Don't have an account?{' '}
-              <span onClick={() => setState('Sign Up')} className='text-primary font-medium underline cursor-pointer hover:text-primary/80 transition-colors'>
+              Don&apos;t have an account?{' '}
+              <button type='button' onClick={() => setState('Sign Up')} className='text-primary font-medium underline hover:text-primary/80'>
                 Sign up here
-              </span>
+              </button>
             </p>
           ))}
         </div>

@@ -27,7 +27,7 @@ const EgyptPhoneInput = ({
   }
 
   return (
-    <div className={`flex overflow-hidden rounded-md border-2 border-gray-300 bg-white transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 ${className}`}>
+    <div className={`flex overflow-hidden rounded-md border-2 border-gray-300 bg-white transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 ${className}`} data-input-field>
       <div
         className='flex shrink-0 items-center gap-2 border-r border-gray-200 bg-gray-50 px-3 text-sm text-gray-700'
         aria-hidden='true'

@@ -482,13 +482,17 @@ const Doctors = () => {
       </section>
 
       <div className='mb-5 grid gap-3 lg:grid-cols-[1fr_auto]'>
-        <div className='relative'>
-          <Search className='absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
+        <div className='relative' data-input-field>
+          <Search className='field-icon absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
           <input
+            id='doctors-search'
+            type='search'
+            enterKeyHint='search'
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            className='h-12 w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-11 text-sm shadow-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10'
+            className='h-12 w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-11 text-base shadow-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10'
             placeholder={t('Search doctors, specialities, clinics, or locations')}
+            autoComplete='off'
           />
           {searchTerm && (
             <button

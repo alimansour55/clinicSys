@@ -2,9 +2,14 @@
  * iOS/Android: first tap on buttons inside scroll areas or with :hover styles
  * often does not fire click until a second tap. On touchend we synthesize one
  * immediate click when the gesture was a tap (not a scroll).
+ *
+ * Form controls (inputs, selects, textareas) must never be intercepted.
  */
 const MOVE_THRESHOLD_PX = 12
 const touchStartById = new Map()
+
+const FORM_CONTROL_SELECTOR =
+  'input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, option, label, [contenteditable="true"], [role="textbox"], [role="searchbox"], [data-input-field]'
 
 function isCoarsePointer() {
   if (typeof window === 'undefined') return false
@@ -14,8 +19,26 @@ function isCoarsePointer() {
   )
 }
 
+function isFormControlTouch(node) {
+  if (!node?.closest) return false
+  return Boolean(node.closest(FORM_CONTROL_SELECTOR))
+}
+
+function focusFieldControl(node) {
+  const field = node?.closest?.('[data-input-field]')
+  if (!field) return
+  const control = field.querySelector(
+    'input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select',
+  )
+  if (control && document.activeElement !== control) {
+    control.focus()
+  }
+}
+
 function findTapTarget(node) {
   if (!node?.closest) return null
+  if (isFormControlTouch(node)) return null
+
   const el = node.closest(
     'button, a[href], [role="button"], input[type="button"], input[type="submit"], input[type="reset"]',
   )
@@ -23,7 +46,6 @@ function findTapTarget(node) {
   if (el.disabled || el.getAttribute('aria-disabled') === 'true') return null
   if (el.tagName === 'A' && !el.getAttribute('href')) return null
   if (el.matches('input[type="file"], input[type="range"], input[type="color"]')) return null
-  if (el.closest('select, textarea, input:not([type="button"]):not([type="submit"]):not([type="reset"])')) return null
   return el
 }
 
@@ -42,6 +64,11 @@ export function installMobileTapFix() {
   }
 
   const onTouchEnd = (event) => {
+    if (isFormControlTouch(event.target)) {
+      focusFieldControl(event.target)
+      return
+    }
+
     for (const touch of event.changedTouches) {
       const start = touchStartById.get(touch.identifier)
       touchStartById.delete(touch.identifier)
@@ -54,7 +81,6 @@ export function installMobileTapFix() {
       const target = findTapTarget(event.target)
       if (!target) continue
 
-      /* Blocks delayed ghost click; we fire one immediate click for React handlers */
       event.preventDefault()
       target.click()
     }

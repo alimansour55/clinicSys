@@ -709,23 +709,52 @@ const Appointment = () => {
                   <Home className='h-4 w-4 text-emerald-600' />
                   {t('Home visit address')}
                 </p>
-                <div className='mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2'>
-                  <select
-                    value={homeVisitAddress.area}
-                    onChange={(event) => {
-                      setHomeVisitAddress((previous) => ({ ...previous, area: event.target.value }))
-                      setPendingPayment(null)
-                    }}
-                    className='rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400'
-                  >
-                    <option value=''>{t('Choose supported area')}</option>
-                    {doctorHomeVisitAreas.map((area) => (
-                      <option key={area} value={area}>{translatePlaceSegment(area, language, t, placeTranslationOverrides)}</option>
-                    ))}
-                  </select>
-                  {doctorHomeVisitAreas.length === 0 && (
-                    <p className='sm:col-span-2 text-xs text-amber-800'>{t('Doctor has no home visit areas configured')}</p>
-                  )}
+                <div className='mt-3 space-y-3'>
+                  <div>
+                    <p className='mb-2 text-xs font-semibold text-gray-700'>{t('Choose supported area')}</p>
+                    {doctorHomeVisitAreas.length > 0 ? (
+                      isMobile ? (
+                        <div className='grid max-h-48 grid-cols-2 gap-2 overflow-y-auto rounded-lg border border-emerald-200 bg-white p-2'>
+                          {doctorHomeVisitAreas.map((area) => (
+                            <button
+                              key={area}
+                              type='button'
+                              onClick={() => {
+                                setHomeVisitAddress((previous) => ({ ...previous, area }))
+                                setPendingPayment(null)
+                              }}
+                              className={`rounded-lg border px-2 py-2 text-left text-xs font-semibold transition ${
+                                homeVisitAddress.area === area
+                                  ? 'border-emerald-600 bg-emerald-600 text-white'
+                                  : 'border-emerald-100 bg-emerald-50/50 text-gray-800 active:bg-emerald-100'
+                              }`}
+                            >
+                              {translatePlaceSegment(area, language, t, placeTranslationOverrides)}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <select
+                          value={homeVisitAddress.area}
+                          onChange={(event) => {
+                            setHomeVisitAddress((previous) => ({ ...previous, area: event.target.value }))
+                            setPendingPayment(null)
+                          }}
+                          className='w-full rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400'
+                        >
+                          <option value=''>{t('Choose supported area')}</option>
+                          {doctorHomeVisitAreas.map((area) => (
+                            <option key={area} value={area}>{translatePlaceSegment(area, language, t, placeTranslationOverrides)}</option>
+                          ))}
+                        </select>
+                      )
+                    ) : (
+                      <p className='rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900'>
+                        {t('Doctor has no home visit areas configured')}
+                      </p>
+                    )}
+                  </div>
+                  <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                   <input
                     value={homeVisitAddress.street}
                     onChange={(event) => {
@@ -739,6 +768,7 @@ const Appointment = () => {
                   <input value={homeVisitAddress.floor} onChange={(event) => setHomeVisitAddress((previous) => ({ ...previous, floor: event.target.value }))} className='rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400' placeholder={t('Floor')} />
                   <input value={homeVisitAddress.apartment} onChange={(event) => setHomeVisitAddress((previous) => ({ ...previous, apartment: event.target.value }))} className='rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400' placeholder={t('Apartment')} />
                   <input value={homeVisitAddress.notes} onChange={(event) => setHomeVisitAddress((previous) => ({ ...previous, notes: event.target.value }))} className='rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400' placeholder={t('Landmark or notes')} />
+                  </div>
                 </div>
                 <p className='mt-2 text-xs text-emerald-700'>{t('Home visit areas note')}</p>
               </div>
