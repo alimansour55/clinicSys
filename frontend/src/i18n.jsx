@@ -456,7 +456,7 @@ const ar = {
   [DEFAULT_FOOTER_COPYRIGHT]: `حقوق النشر © ${DEFAULT_APP_DISPLAY_NAME} - جميع الحقوق محفوظة.`,
   [`${DEFAULT_APP_DISPLAY_NAME} logo`]: `شعار ${DEFAULT_APP_DISPLAY_NAME}`,
   Clinivo: "Clinivo",
-  "Booking assistant": "مساعد Clinivo الذكي",
+  "Booking assistant": "مساعد الحجز الطبي",
   "Chat with us to book": "ابدأ المحادثة",
   "Ask AI": "اسأل المساعد",
   "Type your symptoms or question...": "اكتب أعراضك أو ابدأ الحجز...",
