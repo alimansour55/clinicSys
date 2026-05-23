@@ -9,7 +9,12 @@ import { buildDoctorSlots } from '../utils/schedule'
 import { getPromoOfferLabel } from '../utils/promo'
 import { formatLocationLine } from '../utils/placeTranslations'
 import { isDoctorBookableForPatients, isDoctorComingSoon, resolveClinicLocationForSlots } from '../utils/doctorBooking'
-import { doctorBelongsToClinicSection } from '../utils/doctorClinicPlaces'
+import {
+  collectLocationFilterPlaces,
+  doctorBelongsToClinicSection,
+  doctorMatchesLocationFilter,
+} from '../utils/doctorClinicPlaces'
+import { extractMainPlaceFromLocation, placeFilterKey } from '../utils/placeTranslations'
 import { formatSlotsThisWeekLabel } from '../utils/arabicMedicalUi'
 import { useMediaQuery } from '../utils/useMediaQuery'
 
@@ -54,12 +59,10 @@ const Doctors = () => {
 
   const specialityFilters = useMemo(() => specialityData.map((item) => item.speciality), [])
   const specialitySet = useMemo(() => new Set(specialityFilters), [specialityFilters])
-  const locationFilters = useMemo(() => {
-    const locationNames = doctors.flatMap((doctor) => doctor.locations || [])
-    return [...new Set(locationNames.map((name) => String(name || '').trim()).filter(Boolean))]
-      .filter((name) => !specialitySet.has(name))
-      .sort((a, b) => a.localeCompare(b))
-  }, [doctors, specialitySet])
+  const locationFilters = useMemo(
+    () => collectLocationFilterPlaces(doctors, specialitySet),
+    [doctors, specialitySet]
+  )
 
   const consultationMode = searchParams.get('consultation')
   const teleconsultationMode = consultationMode === 'tele'
@@ -67,6 +70,12 @@ const Doctors = () => {
   const homeVisitMode = consultationMode === 'home'
   const selectedSpeciality = specialityFilters.includes(speciality) ? speciality : ''
   const selectedClinic = searchParams.get('clinic') || (!selectedSpeciality ? speciality || '' : '')
+
+  const selectedLocationKey = useMemo(() => {
+    if (!selectedClinic) return ''
+    const main = extractMainPlaceFromLocation(selectedClinic)
+    return placeFilterKey(main || selectedClinic)
+  }, [selectedClinic])
 
   const hasHomeVisitAvailability = (doctor) => {
     const areas = Array.isArray(doctor?.homeVisitAreas) ? doctor.homeVisitAreas : []
@@ -114,7 +123,9 @@ const Doctors = () => {
       const matchesSpeciality = selectedSpeciality
         ? doctorBelongsToClinicSection(doc, selectedSpeciality)
         : true
-      const matchesLocation = selectedClinic ? doctorBelongsToClinicSection(doc, selectedClinic) : true
+      const matchesLocation = selectedClinic
+        ? doctorBelongsToClinicSection(doc, selectedClinic) || doctorMatchesLocationFilter(doc, selectedClinic)
+        : true
       const matchesConsultationMode = homeVisitMode
         ? hasHomeVisitAvailability(doc)
         : voiceCallMode
@@ -286,7 +297,7 @@ const Doctors = () => {
                 key={locationName}
                 type='button'
                 onClick={() => handleLocationFilter(locationName)}
-                className={filterChipClass(selectedClinic === locationName)}
+                className={filterChipClass(placeFilterKey(locationName) === selectedLocationKey)}
               >
                 {formatLocationLine(locationName, language, t, placeTranslationOverrides)}
               </button>

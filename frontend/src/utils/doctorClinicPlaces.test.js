@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { doctorBelongsToClinicSection, getDoctorClinicPlaceNames } from './doctorClinicPlaces'
+import {
+  collectLocationFilterPlaces,
+  doctorBelongsToClinicSection,
+  doctorMatchesLocationFilter,
+  getDoctorClinicPlaceNames,
+} from './doctorClinicPlaces'
 
 describe('doctorClinicPlaces', () => {
   it('collects names from populated clinics and locations', () => {
@@ -28,5 +33,28 @@ describe('doctorClinicPlaces', () => {
   it('is case-insensitive', () => {
     const doctor = { speciality: 'general physician' }
     expect(doctorBelongsToClinicSection(doctor, 'General physician')).toBe(true)
+  })
+
+  it('collects unique district labels for location filters', () => {
+    const doctors = [
+      { locations: ['11 Syria Street, Mohaddessin, Giza, Egypt'] },
+      { locations: ['15 Nile Street، الدقي، الجيزة، Egypt'] },
+      { locations: ['11 Other Road, Mohaddessin, Giza'] },
+    ]
+    const places = collectLocationFilterPlaces(doctors, new Set())
+    expect(places).toContain('Mohaddessin')
+    expect(places).toContain('الدقي')
+    expect(places.filter((p) => /street/i.test(p))).toHaveLength(0)
+  })
+
+  it('matches doctors by district when filtering', () => {
+    const doctor = {
+      speciality: 'Cardiologist',
+      clinics: [],
+      locations: ['18 Nile Corniche Road، المعادي، القاهرة'],
+    }
+    expect(doctorMatchesLocationFilter(doctor, 'المعادي')).toBe(true)
+    expect(doctorMatchesLocationFilter(doctor, 'Maadi')).toBe(true)
+    expect(doctorMatchesLocationFilter(doctor, 'الدقي')).toBe(false)
   })
 })

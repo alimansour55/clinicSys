@@ -4,6 +4,8 @@ import {
   translatePlaceSegment,
   formatLocationLine,
   collectPlaceStringsNeedingTranslate,
+  extractMainPlaceFromLocation,
+  placeFilterKey,
 } from './placeTranslations.js'
 
 describe('placeTranslations', () => {
@@ -27,6 +29,16 @@ describe('placeTranslations', () => {
     const line = formatLocationLine('Cairo, Maadi', 'ar', t)
     expect(line).toContain('القاهرة')
     expect(line).toContain('المعادي')
+  })
+
+  it('extracts district from full clinic addresses for filters', () => {
+    expect(extractMainPlaceFromLocation('11 Syria Street, Mohaddessin, Giza, Egypt')).toBe('Mohaddessin')
+    expect(extractMainPlaceFromLocation('18 Nile Corniche Road، المعادي، القاهرة')).toBe('المعادي')
+    expect(extractMainPlaceFromLocation('44 Mostafa El Nahas Street، مدينة نصر، القاهرة، Egypt')).toBe(
+      'مدينة نصر'
+    )
+    expect(extractMainPlaceFromLocation('فيصل')).toBe('فيصل')
+    expect(placeFilterKey('Mohaddessin')).toBe(placeFilterKey('المهندسين'))
   })
 
   it('collects unknown doctor place strings', () => {

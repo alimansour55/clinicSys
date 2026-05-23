@@ -5,6 +5,7 @@
  */
 export const PLACE_NAMES_LATIN_TO_AR = {
   mohandessin: 'المهندسين',
+  mohaddessin: 'المهندسين',
   mohandesin: 'المهندسين',
   mohandseen: 'المهندسين',
   mohamdseen: 'المهندسين',
