@@ -1,8 +1,8 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react'
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
 import { specialityData } from '../assets/assets'
-import { ArrowUpDown, CheckCircle2, CreditCard, Filter, MapPin, Phone, Search, Stethoscope, Video, X } from 'lucide-react'
+import { ArrowUpDown, CheckCircle2, CreditCard, Filter, MapPin, Phone, Search, Stethoscope, UserRound, Video, X } from 'lucide-react'
 import { RatingBadge } from '../components/DoctorRating'
 import PromoOfferBadge from '../components/PromoOfferBadge'
 import { buildDoctorSlots } from '../utils/schedule'
@@ -26,6 +26,7 @@ const Doctors = () => {
   const [mobilePage, setMobilePage] = useState(1)
   const navigate = useNavigate()
   const isMobile = useMediaQuery('(max-width: 1023px)')
+  const doctorsListRef = useRef(null)
 
   const { token, doctors, getDoctorsData, t, tc, currencySymbol, displayPersonName, language, placeTranslationOverrides, localizeDigits } = useContext(AppContext)
 
@@ -232,11 +233,32 @@ const Doctors = () => {
         : 'border-gray-200 bg-gray-50 text-gray-700 active:bg-teal-50'
     }`
 
+  const scrollToDoctorsTop = () => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+    doctorsListRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' })
+  }
+
+  const renderFilterSection = (title, icon, children) => {
+    const Icon = icon
+    return (
+      <section className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
+        <div className='flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2.5'>
+          <Icon className='h-4 w-4 shrink-0 text-primary' />
+          <p className='text-xs font-bold uppercase tracking-wide text-gray-700'>{title}</p>
+        </div>
+        <div className='p-3'>{children}</div>
+      </section>
+    )
+  }
+
   const renderFilterPanel = () => (
-    <div className='space-y-5 text-sm text-gray-600'>
-      <div>
-        <p className='mb-2 font-semibold text-gray-900'>{t('Speciality')}</p>
-        <div className='flex max-h-[240px] flex-wrap gap-2 overflow-y-auto pr-1'>
+    <div className='space-y-3 text-sm text-gray-600'>
+      {renderFilterSection(
+        t('Speciality'),
+        Stethoscope,
+        <div className='grid max-h-[200px] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-1'>
           <button type='button' onClick={handleAllDoctorsFilter} className={filterChipClass(isAllDoctorsSelected)}>
             {t('All doctors')}
           </button>
@@ -250,45 +272,14 @@ const Doctors = () => {
               {tc(specialityName)}
             </button>
           ))}
-        </div>
-      </div>
+        </div>,
+      )}
 
-      <div>
-        <p className='mb-2 font-semibold text-gray-900'>{t('Doctor title')}</p>
-        <div className='flex flex-wrap gap-2'>
-          {titleFilters.map((titleName) => (
-            <button
-              key={titleName}
-              type='button'
-              onClick={() => setSelectedTitle((value) => (value === titleName ? '' : titleName))}
-              className={filterChipClass(selectedTitle === titleName)}
-            >
-              {t(titleName)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <p className='mb-2 font-semibold text-gray-900'>{t('Gender')}</p>
-        <div className='flex flex-wrap gap-2'>
-          {genderFilters.map((genderName) => (
-            <button
-              key={genderName}
-              type='button'
-              onClick={() => setSelectedGender((value) => (value === genderName ? '' : genderName))}
-              className={filterChipClass(selectedGender === genderName)}
-            >
-              {t(genderName)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {locationFilters.length > 0 && (
-        <div>
-          <p className='mb-2 font-semibold text-gray-900'>{t('Location')}</p>
-          <div className='flex max-h-[240px] flex-wrap gap-2 overflow-y-auto pr-1'>
+      {locationFilters.length > 0 &&
+        renderFilterSection(
+          t('Location'),
+          MapPin,
+          <div className='grid max-h-[200px] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-1'>
             {locationFilters.map((locationName) => (
               <button
                 key={locationName}
@@ -299,13 +290,46 @@ const Doctors = () => {
                 {formatLocationLine(locationName, language, t, placeTranslationOverrides)}
               </button>
             ))}
+          </div>,
+        )}
+
+      {renderFilterSection(
+        t('Doctor details'),
+        UserRound,
+        <>
+          <p className='mb-2 text-[11px] font-semibold text-gray-500'>{t('Doctor title')}</p>
+          <div className='mb-3 grid grid-cols-2 gap-2'>
+            {titleFilters.map((titleName) => (
+              <button
+                key={titleName}
+                type='button'
+                onClick={() => setSelectedTitle((value) => (value === titleName ? '' : titleName))}
+                className={filterChipClass(selectedTitle === titleName)}
+              >
+                {t(titleName)}
+              </button>
+            ))}
           </div>
-        </div>
+          <p className='mb-2 text-[11px] font-semibold text-gray-500'>{t('Gender')}</p>
+          <div className='grid grid-cols-2 gap-2'>
+            {genderFilters.map((genderName) => (
+              <button
+                key={genderName}
+                type='button'
+                onClick={() => setSelectedGender((value) => (value === genderName ? '' : genderName))}
+                className={filterChipClass(selectedGender === genderName)}
+              >
+                {t(genderName)}
+              </button>
+            ))}
+          </div>
+        </>,
       )}
 
-      <div>
-        <p className='mb-2 font-semibold text-gray-900'>{t('Payment')}</p>
-        <div className='flex flex-wrap gap-2'>
+      {renderFilterSection(
+        t('Payment'),
+        CreditCard,
+        <div className='grid grid-cols-2 gap-2'>
           {[
             { value: 'Cash', label: t('Cash') },
             { value: 'Visa', label: t('Online payment') },
@@ -314,14 +338,14 @@ const Doctors = () => {
               key={item.value}
               type='button'
               onClick={() => setSelectedPayment((value) => (value === item.value ? '' : item.value))}
-              className={`flex items-center gap-2 ${filterChipClass(selectedPayment === item.value)}`}
+              className={`flex items-center justify-center gap-2 ${filterChipClass(selectedPayment === item.value)}`}
             >
-              <CreditCard className='h-4 w-4' />
+              <CreditCard className='h-4 w-4 shrink-0' />
               {item.label}
             </button>
           ))}
-        </div>
-      </div>
+        </div>,
+      )}
     </div>
   )
 
@@ -556,7 +580,7 @@ const Doctors = () => {
           <div className='max-h-[calc(100vh-11rem)] overflow-y-auto pr-1'>{renderFilterPanel()}</div>
         </aside>
 
-        <main className='min-w-0 flex-1'>
+        <main ref={doctorsListRef} className='min-w-0 flex-1 scroll-mt-24'>
           <div className='mb-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm'>
             <p className='text-sm text-gray-600'>
               {isMobile
@@ -638,7 +662,7 @@ const Doctors = () => {
                   type='button'
                   onClick={() => {
                     setMobilePage(pageNumber)
-                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                    scrollToDoctorsTop()
                   }}
                   className={`flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition ${
                     mobilePage === pageNumber

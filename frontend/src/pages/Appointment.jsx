@@ -857,34 +857,50 @@ const Appointment = () => {
           }
         </div>
 
-        <div className='mt-4 flex min-h-14 w-full flex-wrap items-center gap-3'>
-          {docSlots.length && slotIndex !== null && docSlots[slotIndex].slots.map((item,index) => (
-             <button
-              type='button'
-              disabled={!item.available}
-              title={item.reason}
-              onClick={() => {
-                const next = slotTime === item.time ? '' : item.time
-                setSlotTime(next)
-                if (!next) setSlotBranch('')
-                else setSlotBranch(selectedClinicLocation)
-                setPendingPayment(null)
-              }}
-              className={`flex-shrink-0 rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
-                item.time === slotTime
-                  ? 'bg-primary text-white border-primary'
-                  : item.available
-                    ? 'bg-green-50 text-green-700 border-green-200 cursor-pointer hover:bg-green-100'
-                    : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-              }`}
-              key={index}>
-              {localizeDigits(item.time.toLowerCase())}
-             </button>
-          ))}
-          {slotIndex !== null && docSlots[slotIndex].slots.length === 0 && (
-            <p className='text-sm text-gray-500'>{activeAppointmentType === 'Home Visit' ? t('No home visit slots this day') : t('No slots this day')}</p>
-          )}
-        </div>
+        {slotIndex !== null && docSlots[slotIndex] && (
+          <div className={`mt-4 rounded-xl border border-gray-200 bg-gray-50/80 p-3 sm:p-4 ${isMobile ? '' : ''}`}>
+            <p className='mb-3 text-sm font-semibold text-gray-900'>
+              {fillT('Available times for {{date}}', {
+                date: slotDateFormat(
+                  `${docSlots[slotIndex].dateTime.getDate()}_${docSlots[slotIndex].dateTime.getMonth() + 1}_${docSlots[slotIndex].dateTime.getFullYear()}`
+                ),
+              })}
+            </p>
+            <div className={isMobile ? 'grid grid-cols-3 gap-2' : 'flex min-h-14 w-full flex-wrap items-center gap-3'}>
+              {docSlots[slotIndex].slots.map((item, index) => (
+                <button
+                  type='button'
+                  disabled={!item.available}
+                  title={item.reason}
+                  onClick={() => {
+                    const next = slotTime === item.time ? '' : item.time
+                    setSlotTime(next)
+                    if (!next) setSlotBranch('')
+                    else setSlotBranch(selectedClinicLocation)
+                    setPendingPayment(null)
+                  }}
+                  className={`w-full rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:rounded-full sm:px-5 ${
+                    item.time === slotTime
+                      ? 'border-primary bg-primary text-white'
+                      : item.available
+                        ? 'border-green-200 bg-green-50 text-green-700 active:bg-green-100'
+                        : 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
+                  }`}
+                  key={index}
+                >
+                  {localizeDigits(item.time.toLowerCase())}
+                </button>
+              ))}
+            </div>
+            {docSlots[slotIndex].slots.length === 0 && (
+              <p className='text-sm text-gray-500'>{activeAppointmentType === 'Home Visit' ? t('No home visit slots this day') : t('No slots this day')}</p>
+            )}
+          </div>
+        )}
+
+        {slotIndex === null && (
+          <p className='mt-3 text-sm text-gray-500'>{t('Select a day to see available times')}</p>
+        )}
 
         <div className='mt-5 max-w-xl'>
           {promoActive && (

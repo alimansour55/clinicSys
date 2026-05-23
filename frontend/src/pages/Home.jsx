@@ -1,18 +1,18 @@
 import React from 'react'
 import Header from '../components/Header'
-import HomeSectionNav from '../components/HomeSectionNav'
 import SpecialityMenu from '../components/SpecialityMenu'
 import TopDoctors from '../components/TopDoctors'
 import Banner from '../components/Banner'
+import HomeMobileDock from '../components/HomeMobileDock'
 
 const Home = () => {
   return (
-    <div className='overflow-x-hidden'>
+    <div className='overflow-x-hidden pb-2'>
       <Header />
-      <HomeSectionNav />
       <SpecialityMenu />
       <TopDoctors />
       <Banner />
+      <HomeMobileDock />
     </div>
   )
 }

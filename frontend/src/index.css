@@ -31,10 +31,26 @@ html[dir="rtl"] * {
   font-family: Manrope, Arial, sans-serif;
 }
 
-html[dir="rtl"] input,
+html[dir="rtl"] input:not([type="date"]),
 html[dir="rtl"] textarea,
 html[dir="rtl"] select {
   text-align: right;
+}
+
+input[type="date"].date-field-input,
+input[type="date"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+html[dir="rtl"] input[type="date"] {
+  text-align: start;
+  direction: ltr;
 }
 
 .active hr { 
