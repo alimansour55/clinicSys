@@ -58,7 +58,12 @@ const Sidebar = ({ adminNavExpanded = false, onAdminNavExpandedChange }) => {
     'flex w-full cursor-pointer items-center justify-center gap-2 py-3 text-left text-[#515151] transition-colors hover:bg-gray-50 md:justify-start md:gap-3 md:py-3.5 md:px-6'
   const staffRowActiveClass = `${staffRowInactiveClass} bg-[#F2F3FF] border-r-4 border-primary`
 
-  const sidebarPosition = isRtl ? 'right-0 border-l' : 'left-0 border-r'
+  /** Admin mobile: always anchor left so the menu grows left → right; desktop RTL keeps right sidebar. */
+  const sidebarPosition = aToken
+    ? `left-0 border-r${isRtl ? ' md:right-0 md:left-auto md:border-l md:border-r-0' : ''}`
+    : isRtl
+      ? 'right-0 border-l'
+      : 'left-0 border-r'
   const adminWidthClass = adminNavExpanded ? 'w-64' : 'w-14'
   const staffWidthClass = 'w-14 sm:w-16 md:w-64'
 

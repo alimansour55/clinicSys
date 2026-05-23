@@ -188,8 +188,8 @@ const App = () => {
           aToken
             ? isRtl
               ? adminNavExpanded
-                ? 'mr-64'
-                : 'mr-14'
+                ? 'ml-64 md:ml-0 md:mr-64'
+                : 'ml-14 md:ml-0 md:mr-14'
               : adminNavExpanded
                 ? 'ml-64'
                 : 'ml-14'

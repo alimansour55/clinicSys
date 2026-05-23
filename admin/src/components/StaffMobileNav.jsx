@@ -41,7 +41,8 @@ const StaffMobileNav = ({
   }, [menuOpen])
 
   const initial = (navSummary?.name || roleLabel || '?').trim().charAt(0).toUpperCase() || '?'
-  const drawerSide = isRtl ? 'left-0 border-r' : 'right-0 border-l'
+  /** Mobile drawer opens from the left edge and expands right (LTR-style slide). */
+  const drawerSide = 'left-0 border-r'
   const subtitle = navSummary?.speciality || navSummary?.email || ''
 
   return (
@@ -90,7 +91,7 @@ const StaffMobileNav = ({
 
           <aside
             id='staff-mobile-nav-drawer'
-            className={`absolute top-0 ${drawerSide} bottom-0 flex h-full w-[min(100vw-1rem,22rem)] max-w-sm flex-col overflow-hidden bg-white shadow-2xl`}
+            className={`absolute top-0 ${drawerSide} bottom-0 flex h-full w-[min(100vw-1rem,22rem)] max-w-sm flex-col overflow-hidden border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out`}
           >
             <div className='border-b border-blue-100 bg-gradient-to-br from-blue-50 via-white to-indigo-50 px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))]'>
               <div className='flex items-start justify-between gap-3'>
@@ -137,7 +138,7 @@ const StaffMobileNav = ({
                           {LinkIcon ? <LinkIcon className='h-4 w-4 shrink-0' /> : null}
                           <span className='truncate'>{link.label}</span>
                         </span>
-                        <ChevronRight className='h-4 w-4 shrink-0 opacity-60' />
+                        <ChevronRight className={`h-4 w-4 shrink-0 opacity-60 ${isRtl ? 'rotate-180' : ''}`} />
                       </NavLink>
                     </li>
                   )
