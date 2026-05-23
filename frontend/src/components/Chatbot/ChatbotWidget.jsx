@@ -4,7 +4,7 @@ import { CalendarClock, X, Send, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { AppContext } from '../../context/AppContext'
-import { useLanguage } from '../../i18n'
+import { useLanguage, translateString } from '../../i18n'
 import { formatLocationLine } from '../../utils/placeTranslations'
 import { isValidEgyptPhone, normalizeEgyptPhone } from '../../utils/egyptPhone'
 import {
@@ -17,7 +17,6 @@ import {
 import { doctorBelongsToClinicSection } from '../../utils/doctorClinicPlaces'
 import { doctorOffersHomeVisit, getDoctorHomeVisitAreas } from '../../utils/homeVisitAreas'
 import {
-  detectLanguage,
   detectSpecialtyFromMessage,
   filterDoctorsBySpecialty,
   getDoctorLocations,
@@ -55,6 +54,8 @@ import {
   getChangeSelectionStep
 } from '../../utils/chatbotNavigation'
 import { CHAT_STEPS } from '../../utils/chatbotSteps'
+import { messageText } from '../../utils/chatbotMessages'
+import { resolveClinicSectionLabel } from '../../utils/chatbotOpeningSuggestions'
 import DoctorChatCard from './DoctorChatCard'
 
 const TypingIndicator = () => (
@@ -115,13 +116,20 @@ const ChatbotWidget = () => {
     (en, ar) => (isRtl ? ar : en),
     [isRtl]
   )
+  const tLang = useCallback((key, lang) => translateString(key, lang), [])
 
-  const pushBot = (content) => {
-    setMessages((prev) => [...prev, { role: 'assistant', content }])
+  const pushBot = (en, ar) => {
+    setMessages((prev) => [
+      ...prev,
+      ar === undefined ? { role: 'assistant', content: en } : { role: 'assistant', en, ar }
+    ])
   }
 
-  const pushUser = (content) => {
-    setMessages((prev) => [...prev, { role: 'user', content }])
+  const pushUser = (en, ar) => {
+    setMessages((prev) => [
+      ...prev,
+      ar === undefined ? { role: 'user', content: en } : { role: 'user', en, ar }
+    ])
   }
 
   const withTyping = async (fn) => {
@@ -134,8 +142,8 @@ const ChatbotWidget = () => {
     }
   }
 
-  const translateLoc = (loc) =>
-    formatLocationLine(loc, isRtl ? 'ar' : 'en', t, placeTranslationOverrides)
+  const translateLoc = (loc, lang = chatLang) =>
+    formatLocationLine(loc, lang === 'ar' ? 'ar' : 'en', t, placeTranslationOverrides)
 
   const formatDoctorFee = (doctor) => {
     const amount = Number(doctor?.fees)
@@ -151,12 +159,6 @@ const ChatbotWidget = () => {
     }
     return locs.map((loc) => translateLoc(loc)).join(' · ')
   }
-
-  const initialGreeting = () =>
-    L(
-      'Hi 👋 Choose a clinic section below, or describe your symptoms to book.',
-      'أهلاً 👋 اختار قسم العيادة من الأسفل، أو اكتب أعراضك للحجز.'
-    )
 
   const clinicSectionSuggestions = useMemo(
     () =>
@@ -186,12 +188,58 @@ const ChatbotWidget = () => {
     if (booted.current) return
     booted.current = true
     setChatLang(siteLanguage)
-    setMessages([{ role: 'assistant', content: initialGreeting() }])
+    setMessages([
+      {
+        role: 'assistant',
+        en: 'Hi 👋 Choose a clinic section below, or describe your symptoms to book.',
+        ar: 'أهلاً 👋 اختار قسم العيادة من الأسفل، أو اكتب أعراضك للحجز.'
+      }
+    ])
     setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
     setQuickReplies(buildFallbackOpeningSuggestions(siteLanguage))
     getDoctorsData?.()
     getClinicsData?.()
   }, [open, siteLanguage])
+
+  useEffect(() => {
+    if (!open || !booted.current) return
+    setChatLang(siteLanguage)
+  }, [open, siteLanguage])
+
+  useEffect(() => {
+    if (!open || !booted.current || !slotDays.length) return
+    setDateOptions(
+      slotDays.map((d) => ({
+        slotDate: d.slotDate,
+        date: d.date,
+        label: new Date(d.date).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric'
+        })
+      }))
+    )
+  }, [chatLang, open, slotDays, isRtl])
+
+  useEffect(() => {
+    if (!open || !booted.current) return
+    setQuickReplies((prev) =>
+      prev.map((q) =>
+        q.kind === 'clinic' && q.clinicName
+          ? {
+              ...q,
+              label: resolveClinicSectionLabel(
+                q.clinicName,
+                chatLang,
+                t,
+                tc,
+                placeTranslationOverrides
+              )
+            }
+          : q
+      )
+    )
+  }, [chatLang, open, t, tc, placeTranslationOverrides])
 
   useEffect(() => {
     if (!open || chatStep !== CHAT_STEPS.WAITING_SYMPTOMS) return
@@ -262,22 +310,20 @@ const ChatbotWidget = () => {
     }))
   }
 
-  const resetToClinicSections = (botMessage) => {
+  const resetToClinicSections = (botEn, botAr) => {
     navStackRef.current = []
     setNavRevision((n) => n + 1)
     clearBookingFlow(true)
     setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
     setQuickReplies(fallbackQuickReplies())
-    if (botMessage) pushBot(botMessage)
+    if (botEn) pushBot(botEn, botAr)
   }
 
   const handleStartOver = () => {
-    pushUser(L('Start Over', 'البدء من جديد'))
+    pushUser('Start Over', 'البدء من جديد')
     resetToClinicSections(
-      L(
-        'Starting fresh. Choose a clinic section or describe your symptoms.',
-        'بدأنا من جديد. اختار قسم العيادة أو اكتب أعراضك.'
-      )
+      'Starting fresh. Choose a clinic section or describe your symptoms.',
+      'بدأنا من جديد. اختار قسم العيادة أو اكتب أعراضك.'
     )
   }
 
@@ -285,10 +331,11 @@ const ChatbotWidget = () => {
     const prev = navStackRef.current.pop()
     if (!prev) return
     setNavRevision((n) => n + 1)
-    pushUser(L('⬅ Back', '⬅ الرجوع'))
+    pushUser('⬅ Back', '⬅ الرجوع')
     restoreSnapshot(prev)
     pushBot(
-      L('Back to the previous step. You can adjust your choice.', 'رجعنا للخطوة السابقة. تقدر تعدّل اختيارك.')
+      'Back to the previous step. You can adjust your choice.',
+      'رجعنا للخطوة السابقة. تقدر تعدّل اختيارك.'
     )
   }
 
@@ -309,7 +356,8 @@ const ChatbotWidget = () => {
       return
     }
     resetToClinicSections(
-      L('Choose a clinic section:', 'اختار قسم العيادة:')
+      'Choose a clinic section:',
+      'اختار قسم العيادة:'
     )
   }
 
@@ -327,10 +375,8 @@ const ChatbotWidget = () => {
     setAppointmentTypeOptions(options)
     setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
     pushBot(
-      L(
-        `How would you like to visit ${displayPersonName(doctor.name)}?`,
-        `إزاي تحب الزيارة مع ${displayPersonName(doctor.name)}؟`
-      )
+      `How would you like to visit ${displayPersonName(doctor.name)}?`,
+      `إزاي تحب الزيارة مع ${displayPersonName(doctor.name)}؟`
     )
   }
 
@@ -339,7 +385,7 @@ const ChatbotWidget = () => {
     setTimeOptions([])
     setBookingData((b) => ({ ...b, time: '', slotDate: '', date: null }))
     setChatStep(CHAT_STEPS.WAITING_DATE)
-    pushBot(L('Pick a date:', 'اختار التاريخ:'))
+    pushBot('Pick a date:', 'اختار التاريخ:')
   }
 
   const rebuildTimeStep = () => {
@@ -349,11 +395,11 @@ const ChatbotWidget = () => {
     setTimeOptions(times)
     setBookingData((b) => ({ ...b, time: '' }))
     setChatStep(CHAT_STEPS.WAITING_TIME)
-    pushBot(L('Please choose a time:', 'اختار الوقت المناسب:'))
+    pushBot('Please choose a time:', 'اختار الوقت المناسب:')
   }
 
   const handleChangeSelection = async () => {
-    pushUser(L('Change Selection', 'تغيير الاختيار'))
+    pushUser('Change Selection', 'تغيير الاختيار')
     const target = getChangeSelectionStep(chatStep)
 
     await withTyping(async () => {
@@ -364,7 +410,8 @@ const ChatbotWidget = () => {
 
       if (target === CHAT_STEPS.WAITING_SYMPTOMS) {
         resetToClinicSections(
-          L('Choose a clinic section:', 'اختار قسم العيادة:')
+          'Choose a clinic section:',
+          'اختار قسم العيادة:'
         )
         return
       }
@@ -438,32 +485,39 @@ const ChatbotWidget = () => {
   }
 
   const showNoDoctorsGuidance = (emptyClinicName, emptyClinicId = null, messageOverride = '') => {
-    const guidance = buildEmptySpecialtyGuidance({
+    const overrideEn =
+      typeof messageOverride === 'object' && messageOverride !== null
+        ? messageOverride.en
+        : messageOverride
+    const overrideAr =
+      typeof messageOverride === 'object' && messageOverride !== null
+        ? messageOverride.ar
+        : messageOverride
+    const base = {
       doctors,
       clinics,
       emptyClinicName,
       emptyClinicId,
-      language: chatLang,
       t,
       tc,
-      placeTranslationOverrides,
-      messageOverride
-    })
+      placeTranslationOverrides
+    }
+    const guidanceEn = buildEmptySpecialtyGuidance({ ...base, language: 'en', messageOverride: overrideEn })
+    const guidanceAr = buildEmptySpecialtyGuidance({ ...base, language: 'ar', messageOverride: overrideAr })
+    const guidance = chatLang === 'ar' ? guidanceAr : guidanceEn
 
     setMatchedDoctors([])
     setChatStep(CHAT_STEPS.SUGGESTING_ALTERNATIVES)
 
     if (guidance.suggestions.length) {
       setQuickReplies(guidance.suggestions)
-      pushBot(guidance.message)
+      pushBot(guidanceEn.message, guidanceAr.message)
       return
     }
 
     pushBot(
-      L(
-        `${guidance.message}\n\nPlease try again later or contact the clinic.`,
-        `${guidance.message}\n\nحاول مرة أخرى لاحقاً أو تواصل مع العيادة.`
-      )
+      `${guidanceEn.message}\n\nPlease try again later or contact the clinic.`,
+      `${guidanceAr.message}\n\nحاول مرة أخرى لاحقاً أو تواصل مع العيادة.`
     )
     setQuickReplies(fallbackQuickReplies())
     setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
@@ -474,10 +528,8 @@ const ChatbotWidget = () => {
     const source = await resolveDoctorsList()
     if (!source.length) {
       pushBot(
-        L(
-          'Sorry, I could not load doctors right now. Please try again later.',
-          'آسف، لم أتمكن من تحميل الدكاترة حالياً. حاول مرة أخرى لاحقاً.'
-        )
+        'Sorry, I could not load doctors right now. Please try again later.',
+        'آسف، لم أتمكن من تحميل الدكاترة حالياً. حاول مرة أخرى لاحقاً.'
       )
       return
     }
@@ -498,10 +550,8 @@ const ChatbotWidget = () => {
     setQuickReplies([])
     setChatStep(CHAT_STEPS.SHOWING_DOCTORS)
     pushBot(
-      L(
-        'I found doctors that match your case. Please choose one:',
-        'لقيت دكاترة مناسبين لحالتك. اختار دكتور من القائمة:'
-      )
+      'I found doctors that match your case. Please choose one:',
+      'لقيت دكاترة مناسبين لحالتك. اختار دكتور من القائمة:'
     )
   }
 
@@ -514,17 +564,14 @@ const ChatbotWidget = () => {
     setMatchedDoctors(list)
     setQuickReplies([])
     setChatStep(CHAT_STEPS.SHOWING_DOCTORS)
-    pushBot(
+    const matchedCopy =
       list.length === 1
-        ? L('Here is the doctor you asked for:', 'ده الدكتور اللي طلبته:')
-        : L('I found these doctors. Please choose one:', 'لقيت الدكاترة دول. اختار واحد:')
-    )
+        ? ['Here is the doctor you asked for:', 'ده الدكتور اللي طلبته:']
+        : ['I found these doctors. Please choose one:', 'لقيت الدكاترة دول. اختار واحد:']
+    pushBot(matchedCopy[0], matchedCopy[1])
   }
 
   const handleSymptomMessage = async (text) => {
-    const lang = detectLanguage(text)
-    setChatLang(lang)
-
     const source = await resolveDoctorsList()
     const byName = findDoctorsByNameQuery(source, text)
     if (shouldUseDoctorNameSearch(text, byName)) {
@@ -539,7 +586,8 @@ const ChatbotWidget = () => {
       setChatStep(CHAT_STEPS.CLARIFY_AUDIENCE)
       setQuickReplies(audienceQuickReplies())
       pushBot(
-        L('Is this for an adult or a child?', 'هل المشكلة لشخص بالغ أم لطفل؟')
+        'Is this for an adult or a child?',
+        'هل المشكلة لشخص بالغ أم لطفل؟'
       )
       return
     }
@@ -547,10 +595,8 @@ const ChatbotWidget = () => {
     if (!specialty) {
       setQuickReplies(fallbackQuickReplies())
       pushBot(
-        L(
-          'Can you describe your problem? Or choose a clinic section above.',
-          'ممكن توضح المشكلة؟ أو اختار قسم العيادة من الأقسام بالأعلى.'
-        )
+        'Can you describe your problem? Or choose a clinic section above.',
+        'ممكن توضح المشكلة؟ أو اختار قسم العيادة من الأقسام بالأعلى.'
       )
       return
     }
@@ -600,14 +646,10 @@ const ChatbotWidget = () => {
     }
 
     if (!list.length) {
-      showNoDoctorsGuidance(
-        '',
-        null,
-        L(
-          'No doctors are available for this service right now. Here are other options:',
-          'لا يوجد أطباء متاحين لهذه الخدمة حالياً. إليك خيارات أخرى:'
-        )
-      )
+      showNoDoctorsGuidance('', null, {
+        en: 'No doctors are available for this service right now. Here are other options:',
+        ar: 'لا يوجد أطباء متاحين لهذه الخدمة حالياً. إليك خيارات أخرى:'
+      })
       return
     }
 
@@ -616,7 +658,14 @@ const ChatbotWidget = () => {
   }
 
   const handleQuickReply = async (reply) => {
-    pushUser(reply.label)
+    if (reply.kind === 'clinic' && reply.clinicName) {
+      pushUser(
+        resolveClinicSectionLabel(reply.clinicName, 'en', t, tc, placeTranslationOverrides),
+        resolveClinicSectionLabel(reply.clinicName, 'ar', t, tc, placeTranslationOverrides)
+      )
+    } else {
+      pushUser(reply.label)
+    }
     setQuickReplies([])
 
     await withTyping(async () => {
@@ -631,7 +680,8 @@ const ChatbotWidget = () => {
         if (doc) showMatchedDoctors([doc], reply.label)
         else {
           pushBot(
-            L('Sorry, that doctor is not available right now.', 'آسف، الدكتور ده مش متاح حالياً.')
+            'Sorry, that doctor is not available right now.',
+            'آسف، الدكتور ده مش متاح حالياً.'
           )
           setQuickReplies(fallbackQuickReplies())
         }
@@ -673,14 +723,13 @@ const ChatbotWidget = () => {
     else if (isTeleconsultationType(appointmentType)) setClinicLocation('')
     applySlotDays(days)
     setChatStep(CHAT_STEPS.WAITING_DATE)
-    const typeLabel = t(
+    const typeKey =
       CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === appointmentType)?.labelKey || 'In clinic'
-    )
+    const typeLabelEn = tLang(typeKey, 'en')
+    const typeLabelAr = tLang(typeKey, 'ar')
     pushBot(
-      L(
-        `Available times for ${typeLabel}. What date works for you?`,
-        `المواعيد المتاحة لـ ${typeLabel}. اختار اليوم المناسب:`
-      )
+      `Available times for ${typeLabelEn}. What date works for you?`,
+      `المواعيد المتاحة لـ ${typeLabelAr}. اختار اليوم المناسب:`
     )
   }
 
@@ -691,7 +740,10 @@ const ChatbotWidget = () => {
         pushHistory()
         setHomeVisitAreaOptions(areas)
         setChatStep(CHAT_STEPS.WAITING_HOME_AREA)
-        pushBot(L('Please choose your area for the home visit:', 'اختار المنطقة لزيارة المنزل:'))
+        pushBot(
+          'Please choose your area for the home visit:',
+          'اختار المنطقة لزيارة المنزل:'
+        )
         return
       }
       if (areas.length === 1) {
@@ -703,10 +755,8 @@ const ChatbotWidget = () => {
 
     if (result.mode === 'empty') {
       pushBot(
-        L(
-          'No available slots for this visit type right now. Try another option or doctor.',
-          'مفيش مواعيد متاحة لنوع الزيارة ده حالياً. جرب خيار أو دكتور تاني.'
-        )
+        'No available slots for this visit type right now. Try another option or doctor.',
+        'مفيش مواعيد متاحة لنوع الزيارة ده حالياً. جرب خيار أو دكتور تاني.'
       )
       setAppointmentTypeOptions(getDoctorAppointmentTypeOptions(doctor))
       setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
@@ -718,10 +768,8 @@ const ChatbotWidget = () => {
       setLocationOptions(result.branches)
       setChatStep(CHAT_STEPS.WAITING_LOCATION)
       pushBot(
-        L(
-          `${displayPersonName(doctor.name)} works at more than one clinic. Please choose a location:`,
-          `${displayPersonName(doctor.name)} متاح في أكثر من فرع. اختار فرع العيادة:`
-        )
+        `${displayPersonName(doctor.name)} works at more than one clinic. Please choose a location:`,
+        `${displayPersonName(doctor.name)} متاح في أكثر من فرع. اختار فرع العيادة:`
       )
       return
     }
@@ -733,8 +781,8 @@ const ChatbotWidget = () => {
     const doctor = bookingData.selectedDoctor
     if (!doctor) return
     pushHistory()
-    const label = t(CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === type)?.labelKey || type)
-    pushUser(label)
+    const labelKey = CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === type)?.labelKey || type
+    pushUser(tLang(labelKey, 'en'), tLang(labelKey, 'ar'))
     setAppointmentTypeOptions([])
     setBookingData((b) => ({
       ...b,
@@ -762,7 +810,8 @@ const ChatbotWidget = () => {
       const result = probeDoctorBranchesForType(doctor, 'Home Visit', 14)
       if (result.mode === 'empty') {
         pushBot(
-          L('No home visit slots available right now.', 'مفيش مواعيد زيارة منزلية متاحة حالياً.')
+          'No home visit slots available right now.',
+          'مفيش مواعيد زيارة منزلية متاحة حالياً.'
         )
         return
       }
@@ -804,10 +853,8 @@ const ChatbotWidget = () => {
       const options = getDoctorAppointmentTypeOptions(doctor)
       if (!options.length) {
         pushBot(
-          L(
-            'This doctor has no booking options available right now.',
-            'الدكتور ده مش متاح للحجز حالياً.'
-          )
+          'This doctor has no booking options available right now.',
+          'الدكتور ده مش متاح للحجز حالياً.'
         )
         setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
         return
@@ -822,10 +869,8 @@ const ChatbotWidget = () => {
       setAppointmentTypeOptions(options)
       setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
       pushBot(
-        L(
-          `You chose ${displayPersonName(doctor.name)}. How would you like to visit?`,
-          `اخترت ${displayPersonName(doctor.name)}. إزاي تحب الزيارة تكون؟`
-        )
+        `You chose ${displayPersonName(doctor.name)}. How would you like to visit?`,
+        `اخترت ${displayPersonName(doctor.name)}. إزاي تحب الزيارة تكون؟`
       )
     })
   }
@@ -835,7 +880,10 @@ const ChatbotWidget = () => {
     const day = slotDays.find((d) => d.slotDate === opt.slotDate)
     const times = day?.slots || []
     if (!times.length) {
-      pushBot(L('No times on this day. Pick another date.', 'مفيش مواعيد في اليوم ده. اختار يوم تاني.'))
+      pushBot(
+        'No times on this day. Pick another date.',
+        'مفيش مواعيد في اليوم ده. اختار يوم تاني.'
+      )
       return
     }
 
@@ -849,13 +897,14 @@ const ChatbotWidget = () => {
     setTimeOptions(times)
     setChatStep(CHAT_STEPS.WAITING_TIME)
     pushUser(opt.label)
-    pushBot(L('Please choose a time:', 'اختار الوقت المناسب:'))
+    pushBot('Please choose a time:', 'اختار الوقت المناسب:')
   }
 
   const loadVisitFeeStep = async (next) => {
     if (!token) {
       pushBot(
-        L('Please log in to complete your booking.', 'يرجى تسجيل الدخول لإتمام الحجز.')
+        'Please log in to complete your booking.',
+        'يرجى تسجيل الدخول لإتمام الحجز.'
       )
       toast.info(L('Please log in to complete booking', 'يرجى تسجيل الدخول لإتمام الحجز'))
       navigate('/login')
@@ -866,10 +915,8 @@ const ChatbotWidget = () => {
     const phone = userData?.phone || next.phone || ''
     if (!name.trim() || !phone.trim()) {
       pushBot(
-        L(
-          'Your profile is missing name or phone. Please update your profile first.',
-          'ملفك ناقص الاسم أو رقم الهاتف. حدّث بياناتك من الملف الشخصي أولاً.'
-        )
+        'Your profile is missing name or phone. Please update your profile first.',
+        'ملفك ناقص الاسم أو رقم الهاتف. حدّث بياناتك من الملف الشخصي أولاً.'
       )
       return
     }
@@ -898,18 +945,15 @@ const ChatbotWidget = () => {
     pushHistory()
     setChatStep(CHAT_STEPS.WAITING_VISIT_FEE)
     pushBot(
-      L(
-        'Please choose visit type: examination or follow-up consultation.',
-        'اختار نوع الزيارة: كشف أو استشارة متابعة.'
-      )
+      'Please choose visit type: examination or follow-up consultation.',
+      'اختار نوع الزيارة: كشف أو استشارة متابعة.'
     )
   }
 
   const chooseVisitFeeType = (visitFeeType) => {
-    const label = t(
+    const labelKey =
       CHATBOT_VISIT_FEE_TYPES.find((o) => o.value === visitFeeType)?.labelKey || 'Examination (Kashf)'
-    )
-    pushUser(label)
+    pushUser(tLang(labelKey, 'en'), tLang(labelKey, 'ar'))
     const next = { ...bookingData, visitFeeType }
     setBookingData(next)
     goToConfirm(next)
@@ -935,45 +979,59 @@ const ChatbotWidget = () => {
     if (!options.skipHistory) pushHistory()
     setChatStep(CHAT_STEPS.CONFIRMING)
     const d = data.selectedDoctor
-    const dateLabel = data.date
-      ? new Date(data.date).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
-          weekday: 'long',
-          month: 'short',
-          day: 'numeric'
-        })
+    const dateOpts = { weekday: 'long', month: 'short', day: 'numeric' }
+    const dateLabelEn = data.date
+      ? new Date(data.date).toLocaleDateString('en-US', dateOpts)
       : ''
-    const branchLine =
+    const dateLabelAr = data.date
+      ? new Date(data.date).toLocaleDateString('ar-EG', dateOpts)
+      : ''
+    const branchLineEn =
       usesClinicWeeklySchedule(data.appointmentType) &&
       !isTeleconsultationType(data.appointmentType) &&
       clinicLocation
-        ? translateLoc(clinicLocation)
+        ? translateLoc(clinicLocation, 'en')
         : ''
-    const appointmentLabel = t(
+    const branchLineAr =
+      usesClinicWeeklySchedule(data.appointmentType) &&
+      !isTeleconsultationType(data.appointmentType) &&
+      clinicLocation
+        ? translateLoc(clinicLocation, 'ar')
+        : ''
+    const appointmentTypeKey =
       CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === data.appointmentType)?.labelKey ||
-        'In clinic'
-    )
-    const visitLabel = t(
+      'In clinic'
+    const visitFeeKey =
       CHATBOT_VISIT_FEE_TYPES.find((o) => o.value === data.visitFeeType)?.labelKey ||
-        'Examination (Kashf)'
-    )
+      'Examination (Kashf)'
+    const appointmentLabelEn = tLang(appointmentTypeKey, 'en')
+    const appointmentLabelAr = tLang(appointmentTypeKey, 'ar')
+    const visitLabelEn = tLang(visitFeeKey, 'en')
+    const visitLabelAr = tLang(visitFeeKey, 'ar')
+    const specialtyEn = translateString(getDoctorSpecialty(d), 'en')
+    const specialtyAr = translateString(getDoctorSpecialty(d), 'ar')
     const { total } = computeChatbotTotalPrice({
       doctor: d,
       visitFeeType: data.visitFeeType,
       appointmentType: data.appointmentType,
       siteSettings
     })
-    const totalStr =
-      total > 0 ? `${currencySymbol}${localizeDigits(String(total))}` : L('Free', 'مجاني')
-    const homeLine =
+    const totalStrEn =
+      total > 0 ? `EGP ${localizeDigits(String(total))}` : 'Free'
+    const totalStrAr =
+      total > 0 ? `ج.م ${localizeDigits(String(total))}` : 'مجاني'
+    const homeLineEn =
       data.appointmentType === 'Home Visit' && data.homeVisitArea
-        ? `\n• ${L('Area', 'المنطقة')}: ${data.homeVisitArea}`
+        ? `\n• Area: ${data.homeVisitArea}`
+        : ''
+    const homeLineAr =
+      data.appointmentType === 'Home Visit' && data.homeVisitArea
+        ? `\n• المنطقة: ${data.homeVisitArea}`
         : ''
 
     pushBot(
-      L(
-        `Booking summary:\n• Patient: ${data.patientName}\n• Phone: ${data.phone}\n• Doctor: ${displayPersonName(d?.name)}\n• Specialty: ${tc(getDoctorSpecialty(d))}\n• Visit: ${appointmentLabel}\n• Visit type: ${visitLabel}${branchLine ? `\n• Clinic: ${branchLine}` : ''}${homeLine}\n• Date: ${dateLabel}\n• Time: ${data.time}\n• Total price: ${totalStr}\n\nTap Confirm to book.`,
-        `ملخص الحجز:\n• المريض: ${data.patientName}\n• الهاتف: ${localizeDigits(data.phone)}\n• الدكتور: ${displayPersonName(d?.name)}\n• التخصص: ${tc(getDoctorSpecialty(d))}\n• الزيارة: ${appointmentLabel}\n• نوع الكشف: ${visitLabel}${branchLine ? `\n• الفرع: ${branchLine}` : ''}${homeLine}\n• التاريخ: ${dateLabel}\n• الوقت: ${localizeDigits(data.time)}\n• الإجمالي: ${totalStr}\n\nاضغط تأكيد لإتمام الحجز.`
-      )
+      `Booking summary:\n• Patient: ${data.patientName}\n• Phone: ${data.phone}\n• Doctor: ${displayPersonName(d?.name)}\n• Specialty: ${specialtyEn}\n• Visit: ${appointmentLabelEn}\n• Visit type: ${visitLabelEn}${branchLineEn ? `\n• Clinic: ${branchLineEn}` : ''}${homeLineEn}\n• Date: ${dateLabelEn}\n• Time: ${data.time}\n• Total price: ${totalStrEn}\n\nTap Confirm to book.`,
+      `ملخص الحجز:\n• المريض: ${data.patientName}\n• الهاتف: ${localizeDigits(data.phone)}\n• الدكتور: ${displayPersonName(d?.name)}\n• التخصص: ${specialtyAr}\n• الزيارة: ${appointmentLabelAr}\n• نوع الكشف: ${visitLabelAr}${branchLineAr ? `\n• الفرع: ${branchLineAr}` : ''}${homeLineAr}\n• التاريخ: ${dateLabelAr}\n• الوقت: ${localizeDigits(data.time)}\n• الإجمالي: ${totalStrAr}\n\nاضغط تأكيد لإتمام الحجز.`
     )
   }
 
@@ -991,13 +1049,17 @@ const ChatbotWidget = () => {
     const profilePhone = userData?.phone || phone || ''
     if (!profileName.trim() || !profilePhone.trim()) {
       pushBot(
-        L('Please complete your profile (name and phone) first.', 'أكمل بيانات ملفك (الاسم والهاتف) أولاً.')
+        'Please complete your profile (name and phone) first.',
+        'أكمل بيانات ملفك (الاسم والهاتف) أولاً.'
       )
       return
     }
 
     if (!isValidEgyptPhone(profilePhone)) {
-      pushBot(L('Your profile phone number is not valid.', 'رقم الهاتف في ملفك غير صحيح.'))
+      pushBot(
+        'Your profile phone number is not valid.',
+        'رقم الهاتف في ملفك غير صحيح.'
+      )
       return
     }
 
@@ -1033,29 +1095,23 @@ const ChatbotWidget = () => {
       if (!data.success) {
         setChatStep(CHAT_STEPS.FAILED)
         pushBot(
-          L(
-            'Sorry, the booking was not completed. Please try again.',
-            'آسف، لم يتم تأكيد الحجز. حاول مرة أخرى.'
-          )
+          'Sorry, the booking was not completed. Please try again.',
+          'آسف، لم يتم تأكيد الحجز. حاول مرة أخرى.'
         )
         return
       }
 
       setChatStep(CHAT_STEPS.SUCCESS)
       pushBot(
-        L(
-          `Booking confirmed! Reservation number: ${data.reservationNumber}`,
-          `تم تأكيد الحجز! رقم الحجز: ${localizeDigits(String(data.reservationNumber || ''))}`
-        )
+        `Booking confirmed! Reservation number: ${data.reservationNumber}`,
+        `تم تأكيد الحجز! رقم الحجز: ${localizeDigits(String(data.reservationNumber || ''))}`
       )
       toast.success(L('Booking confirmed', 'تم تأكيد الحجز'))
     } catch {
       setChatStep(CHAT_STEPS.FAILED)
       pushBot(
-        L(
-          'Sorry, the booking was not completed. Please try again.',
-          'آسف، لم يتم تأكيد الحجز. حاول مرة أخرى.'
-        )
+        'Sorry, the booking was not completed. Please try again.',
+        'آسف، لم يتم تأكيد الحجز. حاول مرة أخرى.'
       )
     } finally {
       setBooking(false)
@@ -1084,7 +1140,8 @@ const ChatbotWidget = () => {
           if (match) chooseDate(match)
           else {
             pushBot(
-              L('Please tap one of the date buttons below.', 'من فضلك اختار التاريخ من الأزرار بالأسفل.')
+              'Please tap one of the date buttons below.',
+              'من فضلك اختار التاريخ من الأزرار بالأسفل.'
             )
           }
           break
@@ -1092,10 +1149,8 @@ const ChatbotWidget = () => {
 
         case CHAT_STEPS.WAITING_LOCATION:
           pushBot(
-            L(
-              'Please tap one of the clinic locations below.',
-              'من فضلك اختار فرع العيادة من الأزرار بالأسفل.'
-            )
+            'Please tap one of the clinic locations below.',
+            'من فضلك اختار فرع العيادة من الأزرار بالأسفل.'
           )
           break
 
@@ -1106,7 +1161,8 @@ const ChatbotWidget = () => {
           if (match) chooseTime(match)
           else {
             pushBot(
-              L('Please tap one of the time buttons below.', 'من فضلك اختار الوقت من الأزرار بالأسفل.')
+              'Please tap one of the time buttons below.',
+              'من فضلك اختار الوقت من الأزرار بالأسفل.'
             )
           }
           break
@@ -1114,25 +1170,22 @@ const ChatbotWidget = () => {
 
         case CHAT_STEPS.WAITING_VISIT_FEE:
           pushBot(
-            L(
-              'Please tap examination or follow-up below.',
-              'من فضلك اختار كشف أو استشارة من الأزرار بالأسفل.'
-            )
+            'Please tap examination or follow-up below.',
+            'من فضلك اختار كشف أو استشارة من الأزرار بالأسفل.'
           )
           break
 
         case CHAT_STEPS.WAITING_APPOINTMENT_TYPE:
           pushBot(
-            L(
-              'Please tap how you would like to visit (clinic, home, voice, or video).',
-              'اختار نوع الزيارة من الأزرار (عيادة، منزل، صوت، فيديو).'
-            )
+            'Please tap how you would like to visit (clinic, home, voice, or video).',
+            'اختار نوع الزيارة من الأزرار (عيادة، منزل، صوت، فيديو).'
           )
           break
 
         case CHAT_STEPS.WAITING_HOME_AREA:
           pushBot(
-            L('Please tap your area below.', 'اختار المنطقة من الأزرار بالأسفل.')
+            'Please tap your area below.',
+            'اختار المنطقة من الأزرار بالأسفل.'
           )
           break
 
@@ -1197,7 +1250,7 @@ const ChatbotWidget = () => {
                     : 'rounded-bl-md border border-gray-200 bg-white text-gray-800 shadow-sm'
                 }`}
               >
-                {msg.content}
+                {messageText(msg, chatLang)}
               </div>
             </div>
           ))}

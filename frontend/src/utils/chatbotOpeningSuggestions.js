@@ -1,29 +1,13 @@
 import { doctorBelongsToClinicSection } from './doctorClinicPlaces'
 import { isDoctorBookableForPatients, isDoctorComingSoon } from './doctorBooking'
 import { translatePlaceSegment } from './placeTranslations'
+import {
+  CLINIC_SECTION_LABELS,
+  DEFAULT_CLINIC_SECTION_NAMES,
+  clinicSectionNorm as norm
+} from './clinicSectionLabels'
 
-/** Matches backend defaultClinicNames — used before API clinics load. */
-export const DEFAULT_CLINIC_SECTION_NAMES = [
-  'General physician',
-  'Gynecologist',
-  'Dermatologist',
-  'Pediatricians',
-  'Neurologist',
-  'Gastroenterologist'
-]
-
-const norm = (value) => String(value || '').trim().toLowerCase()
-
-/** Chatbot clinic section chips — short labels for AR / EN. */
-export const CLINIC_SECTION_LABELS = {
-  dermatologist: { en: 'Dermatologist', ar: 'جلدية' },
-  gastroenterologist: { en: 'Gastroenterologist', ar: 'جهاز هضمي' },
-  'general physician': { en: 'General Physician', ar: 'طبيب عام' },
-  gynecologist: { en: 'Gynecologist', ar: 'نساء وتوليد' },
-  neurologist: { en: 'Neurologist', ar: 'مخ وأعصاب' },
-  pediatricians: { en: 'Pediatricians', ar: 'أطفال' },
-  pediatrician: { en: 'Pediatricians', ar: 'أطفال' }
-}
+export { DEFAULT_CLINIC_SECTION_NAMES, CLINIC_SECTION_LABELS, isKnownClinicSectionName } from './clinicSectionLabels'
 
 export const resolveClinicSectionLabel = (name, language = 'en', t = (k) => k, tc = (k) => k, placeTranslationOverrides) => {
   const key = norm(name)
@@ -36,9 +20,6 @@ export const resolveClinicSectionLabel = (name, language = 'en', t = (k) => k, t
     name
   )
 }
-
-const bookableDoctors = (doctors) =>
-  (doctors || []).filter((d) => isDoctorBookableForPatients(d) && !isDoctorComingSoon(d))
 
 const toClinicRow = (clinic, language, t, tc, placeTranslationOverrides) => {
   const id = clinic?.id ?? (clinic?._id != null ? String(clinic._id) : null)
@@ -102,6 +83,9 @@ export const buildClinicSectionSuggestions = ({
 
   return rows.sort((a, b) => a.label.localeCompare(b.label, language === 'ar' ? 'ar' : 'en'))
 }
+
+const bookableDoctors = (doctors) =>
+  (doctors || []).filter((d) => isDoctorBookableForPatients(d) && !isDoctorComingSoon(d))
 
 /** @deprecated use buildClinicSectionSuggestions */
 export const buildOpeningSuggestions = (opts) => buildClinicSectionSuggestions(opts)

@@ -38,9 +38,9 @@ describe('chatbotOpeningSuggestions', () => {
   it('uses Arabic clinic section labels', () => {
     expect(resolveClinicSectionLabel('Dermatologist', 'ar')).toBe('جلدية')
     expect(resolveClinicSectionLabel('Pediatricians', 'ar')).toBe('أطفال')
-    expect(resolveClinicSectionLabel('Neurologist', 'ar')).toBe('مخ وأعصاب')
+    expect(resolveClinicSectionLabel('Neurologist', 'ar')).toBe('أعصاب')
     expect(resolveClinicSectionLabel('Gynecologist', 'ar')).toBe('نساء وتوليد')
-    expect(resolveClinicSectionLabel('General physician', 'ar')).toBe('طبيب عام')
+    expect(resolveClinicSectionLabel('General physician', 'ar')).toBe('عام')
     expect(resolveClinicSectionLabel('Gastroenterologist', 'ar')).toBe('جهاز هضمي')
 
     const arSuggestions = buildClinicSectionSuggestions({

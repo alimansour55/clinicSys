@@ -486,7 +486,7 @@ const preserveCaseKey = (text) => {
   return dictionaries.ar[upper] ? upper : text;
 };
 
-const translateString = (value, language = getStoredLanguage()) => {
+export const translateString = (value, language = getStoredLanguage()) => {
   if (value === null || value === undefined) return value;
   const raw = String(value);
   const leading = raw.match(/^\s*/)?.[0] || "";

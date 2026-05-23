@@ -4,7 +4,8 @@ import { Building2, ChevronLeft, ChevronRight, Home, MapPin, Video } from "lucid
 import { AppContext } from "../context/AppContext";
 import { RatingBadge } from "./DoctorRating";
 import PromoOfferBadge from "./PromoOfferBadge";
-import { formatLocationLine, translatePlaceSegment } from "../utils/placeTranslations";
+import { formatLocationLine } from "../utils/placeTranslations";
+import { resolveClinicSectionLabel } from "../utils/chatbotOpeningSuggestions";
 import { isDoctorComingSoon } from "../utils/doctorBooking";
 import { doctorBelongsToClinicSection } from "../utils/doctorClinicPlaces";
 import { useMediaQuery } from "../utils/useMediaQuery";
@@ -276,7 +277,7 @@ const SpecialityMenu = () => {
                   }`}
                 >
                   <span className="line-clamp-2 text-sm font-semibold leading-tight">
-                    {translatePlaceSegment(clinic.name, language, t, placeTranslationOverrides)}
+                    {resolveClinicSectionLabel(clinic.name, language, t, tc, placeTranslationOverrides)}
                   </span>
                   <span className={`mt-1 text-[11px] font-medium ${isActive ? "text-emerald-700" : "text-gray-500"}`}>
                     {fillT("{{count}} doctors", { count })}

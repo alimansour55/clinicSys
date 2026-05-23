@@ -4,6 +4,7 @@
  * Unknown Latin strings can be filled via `/api/user/translate-places` (Mongo cache + optional MT).
  */
 import { PLACE_NAMES_LATIN_TO_AR } from '../data/placeNamesLatinToAr.js'
+import { isKnownClinicSectionName } from './clinicSectionLabels.js'
 
 const PLACE_TO_AR = { ...PLACE_NAMES_LATIN_TO_AR }
 
@@ -38,12 +39,12 @@ export const collectDoctorPlaceStringsNeedingTranslate = (doctors = []) => {
   for (const d of doctors) {
     for (const loc of d.locations || []) {
       const s = String(loc || '').trim()
-      if (s && !isKnownLatinPlace(s)) set.add(s)
+      if (s && !isKnownLatinPlace(s) && !isKnownClinicSectionName(s)) set.add(s)
     }
     for (const c of d.clinics || []) {
       const name = typeof c === 'object' && c !== null ? (c.name || '') : String(c || '')
       const s = String(name || '').trim()
-      if (s && !isKnownLatinPlace(s)) set.add(s)
+      if (s && !isKnownLatinPlace(s) && !isKnownClinicSectionName(s)) set.add(s)
     }
   }
   return [...set]
@@ -55,7 +56,7 @@ export const collectClinicNamesNeedingTranslate = (clinics = []) => {
   for (const c of clinics) {
     const name = typeof c === 'object' && c !== null ? (c.name || '') : String(c || '')
     const s = String(name || '').trim()
-    if (s && !isKnownLatinPlace(s)) set.add(s)
+    if (s && !isKnownLatinPlace(s) && !isKnownClinicSectionName(s)) set.add(s)
   }
   return [...set]
 }
