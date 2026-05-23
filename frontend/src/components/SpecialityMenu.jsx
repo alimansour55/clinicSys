@@ -7,9 +7,11 @@ import PromoOfferBadge from "./PromoOfferBadge";
 import { formatLocationLine, translatePlaceSegment } from "../utils/placeTranslations";
 import { isDoctorComingSoon } from "../utils/doctorBooking";
 import { doctorBelongsToClinicSection } from "../utils/doctorClinicPlaces";
+import { useMediaQuery } from "../utils/useMediaQuery";
 import { toast } from "react-toastify";
 
-const DOCTORS_PER_PAGE = 4;
+const DOCTORS_PER_MOBILE_PAGE = 4;
+const DESKTOP_SCROLL_COLUMNS = 5;
 
 const SpecialityMenu = () => {
   const navigate = useNavigate();
@@ -17,6 +19,7 @@ const SpecialityMenu = () => {
   const clinicsRef = useRef(null);
   const { doctors, clinics, siteSettings, t, tc, currencySymbol, language, displayPersonName, placeTranslationOverrides } = useContext(AppContext);
   const [selectedSection, setSelectedSection] = useState({ name: "All Specialities", id: null });
+  const isMobile = useMediaQuery("(max-width: 1023px)");
 
   const fillT = (key, vars = {}) => {
     let s = String(t(key));
@@ -50,12 +53,17 @@ const SpecialityMenu = () => {
   };
 
   const doctorPages = useMemo(() => {
+    if (!isMobile) return [];
     const pages = [];
-    for (let i = 0; i < visibleDoctors.length; i += DOCTORS_PER_PAGE) {
-      pages.push(visibleDoctors.slice(i, i + DOCTORS_PER_PAGE));
+    for (let i = 0; i < visibleDoctors.length; i += DOCTORS_PER_MOBILE_PAGE) {
+      pages.push(visibleDoctors.slice(i, i + DOCTORS_PER_MOBILE_PAGE));
     }
     return pages;
-  }, [visibleDoctors]);
+  }, [visibleDoctors, isMobile]);
+
+  const showDoctorNav = isMobile
+    ? doctorPages.length > 1
+    : visibleDoctors.length > DESKTOP_SCROLL_COLUMNS * 2;
 
   const getDoctorLocationRaw = (doctor) => {
     const locations = doctor.locations?.length
@@ -79,7 +87,12 @@ const SpecialityMenu = () => {
   const scrollDoctors = (direction) => {
     const el = doctorsRef.current;
     if (!el) return;
-    const scrollAmount = el.clientWidth;
+    let scrollAmount = el.clientWidth;
+    if (!isMobile) {
+      const firstCard = el.querySelector("button");
+      const colWidth = (firstCard?.offsetWidth || 188) + 16;
+      scrollAmount = colWidth * DESKTOP_SCROLL_COLUMNS;
+    }
     el.scrollBy({
       left: direction === "next" ? scrollAmount : -scrollAmount,
       behavior: "smooth",
@@ -277,13 +290,23 @@ const SpecialityMenu = () => {
         </div>
 
         {visibleDoctors.length > 0 ? (
-          <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-gray-50/60 p-2 sm:p-3">
-            {doctorPages.length > 1 && (
+          <div
+            className={
+              isMobile
+                ? "relative overflow-hidden rounded-xl border border-gray-100 bg-gray-50/60 p-2 sm:p-3"
+                : "relative min-h-[310px] rounded-xl border border-gray-100 bg-gray-50/60 p-2 sm:p-3"
+            }
+          >
+            {showDoctorNav && (
               <>
                 <button
                   type="button"
                   onClick={() => scrollDoctors("prev")}
-                  className="absolute left-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600 sm:left-2"
+                  className={
+                    isMobile
+                      ? "absolute left-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600 sm:left-2"
+                      : "absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600"
+                  }
                   aria-label={t("Previous doctors")}
                 >
                   <ChevronLeft className="h-5 w-5" />
@@ -291,7 +314,11 @@ const SpecialityMenu = () => {
                 <button
                   type="button"
                   onClick={() => scrollDoctors("next")}
-                  className="absolute right-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600 sm:right-2"
+                  className={
+                    isMobile
+                      ? "absolute right-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600 sm:right-2"
+                      : "absolute right-0 top-1/2 z-10 flex h-11 w-11 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600"
+                  }
                   aria-label={t("Next doctors")}
                 >
                   <ChevronRight className="h-5 w-5" />
@@ -299,19 +326,28 @@ const SpecialityMenu = () => {
               </>
             )}
 
-            <div
-              ref={doctorsRef}
-              className="flex overflow-x-auto overscroll-x-contain scroll-smooth snap-x snap-mandatory [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {doctorPages.map((page, pageIndex) => (
-                <div
-                  key={`${selectedSection.name}-${pageIndex}`}
-                  className="grid w-full min-w-full shrink-0 snap-start snap-always grid-cols-2 gap-3 px-1 py-1 sm:gap-4"
-                >
-                  {page.map((doctor) => renderDoctorCard(doctor))}
-                </div>
-              ))}
-            </div>
+            {isMobile ? (
+              <div
+                ref={doctorsRef}
+                className="flex overflow-x-auto overscroll-x-contain scroll-smooth snap-x snap-mandatory [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {doctorPages.map((page, pageIndex) => (
+                  <div
+                    key={`${selectedSection.name}-${pageIndex}`}
+                    className="grid w-full min-w-full shrink-0 snap-start snap-always grid-cols-2 gap-3 px-1 py-1 sm:gap-4"
+                  >
+                    {page.map((doctor) => renderDoctorCard(doctor))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div
+                ref={doctorsRef}
+                className="tap-row-mobile-wrap grid auto-cols-[166px] grid-flow-col grid-rows-2 gap-4 overflow-x-auto scroll-smooth px-6 pb-3 [scrollbar-width:none] sm:auto-cols-[184px] md:auto-cols-[188px] [&::-webkit-scrollbar]:hidden"
+              >
+                {visibleDoctors.map((doctor) => renderDoctorCard(doctor))}
+              </div>
+            )}
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-gray-300 py-10 text-center text-sm text-gray-500">
