@@ -1,10 +1,9 @@
-import React, { useContext, useEffect, useMemo } from 'react'
+import React, { useContext, useEffect, useMemo, useState } from 'react'
 import Login from './pages/Login'
 import { ToastContainer, toast } from 'react-toastify';
 import { AdminContext } from './context/AdminContext';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
-import AdminMobileNav from './components/AdminMobileNav';
 import StaffMobileNav from './components/StaffMobileNav';
 import StaffOptionsBar from './components/StaffOptionsBar';
 import { getDoctorNavLinks, findActiveDoctorLink } from './config/doctorNav';
@@ -139,6 +138,7 @@ const App = () => {
   const { rToken, receptionistNavSummary } = useContext(ReceptionistContext)
   const { isRtl, t } = useLanguage()
   const location = useLocation()
+  const [adminNavExpanded, setAdminNavExpanded] = useState(false)
 
   const doctorNavLinks = useMemo(() => getDoctorNavLinks(t), [t])
   const receptionistNavLinks = useMemo(() => getReceptionistNavLinks(t), [t])
@@ -155,6 +155,10 @@ const App = () => {
   useEffect(() => {
     toast.dismiss()
   }, [])
+
+  useEffect(() => {
+    setAdminNavExpanded(false)
+  }, [location.pathname])
 
   return aToken || dToken || rToken ? (
     <div className='h-screen overflow-hidden bg-[#F8F9FD]'>
@@ -175,21 +179,26 @@ const App = () => {
       <Navbar />
       
       {/* Sidebar */}
-      <Sidebar />
+      <Sidebar adminNavExpanded={adminNavExpanded} onAdminNavExpandedChange={setAdminNavExpanded} />
       
       {/* Main Content Area - Scrollable */}
       <div
         id='staff-main-scroll'
-        className={`relative z-10 min-w-0 max-w-full mt-[4.5rem] h-[calc(100vh-4.5rem)] overflow-y-auto overflow-x-hidden ${
-          isRtl ? 'mr-0 md:mr-64' : 'ml-0 md:ml-64'
+        className={`relative z-10 min-w-0 max-w-full mt-[4.5rem] h-[calc(100vh-4.5rem)] overflow-y-auto overflow-x-hidden transition-[margin] duration-200 ease-out ${
+          aToken
+            ? isRtl
+              ? adminNavExpanded
+                ? 'mr-64'
+                : 'mr-14'
+              : adminNavExpanded
+                ? 'ml-64'
+                : 'ml-14'
+            : isRtl
+              ? 'mr-14 sm:mr-16 md:mr-64'
+              : 'ml-14 sm:ml-16 md:ml-64'
         }`}
       >
-        {aToken && (
-          <>
-            <AdminMobileNav />
-            <AdminOptionsBar />
-          </>
-        )}
+        {aToken && <AdminOptionsBar />}
         {dToken && (
           <>
             <StaffMobileNav

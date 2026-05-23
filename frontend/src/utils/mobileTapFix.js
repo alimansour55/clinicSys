@@ -9,7 +9,7 @@ const MOVE_THRESHOLD_PX = 12
 const touchStartById = new Map()
 
 const FORM_CONTROL_SELECTOR =
-  'input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, option, label, [contenteditable="true"], [role="textbox"], [role="searchbox"], [data-input-field]'
+  'input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, option, [contenteditable="true"], [role="textbox"], [role="searchbox"], [data-input-field]'
 
 function isCoarsePointer() {
   if (typeof window === 'undefined') return false
@@ -21,19 +21,33 @@ function isCoarsePointer() {
 
 function isFormControlTouch(node) {
   if (!node?.closest) return false
+  if (findFileInputFromLabel(node)) return true
+  if (node.closest('label[for]')) return true
   return Boolean(node.closest(FORM_CONTROL_SELECTOR))
 }
 
 const FOCUSABLE_CONTROL_SELECTOR =
   'input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea, select'
 
+function findFileInputFromLabel(node) {
+  const label = node?.closest?.('label')
+  if (!label) return null
+  return label.querySelector('input[type="file"]')
+}
+
 function handleFormControlTouch(node) {
   if (!node?.closest) return
+
+  const fileInput = findFileInputFromLabel(node)
+  if (fileInput) {
+    fileInput.click()
+    return
+  }
 
   const label = node.closest('label')
   if (
     label &&
-    label.querySelector('input[type="file"], input[type="checkbox"], input[type="radio"]') &&
+    label.querySelector('input[type="checkbox"], input[type="radio"]') &&
     !node.matches(FOCUSABLE_CONTROL_SELECTOR)
   ) {
     return

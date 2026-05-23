@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { AppContext } from '../context/AppContext'
 import axios from 'axios'
 import { toast } from 'react-toastify'
@@ -30,6 +30,7 @@ const Login = () => {
   const [insuranceIdNumber, setInsuranceIdNumber] = useState('')
   const [insuranceExpiryDate, setInsuranceExpiryDate] = useState('')
   const [insuranceCardPhoto, setInsuranceCardPhoto] = useState(null)
+  const insuranceCardInputRef = useRef(null)
   const [insuranceProvidersList, setInsuranceProvidersList] = useState([])
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -387,12 +388,25 @@ const Login = () => {
                       <input id='insurance-expiry' type='date' value={insuranceExpiryDate} onChange={(e) => setInsuranceExpiryDate(e.target.value)} className='date-field-input w-full min-h-[44px] rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm' required={insuranceEnabled} />
                     </div>
                     <div>
-                      <label className='block text-xs font-medium text-gray-700 mb-1'>Photo of Medical Card *</label>
-                      <label className='flex min-h-[44px] items-center gap-2 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2 text-sm text-gray-600 cursor-pointer hover:border-primary active:bg-gray-50'>
-                        <FileUp className='w-4 h-4' />
+                      <span className='block text-xs font-medium text-gray-700 mb-1'>Photo of Medical Card *</span>
+                      <button
+                        type='button'
+                        onClick={() => insuranceCardInputRef.current?.click()}
+                        className='flex min-h-[44px] w-full items-center gap-2 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-600 transition hover:border-primary active:bg-gray-50'
+                      >
+                        <FileUp className='h-4 w-4 shrink-0' />
                         <span className='truncate'>{insuranceCardPhoto ? insuranceCardPhoto.name : 'Attach file'}</span>
-                        <input type='file' accept='image/*,.pdf' onChange={(e) => setInsuranceCardPhoto(e.target.files?.[0] || null)} hidden required={insuranceEnabled} />
-                      </label>
+                      </button>
+                      <input
+                        ref={insuranceCardInputRef}
+                        type='file'
+                        accept='image/*,.pdf'
+                        className='sr-only'
+                        tabIndex={-1}
+                        aria-hidden
+                        onChange={(e) => setInsuranceCardPhoto(e.target.files?.[0] || null)}
+                        required={insuranceEnabled}
+                      />
                     </div>
                   </div>
                 </div>

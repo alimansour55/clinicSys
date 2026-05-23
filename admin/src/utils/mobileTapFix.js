@@ -2,14 +2,12 @@
  * iOS/Android: first tap on buttons inside scroll areas or with :hover styles
  * often does not fire click until a second tap. On touchend we synthesize one
  * immediate click when the gesture was a tap (not a scroll).
- *
- * Form controls (inputs, selects, textareas) must never be intercepted.
  */
 const MOVE_THRESHOLD_PX = 12
 const touchStartById = new Map()
 
 const FORM_CONTROL_SELECTOR =
-  'input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, option, label, [contenteditable="true"], [role="textbox"], [role="searchbox"], [data-input-field]'
+  'input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, option, [contenteditable="true"], [role="textbox"], [role="searchbox"], [data-input-field]'
 
 function isCoarsePointer() {
   if (typeof window === 'undefined') return false
@@ -19,17 +17,36 @@ function isCoarsePointer() {
   )
 }
 
+function findFileInputFromLabel(node) {
+  const label = node?.closest?.('label')
+  if (!label) return null
+  return label.querySelector('input[type="file"]')
+}
+
 function isFormControlTouch(node) {
   if (!node?.closest) return false
+  if (findFileInputFromLabel(node)) return true
+  if (node.closest('label[for]')) return true
   return Boolean(node.closest(FORM_CONTROL_SELECTOR))
 }
 
-function focusFieldControl(node) {
-  const field = node?.closest?.('[data-input-field]')
-  if (!field) return
-  const control = field.querySelector(
-    'input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select',
-  )
+const FOCUSABLE_CONTROL_SELECTOR =
+  'input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea, select'
+
+function handleFormControlTouch(node) {
+  if (!node?.closest) return
+
+  const fileInput = findFileInputFromLabel(node)
+  if (fileInput) {
+    fileInput.click()
+    return
+  }
+
+  const field = node.closest('[data-input-field]')
+  const control = field
+    ? field.querySelector(FOCUSABLE_CONTROL_SELECTOR)
+    : node.closest(FOCUSABLE_CONTROL_SELECTOR)
+
   if (control && document.activeElement !== control) {
     control.focus()
   }
@@ -65,7 +82,7 @@ export function installMobileTapFix() {
 
   const onTouchEnd = (event) => {
     if (isFormControlTouch(event.target)) {
-      focusFieldControl(event.target)
+      handleFormControlTouch(event.target)
       return
     }
 

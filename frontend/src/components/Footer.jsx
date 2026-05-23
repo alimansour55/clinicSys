@@ -1,5 +1,5 @@
 import React, { useContext } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { ArrowUpRight, Mail, Phone } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { patientFooterLogoClassName } from '../utils/brandingLogo'
@@ -20,8 +20,11 @@ const humanizeNavLabel = (label) => {
     .join('')
 }
 
+const scrollPageTop = () => {
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+}
+
 const Footer = () => {
-  const navigate = useNavigate()
   const { token, t, siteSettings } = useContext(AppContext)
   const footer = siteSettings?.footer || {}
   const logoImgClassName = patientFooterLogoClassName
@@ -46,28 +49,15 @@ const Footer = () => {
   const showPatientLinks = token && footer.showPatientLinks !== false
   const showPrivacyLink = footer.showPrivacyLink !== false
 
-  const goTo = (path) => {
-    navigate(path)
-    scrollTo(0, 0)
-  }
-
   const sectionHeadingClass =
     'text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500'
 
-  const NavButton = ({ children, onClick }) => (
-    <button
-      type='button'
-      onClick={onClick}
-      className='group flex w-full items-center justify-between gap-2 rounded-lg py-2.5 pl-3 pr-2 text-left text-[15px] text-slate-700 transition-colors hover:bg-white/80 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/40'
-    >
-      <span>{children}</span>
-      <ArrowUpRight className='h-3.5 w-3.5 shrink-0 text-slate-300 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary/70 group-hover:opacity-100' aria-hidden />
-    </button>
-  )
+  const navLinkClass =
+    'group relative z-10 flex w-full items-center justify-between gap-2 rounded-lg py-2.5 pl-3 pr-2 text-left text-[15px] text-slate-700 transition-colors hover:bg-white/80 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/40 active:bg-white/90'
 
   return (
     <footer
-      className='relative mt-12 border-t border-teal-100/70 bg-gradient-to-b from-slate-50 via-white to-slate-50/80 md:mt-20'
+      className='relative z-10 mt-12 border-t border-teal-100/70 bg-gradient-to-b from-slate-50 via-white to-slate-50/80 md:mt-20'
       role='contentinfo'
     >
       <div
@@ -76,47 +66,56 @@ const Footer = () => {
       />
       <div className='mx-auto max-w-6xl px-4 pb-10 pt-12 sm:px-6 sm:pb-12 sm:pt-14 lg:px-8 lg:pb-14 lg:pt-16'>
         <div className='grid gap-12 lg:grid-cols-12 lg:gap-10 xl:gap-14'>
-          {/* Brand */}
           <div className='lg:col-span-5'>
-            <button
-              type='button'
-              className='mb-6 inline-block cursor-pointer rounded-2xl bg-white/60 p-3 shadow-sm ring-1 ring-slate-200/60 backdrop-blur-sm transition-opacity hover:opacity-90'
-              onClick={() => goTo('/')}
+            <Link
+              to='/'
+              onClick={scrollPageTop}
+              className='relative z-10 mb-6 inline-block cursor-pointer rounded-2xl bg-white/60 p-3 shadow-sm ring-1 ring-slate-200/60 backdrop-blur-sm transition-opacity hover:opacity-90'
             >
               <BrandLogo siteSettings={siteSettings} imgClassName={logoImgClassName} />
-            </button>
+            </Link>
             <p className='max-w-md text-[15px] leading-[1.65] text-slate-600'>
               {t(description)}
             </p>
           </div>
 
-          {/* Navigation */}
-          <nav className='lg:col-span-3' aria-label={humanizeNavLabel(t(companyTitle))}>
+          <nav className='relative z-10 lg:col-span-3' aria-label={humanizeNavLabel(t(companyTitle))}>
             <h2 className={`${sectionHeadingClass} mb-4`}>{humanizeNavLabel(t(companyTitle))}</h2>
             <ul className='space-y-0.5 rounded-2xl border border-slate-200/70 bg-white/40 p-2 shadow-sm ring-1 ring-slate-100/80 backdrop-blur-sm'>
               {footerLinks
                 .filter((link) => link.show)
                 .map((link) => (
                   <li key={link.path}>
-                    <NavButton onClick={() => goTo(link.path)}>{humanizeNavLabel(t(link.label))}</NavButton>
+                    <Link to={link.path} onClick={scrollPageTop} className={navLinkClass}>
+                      <span>{humanizeNavLabel(t(link.label))}</span>
+                      <ArrowUpRight
+                        className='pointer-events-none h-3.5 w-3.5 shrink-0 text-slate-300 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary/70 group-hover:opacity-100'
+                        aria-hidden
+                      />
+                    </Link>
                   </li>
                 ))}
               {showPatientLinks &&
                 patientLinks.map((link) => (
                   <li key={link.path}>
-                    <NavButton onClick={() => goTo(link.path)}>{humanizeNavLabel(t(link.label))}</NavButton>
+                    <Link to={link.path} onClick={scrollPageTop} className={navLinkClass}>
+                      <span>{humanizeNavLabel(t(link.label))}</span>
+                      <ArrowUpRight className='pointer-events-none h-3.5 w-3.5 shrink-0 opacity-60' aria-hidden />
+                    </Link>
                   </li>
                 ))}
               {showPrivacyLink && (
                 <li>
-                  <NavButton onClick={() => goTo('/')}>{humanizeNavLabel(t(footer.privacyLabel || 'Privacy Policy'))}</NavButton>
+                  <Link to='/' onClick={scrollPageTop} className={navLinkClass}>
+                    <span>{humanizeNavLabel(t(footer.privacyLabel || 'Privacy Policy'))}</span>
+                    <ArrowUpRight className='pointer-events-none h-3.5 w-3.5 shrink-0 opacity-60' aria-hidden />
+                  </Link>
                 </li>
               )}
             </ul>
           </nav>
 
-          {/* Contact */}
-          <div className='lg:col-span-4'>
+          <div className='relative z-10 lg:col-span-4'>
             <h2 className={`${sectionHeadingClass} mb-4`}>{humanizeNavLabel(t(contactTitle))}</h2>
             <div className='flex flex-col gap-3'>
               <a

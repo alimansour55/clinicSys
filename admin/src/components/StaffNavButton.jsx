@@ -2,9 +2,10 @@ import React from 'react'
 import { NavLink } from 'react-router-dom'
 
 /** Sidebar / staff nav item — uses NavLink so React Router updates the page immediately. */
-const StaffNavButton = ({ to, className = '', activeClassName = '', inactiveClassName = '', children, onAfterNavigate }) => (
+const StaffNavButton = ({ to, className = '', activeClassName = '', inactiveClassName = '', children, onAfterNavigate, title }) => (
   <NavLink
     to={to}
+    title={title}
     onClick={() => onAfterNavigate?.()}
     className={({ isActive }) => (isActive ? activeClassName || className : inactiveClassName || className)}
   >

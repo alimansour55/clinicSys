@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
@@ -23,6 +23,7 @@ const Insurance = () => {
   const navigate = useNavigate()
   const [insurance, setInsurance] = useState(emptyInsurance)
   const [cardFile, setCardFile] = useState(null)
+  const cardFileInputRef = useRef(null)
   const [saving, setSaving] = useState(false)
   const [providers, setProviders] = useState([])
 
@@ -172,12 +173,24 @@ const Insurance = () => {
                 <input type='date' value={insurance.expiryDate} onChange={(e) => setInsurance((prev) => ({ ...prev, expiryDate: e.target.value }))} className='date-field-input w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20' required />
               </div>
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Photo of Medical Card *</label>
-                <label className='flex min-h-[44px] items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2.5 cursor-pointer hover:border-primary text-sm text-gray-600 active:bg-gray-50'>
-                  <FileUp className='w-4 h-4' />
+                <span className='block text-sm font-medium text-gray-700 mb-1'>Photo of Medical Card *</span>
+                <button
+                  type='button'
+                  onClick={() => cardFileInputRef.current?.click()}
+                  className='flex min-h-[44px] w-full items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2.5 text-left text-sm text-gray-600 transition hover:border-primary active:bg-gray-50'
+                >
+                  <FileUp className='h-4 w-4 shrink-0' />
                   <span className='truncate'>{cardFile ? cardFile.name : insurance.medicalCardPhoto ? 'Replace attached card' : 'Attach file'}</span>
-                  <input type='file' accept='image/*,.pdf' onChange={(e) => setCardFile(e.target.files?.[0] || null)} hidden />
-                </label>
+                </button>
+                <input
+                  ref={cardFileInputRef}
+                  type='file'
+                  accept='image/*,.pdf'
+                  className='sr-only'
+                  tabIndex={-1}
+                  aria-hidden
+                  onChange={(e) => setCardFile(e.target.files?.[0] || null)}
+                />
                 {insurance.medicalCardPhoto && (
                   <a className='inline-block mt-2 text-sm text-primary underline' href={insurance.medicalCardPhoto} target='_blank' rel='noreferrer'>View current card</a>
                 )}
