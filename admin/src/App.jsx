@@ -62,7 +62,7 @@ const AdminOptionsBar = () => {
     { label: t('Insurance providers'), path: '/insurance-providers-settings', icon: <HeartHandshake className='w-4 h-4' />, tone: 'text-teal-700 bg-teal-50 border-teal-100 hover:bg-teal-100', active: 'bg-teal-600 border-teal-600' },
     { label: t('Global visit fees'), path: '/global-visit-fees-settings', icon: <Stethoscope className='w-4 h-4' />, tone: 'text-violet-700 bg-violet-50 border-violet-100 hover:bg-violet-100', active: 'bg-violet-600 border-violet-600' },
     { label: t('User languages settings'), path: '/language-settings', icon: <Globe className='w-4 h-4' />, tone: 'text-sky-700 bg-sky-50 border-sky-100 hover:bg-sky-100', active: 'bg-sky-600 border-sky-600' },
-    { label: t('Users'), path: '/users', icon: <UsersRound className='w-4 h-4' />, tone: 'text-indigo-700 bg-indigo-50 border-indigo-100 hover:bg-indigo-100', active: 'bg-indigo-600 border-indigo-600' },
+    { label: t('User accounts'), path: '/users', icon: <UsersRound className='w-4 h-4' />, tone: 'text-indigo-700 bg-indigo-50 border-indigo-100 hover:bg-indigo-100', active: 'bg-indigo-600 border-indigo-600' },
     {
       label: t('Patients'),
       path: '/patients',
@@ -186,13 +186,9 @@ const App = () => {
         id='staff-main-scroll'
         className={`relative z-10 min-w-0 max-w-full mt-[4.5rem] h-[calc(100vh-4.5rem)] overflow-y-auto overflow-x-hidden transition-[margin] duration-200 ease-out ${
           aToken
-            ? isRtl
-              ? adminNavExpanded
-                ? 'ml-64 md:ml-0 md:mr-64'
-                : 'ml-14 md:ml-0 md:mr-14'
-              : adminNavExpanded
-                ? 'ml-64'
-                : 'ml-14'
+            ? adminNavExpanded
+              ? 'ml-64'
+              : 'ml-14'
             : isRtl
               ? 'mr-14 sm:mr-16 md:mr-64'
               : 'ml-14 sm:ml-16 md:ml-64'

@@ -66,7 +66,7 @@ export const getAdminSections = (t) => [
     title: t('Users'),
     icon: UsersRound,
     links: [
-      { label: t('Users'), path: '/users', icon: UsersRound },
+      { label: t('User accounts'), path: '/users', icon: UsersRound },
       { label: t('Patients'), path: '/patients', icon: UserRound },
       { label: t('Doctors'), path: '/doctor-list', icon: Stethoscope },
       { label: t('Receptionists'), path: '/receptionist-list', icon: UserCog }

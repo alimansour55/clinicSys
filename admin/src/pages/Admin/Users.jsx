@@ -2,10 +2,24 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AdminContext } from '../../context/AdminContext'
 import InsuranceStatusBadge from '../../components/InsuranceStatusBadge'
+import { useLanguage } from '../../i18n'
 import { CheckCircle2, ChevronDown, Edit3, ExternalLink, HeartHandshake, KeyRound, Loader2, Mail, MoreVertical, Phone, Plus, RefreshCw, RotateCcw, Search, Shield, ShieldCheck, Sparkles, Stethoscope, Trash2, UserCog, UserRound, UsersRound, X } from 'lucide-react'
 
-const roleLabels = {
-  patient: 'Patient',
+const getUserRoleLabel = (user, t) => {
+  if (user.profileType === 'patient') return t('User role patient')
+  if (user.profileType === 'receptionist') return t('Receptionist')
+  if (user.profileType === 'doctor') return user.speciality ? t(user.speciality) : t('Doctor')
+  return user.profileType
+}
+
+const getUserIdentifier = (user, t) => {
+  if (user.patientId) return user.patientId
+  if (user.speciality) return t(user.speciality)
+  return t('Staff account')
+}
+
+const roleKeyForConfirm = {
+  patient: 'User role patient',
   doctor: 'Doctor',
   receptionist: 'Receptionist'
 }
@@ -40,6 +54,7 @@ const userRowKey = (user) => `${user.profileType}-${user.profileId}`
 
 const UserRowActionsMenu = ({
   user,
+  t,
   isOpen,
   onToggle,
   onEdit,
@@ -72,7 +87,7 @@ const UserRowActionsMenu = ({
         type='button'
         aria-expanded={isOpen}
         aria-haspopup='menu'
-        aria-label='User actions'
+        aria-label={t('User actions')}
         onClick={() => onToggle(!isOpen)}
         className='inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition'
       >
@@ -93,7 +108,7 @@ const UserRowActionsMenu = ({
             className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
           >
             <Edit3 className='w-4 h-4 text-blue-600' />
-            Edit profile
+            {t('Edit profile')}
           </button>
           <button
             type='button'
@@ -105,7 +120,7 @@ const UserRowActionsMenu = ({
             className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
           >
             <KeyRound className='w-4 h-4 text-amber-600' />
-            Reset password
+            {t('Reset password')}
           </button>
           {user.profileType === 'patient' && (
             <button
@@ -118,7 +133,7 @@ const UserRowActionsMenu = ({
               className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
             >
               <HeartHandshake className='w-4 h-4 text-teal-600' />
-              Patient & insurance
+              {t('Patient & insurance')}
             </button>
           )}
           {user.profileType === 'doctor' && (
@@ -132,7 +147,7 @@ const UserRowActionsMenu = ({
               className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
             >
               <Stethoscope className='w-4 h-4 text-indigo-600' />
-              Doctor profile
+              {t('Doctor profile')}
             </button>
           )}
           {user.profileType === 'receptionist' && (
@@ -146,7 +161,7 @@ const UserRowActionsMenu = ({
               className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
             >
               <ExternalLink className='w-4 h-4 text-emerald-600' />
-              Full profile
+              {t('Full profile')}
             </button>
           )}
           <div className='my-1 border-t border-gray-100' />
@@ -160,7 +175,7 @@ const UserRowActionsMenu = ({
             className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
           >
             <ShieldCheck className='w-4 h-4 text-purple-600' />
-            {user.mfa?.requiredByAdmin ? 'Make MFA optional' : 'Require MFA'}
+            {user.mfa?.requiredByAdmin ? t('Make MFA optional') : t('Require MFA')}
           </button>
           <button
             type='button'
@@ -172,7 +187,7 @@ const UserRowActionsMenu = ({
             className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
           >
             <RotateCcw className='w-4 h-4 text-gray-600' />
-            Reset MFA
+            {t('Reset MFA')}
           </button>
           <div className='my-1 border-t border-gray-100' />
           <button
@@ -185,7 +200,7 @@ const UserRowActionsMenu = ({
             className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50'
           >
             <Trash2 className='w-4 h-4' />
-            Delete account
+            {t('Delete account')}
           </button>
         </div>
       )}
@@ -206,6 +221,7 @@ const Users = () => {
     deleteUserAccount
   } = useContext(AdminContext)
   const navigate = useNavigate()
+  const { t, localizeDigits } = useLanguage()
 
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -379,7 +395,10 @@ const Users = () => {
   }
 
   const deleteUser = async (user) => {
-    const confirmed = window.confirm(`Delete ${user.name} permanently? This removes the ${roleLabels[user.profileType].toLowerCase()} login account.`)
+    const roleLabel = t(roleKeyForConfirm[user.profileType] || 'User')
+    const confirmed = window.confirm(
+      `${t('Delete')} ${user.name} ${t('permanently')}? ${t('This removes login account for')} ${roleLabel}.`
+    )
     if (!confirmed) return
 
     await deleteUserAccount({
@@ -397,7 +416,7 @@ const Users = () => {
   }
 
   const resetMfa = async (user) => {
-    const confirmed = window.confirm(`Reset MFA for ${user.name}? They will need to configure authenticator MFA again if it is required.`)
+    const confirmed = window.confirm(`${t('Reset MFA')} ${user.name}? ${t('Reset MFA confirm body')}`)
     if (!confirmed) return
 
     await resetUserMfa({
@@ -422,11 +441,11 @@ const Users = () => {
               <div className='max-w-2xl'>
                 <div className='inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/90 ring-1 ring-white/20'>
                   <Sparkles className='h-3.5 w-3.5' />
-                  User accounts
+                  {t('User accounts')}
                 </div>
-                <h1 className='mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl'>All users</h1>
+                <h1 className='mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl'>{t('All users')}</h1>
                 <p className='mt-3 text-sm leading-relaxed text-white/85 sm:text-base'>
-                  Manage login accounts, passwords, and MFA. Add patients here; use the doctor or receptionist forms for full staff profiles.
+                  {t('Users page description')}
                 </p>
               </div>
               <div className='flex flex-wrap items-center gap-2'>
@@ -439,7 +458,7 @@ const Users = () => {
                     className='inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-900 shadow-md transition hover:bg-white/95'
                   >
                     <Plus className='h-4 w-4 text-primary' />
-                    Add user
+                    {t('Add user')}
                     <ChevronDown className={`h-4 w-4 transition ${addMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {addMenuOpen && (
@@ -449,15 +468,15 @@ const Users = () => {
                     >
                       <button type='button' role='menuitem' onClick={openCreatePatient} className='flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-50'>
                         <UserRound className='h-4 w-4 text-blue-600' />
-                        Add patient
+                        {t('Add patient')}
                       </button>
                       <button type='button' role='menuitem' onClick={goAddDoctor} className='flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-50'>
                         <Stethoscope className='h-4 w-4 text-indigo-600' />
-                        Add doctor
+                        {t('Add doctor')}
                       </button>
                       <button type='button' role='menuitem' onClick={goAddReceptionist} className='flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-50'>
                         <UserCog className='h-4 w-4 text-emerald-600' />
-                        Add receptionist
+                        {t('Add receptionist')}
                       </button>
                     </div>
                   )}
@@ -466,25 +485,25 @@ const Users = () => {
                   type='button'
                   onClick={refreshUsers}
                   disabled={refreshing}
-                  aria-label='Refresh'
+                  aria-label={t('Refresh')}
                   className='inline-flex items-center gap-2 rounded-xl border border-white/25 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50'
                 >
                   <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                  Refresh
+                  {t('Refresh')}
                 </button>
               </div>
             </div>
             <div className='relative mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4'>
               {[
-                { label: 'All users', value: counts.all, path: null },
-                { label: 'Patients', value: counts.patient, path: '/patients' },
-                { label: 'Doctors', value: counts.doctor, path: '/doctor-list' },
-                { label: 'Receptionists', value: counts.receptionist, path: '/receptionist-list' }
+                { label: t('All users'), value: counts.all, path: null },
+                { label: t('Patients'), value: counts.patient, path: '/patients' },
+                { label: t('Doctors'), value: counts.doctor, path: '/doctor-list' },
+                { label: t('Receptionists'), value: counts.receptionist, path: '/receptionist-list' }
               ].map(({ label, value, path }) => {
                 const card = (
                   <>
                     <p className='text-xs font-semibold uppercase tracking-wide text-white/70'>{label}</p>
-                    <p className='mt-1 text-2xl font-bold tabular-nums text-white'>{value}</p>
+                    <p className='mt-1 text-2xl font-bold tabular-nums text-white'>{localizeDigits(value)}</p>
                   </>
                 )
                 if (!path) {
@@ -509,18 +528,18 @@ const Users = () => {
           </div>
         </div>
 
-        <div className='mt-6 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end lg:justify-between'>
+        <div dir='ltr' className='mt-6 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end lg:justify-between'>
           <div className='grid w-full gap-3 sm:grid-cols-2 lg:max-w-4xl lg:grid-cols-3'>
             <div className='relative sm:col-span-2 lg:col-span-1'>
               <Search className='pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
               <input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder='Search name, email, phone, ID, speciality…'
+                placeholder={t('Search name, email, phone, ID, speciality…')}
                 className='w-full rounded-xl border border-gray-200 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
               />
               {searchQuery && (
-                <button type='button' onClick={() => setSearchQuery('')} className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600' aria-label='Clear search'>
+                <button type='button' onClick={() => setSearchQuery('')} className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600' aria-label={t('Clear search')}>
                   <X className='h-4 w-4' />
                 </button>
               )}
@@ -531,10 +550,10 @@ const Users = () => {
                 onChange={(event) => setRoleFilter(event.target.value)}
                 className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
               >
-                <option value='all'>All roles</option>
-                <option value='patient'>Patients only</option>
-                <option value='doctor'>Doctors only</option>
-                <option value='receptionist'>Receptionists only</option>
+                <option value='all'>{t('All roles')}</option>
+                <option value='patient'>{t('Patients only')}</option>
+                <option value='doctor'>{t('Doctors only')}</option>
+                <option value='receptionist'>{t('Receptionists only')}</option>
               </select>
               <ChevronDown className='pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
             </div>
@@ -544,27 +563,30 @@ const Users = () => {
                 onChange={(event) => setInsuranceFilter(event.target.value)}
                 className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
               >
-                <option value='all'>Insurance: all</option>
-                <option value='with'>With insurance</option>
-                <option value='without'>Without insurance</option>
+                <option value='all'>{t('Insurance: all')}</option>
+                <option value='with'>{t('With insurance')}</option>
+                <option value='without'>{t('Without insurance')}</option>
               </select>
               <ChevronDown className='pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
             </div>
           </div>
           <p className='text-center text-sm font-medium text-gray-600 lg:text-right'>
-            Showing <span className='font-bold text-gray-900'>{filteredUsers.length}</span> of {users.length}
+            {t('Showing')}{' '}
+            <span className='font-bold text-gray-900'>{localizeDigits(filteredUsers.length)}</span>{' '}
+            {t('of')}{' '}
+            <span className='font-bold text-gray-900'>{localizeDigits(users.length)}</span>
           </p>
         </div>
 
-        <div className='mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm'>
+        <div dir='ltr' className='mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm'>
           <div className='hidden lg:grid lg:grid-cols-[minmax(0,1.55fr)_minmax(0,0.85fr)_minmax(0,1.35fr)_minmax(0,0.95fr)_minmax(0,1.1fr)_minmax(0,1fr)_auto] gap-3 px-4 py-3 bg-gray-50 border-b text-sm font-semibold text-gray-700'>
-            <p>User</p>
-            <p>Role</p>
-            <p>Contact</p>
-            <p>Identifier</p>
-            <p>Insurance</p>
-            <p>Status</p>
-            <p className='text-right pr-1'>Actions</p>
+            <p>{t('User')}</p>
+            <p>{t('Role')}</p>
+            <p>{t('Contact')}</p>
+            <p>{t('Identifier')}</p>
+            <p>{t('Insurance')}</p>
+            <p>{t('Status')}</p>
+            <p className='text-right pr-1'>{t('Actions')}</p>
           </div>
 
           {loading ? (
@@ -576,16 +598,16 @@ const Users = () => {
               <div className='mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-gray-400'>
                 <UsersRound className='h-8 w-8' />
               </div>
-              <p className='mt-4 text-lg font-semibold text-gray-900'>No users match</p>
-              <p className='mt-1 text-sm text-gray-600'>Try another search or add a new account.</p>
+              <p className='mt-4 text-lg font-semibold text-gray-900'>{t('No users match')}</p>
+              <p className='mt-1 text-sm text-gray-600'>{t('Try another search or add a new account.')}</p>
               <div className='mt-6 flex flex-wrap items-center justify-center gap-2'>
                 <button type='button' onClick={openCreatePatient} className='inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700'>
                   <UserRound className='h-4 w-4' />
-                  Add patient
+                  {t('Add patient')}
                 </button>
                 <button type='button' onClick={goAddDoctor} className='inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-800 hover:bg-indigo-100'>
                   <Stethoscope className='h-4 w-4' />
-                  Add doctor
+                  {t('Add doctor')}
                 </button>
               </div>
             </div>
@@ -602,63 +624,64 @@ const Users = () => {
                   )}
                   <div className='min-w-0'>
                     <p className='font-semibold text-gray-900 truncate'>{user.name}</p>
-                    <p className='text-xs text-gray-500 truncate lg:hidden'>{roleLabels[user.profileType]}</p>
+                    <p className='text-xs text-gray-500 truncate lg:hidden'>{getUserRoleLabel(user, t)}</p>
                   </div>
                 </div>
 
                 <p>
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${roleStyles[user.profileType]}`}>
                     <Shield className='w-3.5 h-3.5' />
-                    {roleLabels[user.profileType]}
+                    {getUserRoleLabel(user, t)}
                   </span>
                 </p>
                 <div className='min-w-0 space-y-1'>
                   <p className='flex items-center gap-1.5 min-w-0'><Mail className='w-4 h-4 text-blue-600 flex-shrink-0' /><span className='truncate'>{user.email}</span></p>
-                  <p className='flex items-center gap-1.5 text-gray-500'><Phone className='w-4 h-4 text-blue-600 flex-shrink-0' />{user.phone || 'No phone'}</p>
+                  <p className='flex items-center gap-1.5 text-gray-500'><Phone className='w-4 h-4 text-blue-600 flex-shrink-0' />{user.phone || t('No phone')}</p>
                 </div>
                 <p className='text-gray-600'>
-                  <span className='text-xs font-semibold text-gray-500 lg:hidden'>Identifier </span>
-                  {user.patientId || user.speciality || 'Staff account'}
+                  <span className='text-xs font-semibold text-gray-500 lg:hidden'>{t('Identifier')} </span>
+                  {getUserIdentifier(user, t)}
                 </p>
                 <div className='min-w-0'>
-                  <p className='text-xs font-semibold text-gray-500 lg:hidden mb-1'>Insurance</p>
+                  <p className='text-xs font-semibold text-gray-500 lg:hidden mb-1'>{t('Insurance')}</p>
                   {user.profileType !== 'patient' ? (
                     <span className='text-gray-400'>—</span>
                   ) : user.insurance?.enabled ? (
                     <div className='space-y-1'>
                       <div className='flex flex-wrap items-center gap-1'>
-                        <span className='inline-flex items-center rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-800'>On file</span>
+                        <span className='inline-flex items-center rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-800'>{t('On file')}</span>
                         <InsuranceStatusBadge insurance={user.insurance} />
                       </div>
                       {user.insurance.provider ? (
                         <p className='truncate text-xs text-gray-600' title={user.insurance.provider}>{user.insurance.provider}</p>
                       ) : (
-                        <p className='text-xs text-gray-500'>Provider not set</p>
+                        <p className='text-xs text-gray-500'>{t('Provider not set')}</p>
                       )}
                     </div>
                   ) : (
-                    <span className='inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600'>None on file</span>
+                    <span className='inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600'>{t('None on file')}</span>
                   )}
                 </div>
                 <p>
-                  <span className='text-xs font-semibold text-gray-500 lg:hidden block mb-1'>Status</span>
+                  <span className='text-xs font-semibold text-gray-500 lg:hidden block mb-1'>{t('Status')}</span>
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${user.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                     <CheckCircle2 className='w-3.5 h-3.5' />
-                    {user.isActive ? 'Active' : 'Disabled'}
+                    {user.isActive ? t('Active') : t('Disabled')}
                   </span>
                   <span className={`mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${user.mfa?.enabled ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
                     <ShieldCheck className='w-3.5 h-3.5' />
-                    MFA {user.mfa?.enabled ? 'On' : 'Off'}
+                    {user.mfa?.enabled ? t('MFA On') : t('MFA Off')}
                   </span>
                   {user.mfa?.requiredByAdmin && (
                     <span className='mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700'>
-                      Required
+                      {t('MFA required')}
                     </span>
                   )}
                 </p>
                 <div className='flex justify-end lg:items-start pt-1'>
                   <UserRowActionsMenu
                     user={user}
+                    t={t}
                     isOpen={actionsMenuKey === userRowKey(user)}
                     onToggle={(open) => setActionsMenuKey(open ? userRowKey(user) : null)}
                     onEdit={() => openEdit(user)}
@@ -681,58 +704,62 @@ const Users = () => {
         <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4'>
           <div className='w-full max-w-2xl bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden'>
             <div className='flex items-center justify-between px-5 py-4 border-b bg-gray-50'>
-              <h2 className='font-bold text-gray-900 flex items-center gap-2'><Plus className='w-5 h-5 text-blue-600' />Add patient</h2>
+              <h2 className='font-bold text-gray-900 flex items-center gap-2'><Plus className='w-5 h-5 text-blue-600' />{t('Add patient')}</h2>
               <button onClick={closeCreate} className='text-gray-500 hover:text-gray-700'><X className='w-5 h-5' /></button>
             </div>
             <p className='mx-5 mt-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900'>
-              Quick patient registration. For doctors use <button type='button' onClick={() => { closeCreate(); goAddDoctor() }} className='font-semibold underline'>Add doctor</button> (photo, speciality, fees). For receptionists use <button type='button' onClick={() => { closeCreate(); goAddReceptionist() }} className='font-semibold underline'>Add receptionist</button>.
+              {t('Quick patient registration note')}{' '}
+              <button type='button' onClick={() => { closeCreate(); goAddDoctor() }} className='font-semibold underline'>{t('Add doctor')}</button>
+              {' '}{t('Quick patient registration note middle')}{' '}
+              {t('Quick patient registration note receptionist')}{' '}
+              <button type='button' onClick={() => { closeCreate(); goAddReceptionist() }} className='font-semibold underline'>{t('Add receptionist')}</button>.
             </p>
             <div className='p-5 grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <label className='text-sm font-medium text-gray-700'>
-                Name
+                {t('Name')}
                 <input value={createForm.name} onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
               </label>
               <label className='text-sm font-medium text-gray-700'>
-                Email
+                {t('Email')}
                 <input type='email' value={createForm.email} onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
               </label>
               <label className='text-sm font-medium text-gray-700'>
-                Phone
+                {t('Phone')}
                 <input value={createForm.phone} onChange={(event) => setCreateForm((prev) => ({ ...prev, phone: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
               </label>
               <label className='text-sm font-medium text-gray-700'>
-                Password
-                <input type='password' value={createForm.password} onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))} placeholder='Minimum 8 characters' className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
+                {t('Password')}
+                <input type='password' value={createForm.password} onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))} placeholder={t('Minimum 8 characters')} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
               </label>
 
               {createForm.profileType === 'patient' && (
                 <>
                   <label className='text-sm font-medium text-gray-700'>
-                    Gender
+                    {t('Gender')}
                     <select value={createForm.gender} onChange={(event) => setCreateForm((prev) => ({ ...prev, gender: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500'>
-                      <option value='Not Selected'>Not Selected</option>
-                      <option value='Female'>Female</option>
-                      <option value='Male'>Male</option>
+                      <option value='Not Selected'>{t('Not Selected')}</option>
+                      <option value='Female'>{t('Female')}</option>
+                      <option value='Male'>{t('Male')}</option>
                     </select>
                   </label>
                   <label className='text-sm font-medium text-gray-700'>
-                    Date of Birth
+                    {t('Date of Birth')}
                     <input type='date' value={createForm.dob} onChange={(event) => setCreateForm((prev) => ({ ...prev, dob: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
                   </label>
                   <label className='text-sm font-medium text-gray-700'>
-                    Address Line 1
+                    {t('Address Line 1')}
                     <input value={createForm.address.line1} onChange={(event) => setCreateForm((prev) => ({ ...prev, address: { ...prev.address, line1: event.target.value } }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
                   </label>
                   <label className='text-sm font-medium text-gray-700'>
-                    Address Line 2
+                    {t('Address Line 2')}
                     <input value={createForm.address.line2} onChange={(event) => setCreateForm((prev) => ({ ...prev, address: { ...prev.address, line2: event.target.value } }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
                   </label>
                 </>
               )}
             </div>
             <div className='px-5 py-4 border-t bg-gray-50 flex justify-end gap-2'>
-              <button onClick={closeCreate} className='px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-100'>Cancel</button>
-              <button onClick={saveNewUser} disabled={saving} className='px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:bg-blue-300'>{saving ? 'Creating...' : 'Create patient'}</button>
+              <button onClick={closeCreate} className='px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-100'>{t('Cancel')}</button>
+              <button onClick={saveNewUser} disabled={saving} className='px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:bg-blue-300'>{saving ? t('Creating...') : t('Create patient')}</button>
             </div>
           </div>
         </div>
@@ -742,51 +769,51 @@ const Users = () => {
         <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4'>
           <div className='w-full max-w-2xl bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden'>
             <div className='flex items-center justify-between px-5 py-4 border-b bg-gray-50'>
-              <h2 className='font-bold text-gray-900 flex items-center gap-2'><UserCog className='w-5 h-5 text-blue-600' />Edit {roleLabels[editingUser.profileType]}</h2>
+              <h2 className='font-bold text-gray-900 flex items-center gap-2'><UserCog className='w-5 h-5 text-blue-600' />{t('Edit')} {getUserRoleLabel(editingUser, t)}</h2>
               <button onClick={closeEdit} className='text-gray-500 hover:text-gray-700'><X className='w-5 h-5' /></button>
             </div>
             <div className='p-5 grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <label className='text-sm font-medium text-gray-700'>
-                Name
+                {t('Name')}
                 <input value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
               </label>
               <label className='text-sm font-medium text-gray-700'>
-                Email
+                {t('Email')}
                 <input type='email' value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
               </label>
               <label className='text-sm font-medium text-gray-700'>
-                Phone
+                {t('Phone')}
                 <input value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
               </label>
 
               {editingUser.profileType === 'patient' && (
                 <>
                   <label className='text-sm font-medium text-gray-700'>
-                    Gender
+                    {t('Gender')}
                     <select value={form.gender} onChange={(event) => setForm((prev) => ({ ...prev, gender: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500'>
-                      <option value='Not Selected'>Not Selected</option>
-                      <option value='Female'>Female</option>
-                      <option value='Male'>Male</option>
+                      <option value='Not Selected'>{t('Not Selected')}</option>
+                      <option value='Female'>{t('Female')}</option>
+                      <option value='Male'>{t('Male')}</option>
                     </select>
                   </label>
                   <label className='text-sm font-medium text-gray-700'>
-                    Date of Birth
+                    {t('Date of Birth')}
                     <input type='date' value={form.dob} onChange={(event) => setForm((prev) => ({ ...prev, dob: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
                   </label>
                   <label className='text-sm font-medium text-gray-700'>
-                    Address Line 1
+                    {t('Address Line 1')}
                     <input value={form.address.line1} onChange={(event) => setForm((prev) => ({ ...prev, address: { ...prev.address, line1: event.target.value } }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
                   </label>
                   <label className='text-sm font-medium text-gray-700'>
-                    Address Line 2
+                    {t('Address Line 2')}
                     <input value={form.address.line2} onChange={(event) => setForm((prev) => ({ ...prev, address: { ...prev.address, line2: event.target.value } }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
                   </label>
                 </>
               )}
             </div>
             <div className='px-5 py-4 border-t bg-gray-50 flex justify-end gap-2'>
-              <button onClick={closeEdit} className='px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-100'>Cancel</button>
-              <button onClick={saveUser} disabled={saving} className='px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:bg-blue-300'>{saving ? 'Saving...' : 'Save Changes'}</button>
+              <button onClick={closeEdit} className='px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-100'>{t('Cancel')}</button>
+              <button onClick={saveUser} disabled={saving} className='px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:bg-blue-300'>{saving ? t('Saving...') : t('Save Changes')}</button>
             </div>
           </div>
         </div>
@@ -796,22 +823,24 @@ const Users = () => {
         <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4'>
           <div className='w-full max-w-md bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden'>
             <div className='flex items-center justify-between px-5 py-4 border-b bg-gray-50'>
-              <h2 className='font-bold text-gray-900 flex items-center gap-2'><KeyRound className='w-5 h-5 text-amber-600' />Reset Password</h2>
+              <h2 className='font-bold text-gray-900 flex items-center gap-2'><KeyRound className='w-5 h-5 text-amber-600' />{t('Reset Password')}</h2>
               <button onClick={closePassword} className='text-gray-500 hover:text-gray-700'><X className='w-5 h-5' /></button>
             </div>
             <div className='p-5'>
-              <p className='text-sm text-gray-600 mb-3'>Set a new password for <span className='font-semibold text-gray-900'>{passwordUser.name}</span>.</p>
+              <p className='text-sm text-gray-600 mb-3'>
+                {t('Set new password for')} <span className='font-semibold text-gray-900'>{passwordUser.name}</span>.
+              </p>
               <input
                 type='password'
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
-                placeholder='Minimum 8 characters'
+                placeholder={t('Minimum 8 characters')}
                 className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
               />
             </div>
             <div className='px-5 py-4 border-t bg-gray-50 flex justify-end gap-2'>
-              <button onClick={closePassword} className='px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-100'>Cancel</button>
-              <button onClick={savePassword} disabled={saving} className='px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold text-sm hover:bg-amber-700 disabled:bg-amber-300'>{saving ? 'Resetting...' : 'Reset Password'}</button>
+              <button onClick={closePassword} className='px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-100'>{t('Cancel')}</button>
+              <button onClick={savePassword} disabled={saving} className='px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold text-sm hover:bg-amber-700 disabled:bg-amber-300'>{saving ? t('Resetting...') : t('Reset Password')}</button>
             </div>
           </div>
         </div>
