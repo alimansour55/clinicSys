@@ -772,7 +772,9 @@ const Appointment = () => {
         <div className='flex w-full items-center gap-3 overflow-x-auto pb-2' >
           {
             docSlots.length && docSlots.map((item, index) => (
-             <div
+             <button
+              type='button'
+              disabled={!item.slots.length}
               onClick={() => {
                 if (!item.slots.length) return
                 setSlotIndex(slotIndex === index ? null : index)
@@ -780,13 +782,13 @@ const Appointment = () => {
                 setSlotBranch('')
                 setPendingPayment(null)
               }}
-                className={`min-w-20 rounded-2xl px-4 py-3 text-center text-sm font-bold transition ${item.slots.length ? 'cursor-pointer hover:border-primary/40 hover:bg-teal-50' : 'cursor-not-allowed bg-gray-100 text-gray-500 opacity-50'} ${slotIndex === index ? 'bg-primary text-white shadow-sm' : 'border border-gray-200'}`}
+                className={`min-w-20 rounded-2xl px-4 py-3 text-center text-sm font-bold transition ${item.slots.length ? 'hover:border-primary/40 hover:bg-teal-50' : 'cursor-not-allowed bg-gray-100 text-gray-500 opacity-50'} ${slotIndex === index ? 'bg-primary text-white shadow-sm' : 'border border-gray-200'}`}
               key={index}
              >
               <p>{weekShortLabels[item.dateTime.getDay()]}</p>
               <p>{localizeDigits(String(item.dateTime.getDate()))}</p>
               <p className='mt-1 text-[11px] font-medium opacity-80'>{fillT('{{n}} slots', { n: item.slots.filter((slot) => slot.available).length })}</p>
-             </div>
+             </button>
             ))
           }
         </div>

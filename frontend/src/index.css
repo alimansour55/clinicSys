@@ -3,11 +3,21 @@
 @import "tailwindcss";
 @import "react-toastify/dist/ReactToastify.css";
 
-/* Phones/tablets: one tap (hover styles only on real mouse/trackpad) */
-@variant hover (@media (hover: hover) and (pointer: fine) { &:hover });
-@variant group-hover (@media (hover: hover) and (pointer: fine) {
-  &:is(:where(.group):hover *)
-});
+/* Hover only on real mouse/trackpad — prevents first-tap “sticky hover” on phones */
+@variant hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+@variant group-hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:is(:where(.group):hover *) {
+      @slot;
+    }
+  }
+}
 
 *{
   font-family: Outfit, Arial, sans-serif;
@@ -43,15 +53,22 @@ html[dir="rtl"] select {
   }
 }
 
-/* Toast portal must not block clicks on the page */
-body > section.Toastify {
+/* Toast portal lives inside #root — must not use body > (that selector never matched) */
+section.Toastify,
+#root section.Toastify {
   pointer-events: none !important;
   width: 0 !important;
   height: 0 !important;
   overflow: visible !important;
 }
 
-body > section.Toastify .Toastify__toast-container {
+section.Toastify:empty,
+#root section.Toastify:empty {
+  display: none !important;
+}
+
+section.Toastify .Toastify__toast-container,
+#root section.Toastify .Toastify__toast-container {
   pointer-events: none !important;
   width: max-content !important;
   max-width: calc(100vw - 1rem) !important;
@@ -60,33 +77,45 @@ body > section.Toastify .Toastify__toast-container {
   overflow: visible !important;
 }
 
-body > section.Toastify .Toastify__toast {
+section.Toastify .Toastify__toast-container--top-right,
+#root section.Toastify .Toastify__toast-container--top-right {
+  top: max(0.75rem, env(safe-area-inset-top, 0px)) !important;
+}
+
+section.Toastify .Toastify__toast,
+#root section.Toastify .Toastify__toast {
   pointer-events: auto !important;
   touch-action: manipulation;
 }
 
-/* Faster taps on touch screens (does not affect mouse on PC) */
-@media (pointer: coarse) {
-  #root a,
-  #root button,
-  #root [role='button'],
-  #root input,
-  #root select,
-  #root textarea,
-  #root label,
-  #root summary {
-    touch-action: manipulation;
-  }
+#root {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+}
+
+#root a,
+#root button,
+#root [role='button'],
+#root input,
+#root select,
+#root textarea,
+#root label,
+#root summary {
+  touch-action: manipulation;
 }
 
 /* Printing: hide toast layer; keep page content normal */
 @media print {
-  body > section.Toastify {
+  section.Toastify,
+  #root section.Toastify {
     display: none !important;
   }
 
-  body > section.Toastify,
-  body > section.Toastify * {
+  section.Toastify,
+  section.Toastify *,
+  #root section.Toastify,
+  #root section.Toastify * {
     pointer-events: auto !important;
   }
 }
