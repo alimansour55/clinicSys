@@ -21,7 +21,8 @@ const Header = () => {
 
   return (
     <div
-      className='relative z-0 mt-2 flex flex-col overflow-hidden rounded-lg md:flex-row md:flex-wrap'
+      id='home-hero'
+      className='relative z-0 mt-2 flex scroll-mt-28 flex-col overflow-hidden rounded-lg md:flex-row md:flex-wrap'
       style={{ backgroundColor }}
     >
       <div className='flex w-full flex-col items-start justify-center gap-4 px-6 py-10 md:w-1/2 md:py-[10vw] md:pb-8'>

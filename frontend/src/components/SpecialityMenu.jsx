@@ -9,6 +9,8 @@ import { isDoctorComingSoon } from "../utils/doctorBooking";
 import { doctorBelongsToClinicSection } from "../utils/doctorClinicPlaces";
 import { toast } from "react-toastify";
 
+const DOCTORS_PER_PAGE = 4;
+
 const SpecialityMenu = () => {
   const navigate = useNavigate();
   const doctorsRef = useRef(null);
@@ -34,6 +36,14 @@ const SpecialityMenu = () => {
     );
   }, [doctors, selectedSection]);
 
+  const doctorPages = useMemo(() => {
+    const pages = [];
+    for (let i = 0; i < visibleDoctors.length; i += DOCTORS_PER_PAGE) {
+      pages.push(visibleDoctors.slice(i, i + DOCTORS_PER_PAGE));
+    }
+    return pages;
+  }, [visibleDoctors]);
+
   const getDoctorLocationRaw = (doctor) => {
     const locations = doctor.locations?.length
       ? doctor.locations
@@ -54,8 +64,10 @@ const SpecialityMenu = () => {
   };
 
   const scrollDoctors = (direction) => {
-    const scrollAmount = doctorsRef.current?.clientWidth || 680;
-    doctorsRef.current?.scrollBy({
+    const el = doctorsRef.current;
+    if (!el) return;
+    const scrollAmount = el.clientWidth;
+    el.scrollBy({
       left: direction === "next" ? scrollAmount : -scrollAmount,
       behavior: "smooth",
     });
@@ -95,8 +107,45 @@ const SpecialityMenu = () => {
     window.scrollTo(0, 0);
   };
 
+  const renderDoctorCard = (doctor) => (
+    <button
+      key={doctor._id}
+      type="button"
+      onClick={() => bookDoctor(doctor)}
+      className={`group min-h-0 overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition ${
+        isDoctorComingSoon(doctor)
+          ? "cursor-default opacity-95"
+          : "hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg"
+      }`}
+    >
+      <div className="relative mx-2 mt-2 h-[120px] overflow-hidden rounded-lg bg-blue-50 sm:mx-3 sm:mt-3 sm:h-[146px]">
+        <img
+          src={doctor.image}
+          alt={displayPersonName(doctor.name)}
+          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+        />
+        <RatingBadge summary={doctor.ratingSummary} className="absolute left-2 top-2" />
+        <PromoOfferBadge doctor={doctor} currencySymbol={currencySymbol} className="absolute bottom-2 left-2" />
+      </div>
+
+      <div className="px-2.5 py-2 sm:px-3 sm:py-2.5">
+        {isDoctorComingSoon(doctor) && (
+          <p className="mb-1.5 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+            {t("Coming Soon")}
+          </p>
+        )}
+        <p className="truncate text-sm font-bold text-gray-800">{displayPersonName(doctor.name)}</p>
+        <p className="mt-1 truncate text-sm text-gray-600">{tc(doctor.speciality)}</p>
+        <p className="mt-2 flex items-center gap-1.5 truncate text-sm text-gray-600">
+          <MapPin className="h-4 w-4 shrink-0 text-blue-500" />
+          <span className="truncate">{getDoctorLocationDisplay(doctor)}</span>
+        </p>
+      </div>
+    </button>
+  );
+
   return (
-    <section className="py-14 text-gray-800" id="speciality">
+    <section className="scroll-mt-28 py-14 text-gray-800" id="speciality">
       <div className="mb-6 px-1 sm:px-0">
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
           {t("Find by Speciality")}
@@ -157,7 +206,7 @@ const SpecialityMenu = () => {
             </span>
             <p className="font-bold text-gray-900">{t("Clinic sections")}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="hidden shrink-0 gap-2 sm:flex">
             <button type="button" onClick={() => scrollRail(clinicsRef, "prev")} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600" aria-label={t("Previous clinics")}>
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -167,8 +216,11 @@ const SpecialityMenu = () => {
           </div>
         </div>
 
-        <div ref={clinicsRef} className="tap-row-mobile-wrap mb-7 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex min-w-max gap-3">
+        <div
+          ref={clinicsRef}
+          className="mb-7 flex flex-wrap gap-2 pb-1 sm:flex-nowrap sm:gap-3 sm:overflow-x-auto sm:pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          <div className="flex w-full flex-wrap gap-2 sm:min-w-max sm:flex-nowrap sm:gap-3">
             <button
               key="all-doctors"
               type="button"
@@ -205,65 +257,39 @@ const SpecialityMenu = () => {
         </div>
 
         {visibleDoctors.length > 0 ? (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => scrollDoctors("prev")}
-              className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600"
-              aria-label={t("Previous doctors")}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollDoctors("next")}
-              className="absolute right-0 top-1/2 z-10 flex h-11 w-11 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600"
-              aria-label={t("Next doctors")}
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
+          <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-gray-50/60 p-2 sm:p-3">
+            {doctorPages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => scrollDoctors("prev")}
+                  className="absolute left-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600 sm:left-2"
+                  aria-label={t("Previous doctors")}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollDoctors("next")}
+                  className="absolute right-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600 sm:right-2"
+                  aria-label={t("Next doctors")}
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </>
+            )}
 
             <div
               ref={doctorsRef}
-              className="tap-row-mobile-wrap grid auto-cols-[166px] grid-flow-col grid-rows-2 gap-4 overflow-x-auto pb-3 pr-2 [scrollbar-width:none] sm:auto-cols-[184px] md:auto-cols-[188px] [&::-webkit-scrollbar]:hidden"
+              className="flex overflow-x-auto overscroll-x-contain scroll-smooth snap-x snap-mandatory [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
-              {visibleDoctors.map((doctor) => (
-                <button
-                  key={doctor._id}
-                  type="button"
-                  onClick={() => bookDoctor(doctor)}
-                  className={`group min-h-[304px] overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition ${
-                    isDoctorComingSoon(doctor)
-                      ? "cursor-default opacity-95"
-                      : "hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg"
-                  }`}
+              {doctorPages.map((page, pageIndex) => (
+                <div
+                  key={`${selectedSection.name}-${pageIndex}`}
+                  className="grid w-full min-w-full shrink-0 snap-start snap-always grid-cols-2 gap-3 px-1 py-1 sm:gap-4"
                 >
-                  <div className="relative mx-3 mt-3 h-[146px] overflow-hidden rounded-lg bg-blue-50">
-                    <img
-                      src={doctor.image}
-                      alt={displayPersonName(doctor.name)}
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                    />
-                    <RatingBadge summary={doctor.ratingSummary} className="absolute left-2 top-2" />
-                    <PromoOfferBadge doctor={doctor} currencySymbol={currencySymbol} className="absolute bottom-2 left-2" />
-                  </div>
-
-                  <div className="px-3 py-2.5">
-                    {isDoctorComingSoon(doctor) && (
-                      <p className="mb-1.5 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                        {t("Coming Soon")}
-                      </p>
-                    )}
-                    <p className="truncate text-sm font-bold text-gray-800">
-                      {displayPersonName(doctor.name)}
-                    </p>
-                    <p className="mt-1 truncate text-sm text-gray-600">{tc(doctor.speciality)}</p>
-                    <p className="mt-2 flex items-center gap-1.5 truncate text-sm text-gray-600">
-                      <MapPin className="h-4 w-4 shrink-0 text-blue-500" />
-                      <span className="truncate">{getDoctorLocationDisplay(doctor)}</span>
-                    </p>
-                  </div>
-                </button>
+                  {page.map((doctor) => renderDoctorCard(doctor))}
+                </div>
               ))}
             </div>
           </div>

@@ -20,7 +20,8 @@ const Banner = () => {
 
   return (
     <div
-      className='mx-3 my-10 flex min-h-[280px] rounded-lg px-6 sm:mx-10 sm:min-h-[300px] sm:px-10 md:my-20 md:min-h-[340px] md:px-14 lg:min-h-[380px] lg:px-12'
+      id='home-banner'
+      className='mx-3 my-10 flex min-h-[280px] scroll-mt-28 rounded-lg px-6 sm:mx-10 sm:min-h-[300px] sm:px-10 md:my-20 md:min-h-[340px] md:px-14 lg:min-h-[380px] lg:px-12'
       style={{ backgroundColor }}
     >
       <div className='flex min-h-0 flex-1 flex-col justify-center py-8 sm:py-10 md:py-14 lg:py-16 lg:pl-5'>
