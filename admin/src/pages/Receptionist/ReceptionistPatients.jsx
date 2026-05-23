@@ -32,16 +32,19 @@ import InsuranceStatusBadge from "../../components/InsuranceStatusBadge";
 import { translateInsuranceProviderName } from "../../data/insuranceProviderNamesAr";
 import { LANGUAGES, useLanguage } from "../../i18n";
 
-const formatGender = (gender) => (gender && gender !== "Not Selected" ? gender : "Prefer not to say");
+const formatGender = (gender, t) => {
+  if (!gender || gender === "Not Selected") return t("Prefer not to say");
+  return t(gender);
+};
 
-const historyItems = (history = {}) =>
+const historyItems = (history = {}, t) =>
   [
-    ["Conditions", history.conditions],
-    ["Allergies", history.allergies],
-    ["Surgeries", history.surgeries],
-    ["Family History", history.familyHistory],
-    ["Social History", history.socialHistory],
-    ["Notes", history.notes]
+    [t("Conditions"), history.conditions],
+    [t("Allergies"), history.allergies],
+    [t("Surgeries"), history.surgeries],
+    [t("Family History"), history.familyHistory],
+    [t("Social History"), history.socialHistory],
+    [t("Notes"), history.notes]
   ].filter(([, value]) => String(value || "").trim());
 
 const generatePatientPassword = () => {
@@ -457,7 +460,7 @@ const ReceptionistPatients = () => {
     const totals = patientDetails?.totals || {};
     const appointments = patientDetails?.appointments || [];
     const prescriptions = patientDetails?.prescriptions || [];
-    const profileHistory = historyItems(patient?.medicalHistory);
+    const profileHistory = historyItems(patient?.medicalHistory, t);
 
     return (
       <div className="min-h-screen bg-[#f4f6fb] p-3 sm:p-5 md:p-6 lg:p-8">
@@ -515,7 +518,7 @@ const ReceptionistPatients = () => {
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{t("Clinical record")}</span>
                       </div>
                       <p className="mt-2 text-sm text-gray-600">
-                        {t("Patient ID")}{" "}
+                        {t("Patient ID")}:{" "}
                         <span className="font-mono font-semibold text-gray-900">{patient.patientId || "—"}</span>
                       </p>
                       <div className="mt-4 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
@@ -528,12 +531,14 @@ const ReceptionistPatients = () => {
                           {patient.phone || "—"}
                         </p>
                         <p>
-                          Gender: <span className="font-medium">{formatGender(patient.gender)}</span>
+                          {t("Gender")}: <span className="font-medium">{formatGender(patient.gender, t)}</span>
                         </p>
                         <p>
-                          Age:{" "}
+                          {t("Age")}:{" "}
                           <span className="font-medium">
-                            {patient.dob && patient.dob !== "Not Selected" ? `${calculateAge(patient.dob)} years` : "—"}
+                            {patient.dob && patient.dob !== "Not Selected"
+                              ? `${localizeDigits(calculateAge(patient.dob))} ${t("years old")}`
+                              : "—"}
                           </span>
                         </p>
                       </div>
@@ -544,7 +549,7 @@ const ReceptionistPatients = () => {
                             className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
                           >
                             <CalendarPlus className="h-4 w-4" />
-                            Book appointment
+                            {t("Book appointment")}
                           </Link>
                         </div>
                       )}
@@ -555,15 +560,15 @@ const ReceptionistPatients = () => {
 
               <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {[
-                  ["Appointments", totals.appointments || 0, "from-blue-500 to-blue-600"],
-                  ["Paid", totals.paidAppointments || 0, "from-emerald-500 to-emerald-600"],
-                  ["Unpaid", totals.unpaidAppointments || 0, "from-amber-500 to-orange-500"],
-                  ["Completed", totals.completedAppointments || 0, "from-indigo-500 to-violet-600"]
-                ].map(([label, value, gradient]) => (
-                  <div key={label} className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  { key: "appointments", label: t("Patient record appointments"), value: totals.appointments || 0, gradient: "from-blue-500 to-blue-600" },
+                  { key: "paid", label: t("Paid appointments"), value: totals.paidAppointments || 0, gradient: "from-emerald-500 to-emerald-600" },
+                  { key: "unpaid", label: t("Unpaid appointments"), value: totals.unpaidAppointments || 0, gradient: "from-amber-500 to-orange-500" },
+                  { key: "completed", label: t("Completed appointments"), value: totals.completedAppointments || 0, gradient: "from-indigo-500 to-violet-600" }
+                ].map(({ key, label, value, gradient }) => (
+                  <div key={key} className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
                     <p className={`mt-2 inline-flex min-w-[2.5rem] items-center justify-center rounded-lg bg-gradient-to-br px-3 py-1 text-2xl font-bold text-white shadow ${gradient}`}>
-                      {value}
+                      {localizeDigits(value)}
                     </p>
                   </div>
                 ))}
@@ -573,11 +578,11 @@ const ReceptionistPatients = () => {
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
                     <WalletCards className="h-5 w-5 text-emerald-600" />
-                    Insurance
+                    {t("Insurance")}
                   </h2>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`rounded-full px-3 py-1 text-xs font-bold ${patient.insurance?.enabled ? "bg-emerald-50 text-emerald-800" : "bg-gray-100 text-gray-600"}`}>
-                      {patient.insurance?.enabled ? "On file" : "Not on file"}
+                      {patient.insurance?.enabled ? t("Insurance on file") : t("Insurance not on file")}
                     </span>
                     {patient.insurance?.enabled && <InsuranceStatusBadge insurance={patient.insurance} t={t} />}
                   </div>
@@ -586,34 +591,36 @@ const ReceptionistPatients = () => {
                   <div className="grid grid-cols-1 gap-3 text-sm text-gray-700 sm:grid-cols-2 lg:grid-cols-4">
                     {patient.insurance.provider && (
                       <p className="sm:col-span-2 lg:col-span-4">
-                        <span className="font-semibold text-gray-900">Provider:</span> {patient.insurance.provider}
+                        <span className="font-semibold text-gray-900">{t("Insurance provider label")}:</span>{" "}
+                        {translateInsuranceProviderName(patient.insurance.provider, t)}
                       </p>
                     )}
                     <p>
-                      <span className="font-semibold text-gray-900">Full name:</span> {patient.insurance.fullName}
+                      <span className="font-semibold text-gray-900">{t("Insurance full name")}:</span> {patient.insurance.fullName}
                     </p>
                     <p>
-                      <span className="font-semibold text-gray-900">Birth date:</span> {patient.insurance.birthDate}
+                      <span className="font-semibold text-gray-900">{t("Insurance birth date")}:</span> {patient.insurance.birthDate}
                     </p>
                     <p>
-                      <span className="font-semibold text-gray-900">ID:</span> {patient.insurance.idNumber}
+                      <span className="font-semibold text-gray-900">{t("Insurance ID number")}:</span> {patient.insurance.idNumber}
                     </p>
                     <p>
-                      <span className="font-semibold text-gray-900">Expiry:</span> {patient.insurance.expiryDate}
+                      <span className="font-semibold text-gray-900">{t("Insurance expiry date")}:</span> {patient.insurance.expiryDate}
                     </p>
                     {patient.insurance.medicalCardPhoto && (
                       <a className="font-semibold text-primary underline sm:col-span-2" href={patient.insurance.medicalCardPhoto} target="_blank" rel="noreferrer">
-                        View medical card
+                        {t("View medical card")}
                       </a>
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-600">No insurance captured yet. You can add it when booking or from patient tools if enabled.</p>
+                  <p className="text-sm text-gray-600">{t("No insurance captured yet.")}</p>
                 )}
                 {!isAdmin && patient.insurance?.enabled && (
                   <div className="mt-4">
                     <InsuranceVerificationPanel
                       insurance={patient.insurance}
+                      t={t}
                       saving={insuranceVerifySaving}
                       onVerify={async (payload) => {
                         if (!selectedPatientId) return;
@@ -639,11 +646,11 @@ const ReceptionistPatients = () => {
                 <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                   <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/80 px-4 py-3">
                     <FileText className="h-5 w-5 text-primary" />
-                    <h2 className="font-bold text-gray-900">Medical history</h2>
+                    <h2 className="font-bold text-gray-900">{t("Medical history")}</h2>
                   </div>
                   <div className="max-h-[430px] divide-y divide-gray-100 overflow-y-auto">
                     {profileHistory.length === 0 && prescriptions.length === 0 ? (
-                      <p className="p-5 text-sm text-gray-500">No clinical notes in profile.</p>
+                      <p className="p-5 text-sm text-gray-500">{t("No clinical notes in profile.")}</p>
                     ) : (
                       <>
                         {profileHistory.map(([label, value]) => (
@@ -654,9 +661,9 @@ const ReceptionistPatients = () => {
                         ))}
                         {prescriptions.map((prescription) => (
                           <div key={prescription._id} className="p-4 sm:p-5">
-                            <p className="font-semibold text-gray-900">{prescription.diagnosis || "Medical record"}</p>
+                            <p className="font-semibold text-gray-900">{prescription.diagnosis || t("Medical record")}</p>
                             <p className="text-sm text-gray-500">
-                              {prescription.docData?.name || "Doctor"} · {slotDateFormat(prescription.slotDate)}
+                              {prescription.docData?.name || t("Doctor")} · {slotDateFormat(prescription.slotDate)}
                             </p>
                             <p className="mt-2 line-clamp-3 text-sm text-gray-600">{prescription.instructions}</p>
                           </div>
@@ -669,32 +676,32 @@ const ReceptionistPatients = () => {
                 <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                   <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/80 px-4 py-3">
                     <CalendarClock className="h-5 w-5 text-primary" />
-                    <h2 className="font-bold text-gray-900">Appointments</h2>
+                    <h2 className="font-bold text-gray-900">{t("Appointments")}</h2>
                   </div>
                   <div className="max-h-[430px] divide-y divide-gray-100 overflow-y-auto">
                     {appointments.length === 0 ? (
-                      <p className="p-5 text-sm text-gray-500">No visits yet.</p>
+                      <p className="p-5 text-sm text-gray-500">{t("No visits yet.")}</p>
                     ) : (
                       appointments.map((appointment) => (
                         <div key={appointment._id} className="p-4 sm:p-5">
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div>
-                              <p className="font-semibold text-gray-900">{appointment.docData?.name || "Doctor"}</p>
+                              <p className="font-semibold text-gray-900">{appointment.docData?.name || t("Doctor")}</p>
                               <p className="text-sm text-gray-500">
                                 {slotDateFormat(appointment.slotDate)} · {appointment.slotTime}
                               </p>
                             </div>
                             <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${appointment.paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
-                              {appointment.paymentStatus}
+                              {t(appointment.paymentStatus)}
                             </span>
                           </div>
                           <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600">
-                            <span className="rounded-lg bg-gray-100 px-2 py-1 font-medium">{appointment.appointmentStatus}</span>
+                            <span className="rounded-lg bg-gray-100 px-2 py-1 font-medium">{t(appointment.appointmentStatus)}</span>
                             <span className="rounded-lg bg-gray-100 px-2 py-1 font-medium">
                               {currency}
-                              {appointment.amount}
+                              {localizeDigits(appointment.amount)}
                             </span>
-                            <span className="rounded-lg bg-gray-100 px-2 py-1 font-medium">{appointment.bookedBy}</span>
+                            <span className="rounded-lg bg-gray-100 px-2 py-1 font-medium">{t(appointment.bookedBy)}</span>
                           </div>
                         </div>
                       ))
