@@ -138,7 +138,9 @@ const App = () => {
   const { rToken, receptionistNavSummary } = useContext(ReceptionistContext)
   const { isRtl, t } = useLanguage()
   const location = useLocation()
-  const [adminNavExpanded, setAdminNavExpanded] = useState(false)
+  const [adminNavExpanded, setAdminNavExpanded] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  )
 
   const doctorNavLinks = useMemo(() => getDoctorNavLinks(t), [t])
   const receptionistNavLinks = useMemo(() => getReceptionistNavLinks(t), [t])

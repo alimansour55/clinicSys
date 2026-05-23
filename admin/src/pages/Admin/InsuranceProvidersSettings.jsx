@@ -6,7 +6,7 @@ import { Building2, Loader2, Plus, Save, Trash2 } from 'lucide-react'
 
 const InsuranceProvidersSettings = () => {
   const { aToken, siteSettings, getSiteSettings, updateInsuranceProviders } = useContext(AdminContext)
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [providers, setProviders] = useState([])
   const [newName, setNewName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -62,7 +62,7 @@ const InsuranceProvidersSettings = () => {
             {providers.map((name, index) => (
               <li key={`${name}-${index}`} className='flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50'>
                 <span className='flex-1 text-sm font-medium text-gray-900 break-words'>
-                  {translateInsuranceProviderName(name, t)}
+                  {translateInsuranceProviderName(name, t, language)}
                 </span>
                 <button
                   type='button'

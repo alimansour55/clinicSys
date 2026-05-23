@@ -93,7 +93,7 @@ const ReceptionistBookAppointment = () => {
     getDoctorRatings,
     updateDoctorLocations,
   } = useContext(ReceptionistContext);
-  const { currency, t, slotDateFormat } = useContext(AppContext);
+  const { currency, t, slotDateFormat, language } = useContext(AppContext);
   const [searchParams] = useSearchParams();
 
   const [docId, setDocId] = useState("");
@@ -894,7 +894,7 @@ const ReceptionistBookAppointment = () => {
                       <option value="">{t("Insurance provider")}</option>
                       {insuranceProvidersList.map((name) => (
                         <option key={name} value={name}>
-                          {translateInsuranceProviderName(name, t)}
+                          {translateInsuranceProviderName(name, t, language)}
                         </option>
                       ))}
                     </select>
@@ -1024,7 +1024,7 @@ const ReceptionistBookAppointment = () => {
                         <option value="">{t("Insurance provider")}</option>
                         {insuranceProvidersList.map((name) => (
                           <option key={name} value={name}>
-                            {translateInsuranceProviderName(name, t)}
+                            {translateInsuranceProviderName(name, t, language)}
                           </option>
                         ))}
                       </select>
@@ -1110,7 +1110,7 @@ const ReceptionistBookAppointment = () => {
                           <option value="">{t("Insurance provider")}</option>
                           {insuranceProvidersList.map((name) => (
                             <option key={name} value={name}>
-                              {translateInsuranceProviderName(name, t)}
+                              {translateInsuranceProviderName(name, t, language)}
                             </option>
                           ))}
                         </select>

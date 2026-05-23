@@ -70,7 +70,7 @@ const emptyAddForm = () => ({
 });
 
 function AddPatientModal({ open, onClose, createReceptionistPatient, onCreated, insuranceProviders = [] }) {
-  const { t } = useContext(AppContext);
+  const { t, language } = useContext(AppContext);
   const [form, setForm] = useState(emptyAddForm);
   const [insuranceCard, setInsuranceCard] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -211,7 +211,7 @@ function AddPatientModal({ open, onClose, createReceptionistPatient, onCreated, 
                     <option value="">Select provider</option>
                     {insuranceProviders.map((name) => (
                       <option key={name} value={name}>
-                        {translateInsuranceProviderName(name, t)}
+                        {translateInsuranceProviderName(name, t, language)}
                       </option>
                     ))}
                   </select>
@@ -592,7 +592,7 @@ const ReceptionistPatients = () => {
                     {patient.insurance.provider && (
                       <p className="sm:col-span-2 lg:col-span-4">
                         <span className="font-semibold text-gray-900">{t("Insurance provider label")}:</span>{" "}
-                        {translateInsuranceProviderName(patient.insurance.provider, t)}
+                        {translateInsuranceProviderName(patient.insurance.provider, t, language)}
                       </p>
                     )}
                     <p>

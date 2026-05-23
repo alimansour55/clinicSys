@@ -30,6 +30,13 @@ const Sidebar = ({ adminNavExpanded = false, onAdminNavExpandedChange }) => {
   const expandAdminNav = () => onAdminNavExpandedChange?.(true)
   const toggleAdminNav = () => (adminNavExpanded ? collapseAdminNav() : expandAdminNav())
 
+  /** Collapse sidebar only on mobile after navigation; desktop stays open until user toggles. */
+  const afterAdminNavNavigate = () => {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+      collapseAdminNav()
+    }
+  }
+
   const sectionHasActiveLink = (section) =>
     section.links.some((link) => isAdminPathActive(location.pathname, link.path))
 
@@ -147,7 +154,7 @@ const Sidebar = ({ adminNavExpanded = false, onAdminNavExpandedChange }) => {
                               <li key={link.path}>
                                 <StaffNavButton
                                   to={link.path}
-                                  onAfterNavigate={collapseAdminNav}
+                                  onAfterNavigate={afterAdminNavNavigate}
                                   inactiveClassName={adminNavInactiveClass}
                                   activeClassName={adminNavActiveClass}
                                   title={link.label}
@@ -169,7 +176,7 @@ const Sidebar = ({ adminNavExpanded = false, onAdminNavExpandedChange }) => {
                       <StaffNavButton
                         key={link.path}
                         to={link.path}
-                        onAfterNavigate={collapseAdminNav}
+                        onAfterNavigate={afterAdminNavNavigate}
                         inactiveClassName={adminNavInactiveClass}
                         activeClassName={adminNavActiveClass}
                         title={link.label}

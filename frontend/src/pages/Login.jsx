@@ -14,7 +14,7 @@ const today = new Date().toISOString().split('T')[0]
 
 const Login = () => {
 
-  const { backendUrl, token, setToken, userData, t } = useContext(AppContext)
+  const { backendUrl, token, setToken, userData, t, language } = useContext(AppContext)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   
@@ -364,7 +364,7 @@ const Login = () => {
                       <option value=''>{t('Select provider')}</option>
                       {insuranceProvidersList.map((name) => (
                         <option key={name} value={name}>
-                          {translateInsuranceProviderName(name, t)}
+                          {translateInsuranceProviderName(name, t, language)}
                         </option>
                       ))}
                     </select>
