@@ -49,8 +49,8 @@ const SPECIALTY_RULES = [
   },
   {
     specialty: 'General physician',
-    en: ['fever', 'flu', 'cold', 'cough', 'fatigue', 'general', 'checkup'],
-    ar: ['حمى', 'سخونة', 'برد', 'كحة', 'سعال', 'إنفلونزا', 'تعب', 'كشف عام']
+    en: ['fever', 'flu', 'cold', 'cough', 'caught a cold', 'have a cold', 'fatigue', 'general', 'checkup', 'sore throat'],
+    ar: ['حمى', 'سخونة', 'برد', 'كحة', 'سعال', 'إنفلونزا', 'تعب', 'كشف عام', 'زكام', 'التهاب حلق']
   }
 ]
 

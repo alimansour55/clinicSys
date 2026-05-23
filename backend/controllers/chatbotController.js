@@ -8,6 +8,12 @@ import {
   matchDoctorSpecialty
 } from '../services/chatbotSymptomMap.js'
 import { generateChatbotReply } from '../services/chatbotOpenAIService.js'
+import {
+  shouldOfferDoctorPicker,
+  hasHealthConcern,
+  isGreetingOnly,
+  countUserTurns
+} from '../services/chatbotConversation.js'
 import { buildAvailableSlotsForDoctor, getDefaultClinicLocation } from '../services/chatbotSlotService.js'
 import { bookChatbotAppointment, resolvePatientForChatbot } from '../services/chatbotBookingService.js'
 
@@ -39,13 +45,8 @@ const loadBookableDoctors = async ({ specialty = '' } = {}) => {
 
 const emergencyReply = (language) =>
   language === 'ar'
-    ? '⚠️ هذه الأعراض قد تكون طارئة. توجه فوراً إلى قسم الطوارئ أو اتصل بالإسعاف. لا يمكننا حجز موعد عادي في هذه الحالة. الطبيب فقط يقرر التشخيص النهائي بعد الفحص.'
-    : '⚠️ These symptoms may be an emergency. Please go to the emergency room or call emergency services immediately. We cannot book a routine appointment for this. Only a doctor can make the final medical decision after examination.'
-
-const disclaimer = (language) =>
-  language === 'ar'
-    ? '\n\nتنبيه: هذه المحادثة للمساعدة في الحجز فقط وليست تشخيصاً طبياً. القرار النهائي للطبيب بعد الكشف.'
-    : '\n\nNote: This chat helps with booking only — it is not a medical diagnosis. Your doctor makes the final decision after your visit.'
+    ? '⚠️ هذه الأعراض قد تكون طارئة. توجه فوراً إلى قسم الطوارئ أو اتصل بالإسعاف. لا يمكننا حجز موعد عادي الآن.'
+    : '⚠️ These symptoms may be an emergency. Please go to the emergency room or call emergency services now. We cannot book a routine appointment for this.'
 
 /** POST /api/chatbot/message */
 export const postChatbotMessage = async (req, res) => {
@@ -70,7 +71,8 @@ export const postChatbotMessage = async (req, res) => {
         language,
         emergency: true,
         suggestedSpecialty: null,
-        suggestedDoctors: []
+        suggestedDoctors: [],
+        showDoctorPicker: false
       })
     }
 
@@ -78,44 +80,43 @@ export const postChatbotMessage = async (req, res) => {
       suggestSpecialtyFromSymptoms(userText) ||
       (req.body.bookingContext?.specialty ? String(req.body.bookingContext.specialty) : null)
 
-    const doctors = await loadBookableDoctors({ specialty: suggestedSpecialty || '' })
-    const suggestedDoctors = doctors.slice(0, 8).map(formatDoctorForChat)
+    const offerDoctors = hasHealthConcern(userText) && !isGreetingOnly(userText)
+    const doctors = offerDoctors
+      ? await loadBookableDoctors({ specialty: suggestedSpecialty || '' })
+      : []
+    const suggestedDoctors = doctors.slice(0, 6).map(formatDoctorForChat)
 
-    const doctorsContext = JSON.stringify(
-      suggestedDoctors.length
-        ? suggestedDoctors
-        : (await loadBookableDoctors()).slice(0, 12).map(formatDoctorForChat)
-    )
+    const doctorsContext = offerDoctors
+      ? JSON.stringify(suggestedDoctors.length ? suggestedDoctors : (await loadBookableDoctors()).slice(0, 8).map(formatDoctorForChat))
+      : '[]'
 
     const siteName = process.env.VITE_APP_DISPLAY_NAME || process.env.APP_DISPLAY_NAME || 'Clinivo'
+    const userTurns = countUserTurns(messages)
 
-    const { reply: aiReply } = await generateChatbotReply({
+    const { reply } = await generateChatbotReply({
       messages,
       language,
       doctorsContext,
-      siteName
+      siteName,
+      userText,
+      suggestedSpecialty,
+      isFirstTurn: userTurns <= 1
     })
 
-    let reply = aiReply || ''
-    if (!reply.toLowerCase().includes('doctor') && !reply.includes('طبيب')) {
-      reply += disclaimer(language)
-    }
-
-    if (suggestedSpecialty && suggestedDoctors.length) {
-      const hint =
-        language === 'ar'
-          ? `\n\nبناءً على أعراضك، قد يناسبك تخصص: ${suggestedSpecialty}. يوجد ${suggestedDoctors.length} طبيب متاح للحجز.`
-          : `\n\nBased on your symptoms, you may need: ${suggestedSpecialty}. ${suggestedDoctors.length} doctor(s) are available to book.`
-      reply += hint
-    }
+    const showDoctorPicker = shouldOfferDoctorPicker({
+      userText,
+      messages,
+      suggestedDoctors
+    })
 
     return res.json({
       success: true,
       reply,
       language,
       emergency: false,
-      suggestedSpecialty,
-      suggestedDoctors
+      suggestedSpecialty: showDoctorPicker ? suggestedSpecialty : null,
+      suggestedDoctors: showDoctorPicker ? suggestedDoctors : [],
+      showDoctorPicker
     })
   } catch (error) {
     console.error('chatbot message:', error)
@@ -143,7 +144,7 @@ export const getChatbotDoctors = async (req, res) => {
 export const getChatbotAvailableSlots = async (req, res) => {
   try {
     const docId = String(req.query.docId || '').trim()
-    const dayCount = Math.min(31, Math.max(1, Number(req.query.days) || 14))
+    const dayCount = Math.min(14, Math.max(1, Number(req.query.days) || 10))
     let clinicLocation = String(req.query.clinicLocation || '').trim()
 
     if (!docId) {

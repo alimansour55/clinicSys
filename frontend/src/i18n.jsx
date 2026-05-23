@@ -467,10 +467,14 @@ const ar = {
   "Reservation number": "رقم الحجز",
   "Please log in to complete booking": "يرجى تسجيل الدخول لإتمام الحجز",
   "Select a clinic branch": "اختر فرع العيادة",
-  "Chat welcome":
-    "مرحباً! أنا مساعد الحجز. صف أعراضك وسأساعدك في اختيار التخصص المناسب وحجز موعد. لست طبيباً — الطبيب يقرر التشخيص بعد الكشف.",
-  "Chat welcome en":
-    "Hello! I'm your booking assistant. Tell me your symptoms and I'll help you choose the right specialty and book an appointment. I'm not a doctor — your doctor makes the final decision after your visit.",
+  "Hello! How can I help you today? Please tell me your symptoms or health concern.":
+    "مرحباً! كيف يمكنني مساعدتك اليوم؟ من فضلك أخبرني عن أعراضك أو مشكلتك الصحية.",
+  "Choose a doctor": "اختر طبيباً",
+  "Pick date and time": "اختر التاريخ والوقت",
+  "Selected appointment": "الموعد المختار",
+  "No times available for this doctor": "لا توجد مواعيد متاحة لهذا الطبيب",
+  "Tap a time below": "اضغط على الوقت المناسب أدناه",
+  "Booking complete message": "تم حجز موعدك بنجاح. نتمنى لك الشفاء العاجل!",
 };
 
 const dictionaries = { en: {}, ar };

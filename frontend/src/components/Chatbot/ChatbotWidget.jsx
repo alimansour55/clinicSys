@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react'
+import { MessageCircle, X, Send, Loader2, Calendar, Clock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { AppContext } from '../../context/AppContext'
@@ -12,7 +12,7 @@ import {
   messageLooksArabic
 } from '../../utils/chatbotApi'
 
-const WELCOME_KEY = { en: 'Chat welcome en', ar: 'Chat welcome' }
+const GREETING_KEY = 'Hello! How can I help you today? Please tell me your symptoms or health concern.'
 
 const TypingIndicator = () => (
   <div className="flex items-center gap-1 px-3 py-2">
@@ -24,7 +24,7 @@ const TypingIndicator = () => (
 
 const ChatbotWidget = () => {
   const { backendUrl, token, userData, displayPersonName } = useContext(AppContext)
-  const { language: siteLanguage, t, localizeDigits } = useLanguage()
+  const { language: siteLanguage, t, tc, localizeDigits } = useLanguage()
   const navigate = useNavigate()
 
   const [open, setOpen] = useState(false)
@@ -54,29 +54,32 @@ const ChatbotWidget = () => {
   }, [userData])
 
   useEffect(() => {
+    setChatLanguage(siteLanguage)
+  }, [siteLanguage])
+
+  useEffect(() => {
     if (!open || initialized.current) return
     initialized.current = true
-    const welcome =
-      siteLanguage === 'ar' ? t(WELCOME_KEY.ar) : t(WELCOME_KEY.en)
-    setMessages([{ role: 'assistant', content: welcome }])
-    setChatLanguage(siteLanguage)
-  }, [open, siteLanguage, t])
+    setMessages([{ role: 'assistant', content: t(GREETING_KEY) }])
+  }, [open, t])
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, loading, slotDays, suggestedDoctors])
+  }, [messages, loading, slotDays, suggestedDoctors, selectedSlot])
 
-  const appendMessage = (role, content) => {
-    setMessages((prev) => [...prev, { role, content }])
+  const resolveLang = (text) => {
+    if (messageLooksArabic(text)) return 'ar'
+    if (/[a-z]/i.test(text)) return 'en'
+    return chatLanguage || siteLanguage
   }
 
   const handleSend = async (textOverride) => {
     const text = String(textOverride ?? input).trim()
     if (!text || loading) return
 
+    const lang = resolveLang(text)
+    setChatLanguage(lang)
     setInput('')
-    if (messageLooksArabic(text)) setChatLanguage('ar')
-    else if (/[a-z]/i.test(text)) setChatLanguage('en')
 
     const userMsg = { role: 'user', content: text }
     const nextMessages = [...messages, userMsg]
@@ -86,14 +89,17 @@ const ChatbotWidget = () => {
     setSelectedDoctor(null)
     setSlotDays([])
     setSelectedSlot(null)
+    setLocations([])
 
-    if (!symptoms && text.length > 3) setSymptoms(text)
+    if (!symptoms && text.length > 3 && !/^(hi|hello|hey|مرحب|اهلا)/i.test(text)) {
+      setSymptoms(text)
+    }
 
     try {
       const data = await sendChatbotMessage(backendUrl, {
         messages: nextMessages.filter((m) => m.role === 'user' || m.role === 'assistant'),
-        language: messageLooksArabic(text) ? 'ar' : siteLanguage,
-        bookingContext: { specialty: selectedDoctor?.speciality },
+        language: lang,
+        bookingContext: {},
         token
       })
 
@@ -103,8 +109,9 @@ const ChatbotWidget = () => {
       }
 
       if (data.language) setChatLanguage(data.language)
-      appendMessage('assistant', data.reply)
-      if (data.suggestedDoctors?.length) {
+      setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])
+
+      if (data.showDoctorPicker && data.suggestedDoctors?.length) {
         setSuggestedDoctors(data.suggestedDoctors)
       }
     } catch (err) {
@@ -118,12 +125,13 @@ const ChatbotWidget = () => {
     setSelectedDoctor(doctor)
     setSelectedSlot(null)
     setSlotDays([])
+    setLocations([])
     setLoading(true)
 
     try {
       const data = await fetchChatbotSlots(backendUrl, {
         docId: doctor.id,
-        days: 14,
+        days: 10,
         clinicLocation
       })
 
@@ -134,26 +142,17 @@ const ChatbotWidget = () => {
 
       if (data.needsClinicLocation && data.locations?.length) {
         setLocations(data.locations)
-        appendMessage(
-          'assistant',
-          isRtl
-            ? `اختر فرع العيادة لـ ${doctor.name}:`
-            : `Please choose a clinic branch for ${doctor.name}:`
-        )
         return
       }
 
       setLocations(data.locations || [])
       if (data.clinicLocation) setClinicLocation(data.clinicLocation)
-      setSlotDays(data.days || [])
+      const days = data.days || []
+      setSlotDays(days)
 
-      const count = (data.days || []).reduce((n, d) => n + d.slots.length, 0)
-      appendMessage(
-        'assistant',
-        isRtl
-          ? `اختر وقتاً متاحاً مع ${doctor.name} (${localizeDigits(String(count))} موعد):`
-          : `Choose an available time with ${doctor.name} (${count} slots):`
-      )
+      if (!days.length) {
+        toast.info(t('No times available for this doctor'))
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || err.message)
     } finally {
@@ -168,11 +167,10 @@ const ChatbotWidget = () => {
     try {
       const data = await fetchChatbotSlots(backendUrl, {
         docId: selectedDoctor.id,
-        clinicLocation: branch
+        clinicLocation: branch,
+        days: 10
       })
-      if (data.success) {
-        setSlotDays(data.days || [])
-      }
+      if (data.success) setSlotDays(data.days || [])
     } finally {
       setLoading(false)
     }
@@ -215,11 +213,13 @@ const ChatbotWidget = () => {
         return
       }
 
-      const msg = isRtl
-        ? `${t('Booking confirmed')}! ${t('Reservation number')}: ${localizeDigits(String(data.reservationNumber || ''))}`
-        : `${t('Booking confirmed')}! ${t('Reservation number')}: ${data.reservationNumber}`
-      appendMessage('assistant', msg)
+      const confirmMsg = isRtl
+        ? `${t('Booking complete message')} ${t('Reservation number')}: ${localizeDigits(String(data.reservationNumber || ''))}`
+        : `${t('Booking complete message')} ${t('Reservation number')}: ${data.reservationNumber}`
+
+      setMessages((prev) => [...prev, { role: 'assistant', content: confirmMsg }])
       toast.success(t('Booking confirmed'))
+      setSuggestedDoctors([])
       setSelectedDoctor(null)
       setSelectedSlot(null)
       setSlotDays([])
@@ -233,11 +233,16 @@ const ChatbotWidget = () => {
   const formatDayLabel = (isoDate) => {
     const d = new Date(isoDate)
     return d.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
-      weekday: 'short',
+      weekday: 'long',
       month: 'short',
       day: 'numeric'
     })
   }
+
+  const selectedSlotLabel =
+    selectedSlot && selectedDoctor
+      ? `${formatDayLabel(slotDays.find((d) => d.slotDate === selectedSlot.slotDate)?.date || new Date())} · ${localizeDigits(selectedSlot.time)}`
+      : ''
 
   const panel = (
     <div
@@ -262,14 +267,14 @@ const ChatbotWidget = () => {
         </button>
       </header>
 
-      <div ref={listRef} className="flex max-h-[min(52vh,420px)] min-h-[280px] flex-1 flex-col gap-3 overflow-y-auto bg-gray-50 p-3">
+      <div ref={listRef} className="flex max-h-[min(56vh,440px)] min-h-[300px] flex-1 flex-col gap-3 overflow-y-auto bg-gray-50 p-3">
         {messages.map((msg, idx) => (
           <div
             key={idx}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+              className={`max-w-[90%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed ${
                 msg.role === 'user'
                   ? 'rounded-br-md bg-primary text-white'
                   : 'rounded-bl-md border border-gray-200 bg-white text-gray-800'
@@ -290,54 +295,83 @@ const ChatbotWidget = () => {
         )}
 
         {suggestedDoctors.length > 0 && !selectedDoctor && (
-          <div className="flex flex-wrap gap-2">
-            {suggestedDoctors.map((doc) => (
-              <button
-                key={doc.id}
-                type="button"
-                onClick={() => selectDoctor(doc)}
-                className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-left text-xs shadow-sm transition hover:border-primary hover:bg-blue-50"
-              >
-                <span className="font-semibold text-gray-900">{displayPersonName(doc.name)}</span>
-                <span className="mt-0.5 block text-gray-500">{doc.speciality}</span>
-              </button>
-            ))}
+          <div className="rounded-xl border border-blue-100 bg-white p-2.5">
+            <p className="mb-2 text-xs font-semibold text-gray-700">{t('Choose a doctor')}</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {suggestedDoctors.map((doc) => (
+                <button
+                  key={doc.id}
+                  type="button"
+                  onClick={() => selectDoctor(doc)}
+                  className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2 text-left transition hover:border-primary hover:bg-blue-50"
+                >
+                  {doc.image ? (
+                    <img src={doc.image} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
+                  ) : (
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-xs font-bold text-primary">
+                      {displayPersonName(doc.name).charAt(0)}
+                    </span>
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate text-xs font-bold text-gray-900">
+                      {displayPersonName(doc.name)}
+                    </span>
+                    <span className="block truncate text-[11px] text-gray-500">{tc(doc.speciality)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {locations.length > 1 && !slotDays.length && selectedDoctor && (
-          <div className="flex flex-wrap gap-2">
-            {locations.map((loc) => (
-              <button
-                key={loc}
-                type="button"
-                onClick={() => loadSlotsForBranch(loc)}
-                className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800"
-              >
-                {loc}
-              </button>
-            ))}
+        {locations.length > 1 && selectedDoctor && !slotDays.length && (
+          <div className="rounded-xl border border-emerald-100 bg-white p-2.5">
+            <p className="mb-2 text-xs font-semibold text-gray-700">{t('Select a clinic branch')}</p>
+            <div className="flex flex-wrap gap-2">
+              {locations.map((loc) => (
+                <button
+                  key={loc}
+                  type="button"
+                  onClick={() => loadSlotsForBranch(loc)}
+                  className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800"
+                >
+                  {loc}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
         {slotDays.length > 0 && selectedDoctor && (
-          <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-2">
-            <p className="text-xs font-semibold text-gray-700">{t('Available times')}</p>
-            <div className="max-h-36 space-y-2 overflow-y-auto">
-              {slotDays.map((day) => (
-                <div key={day.slotDate}>
-                  <p className="mb-1 text-[11px] font-medium text-gray-500">{formatDayLabel(day.date)}</p>
-                  <div className="flex flex-wrap gap-1">
+          <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-2.5">
+            <p className="text-xs font-semibold text-gray-800">{t('Pick date and time')}</p>
+            <p className="text-[11px] text-gray-500">{t('Tap a time below')}</p>
+
+            {selectedSlot && (
+              <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-2.5 py-2 text-xs font-medium text-primary">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {t('Selected appointment')}: {selectedSlotLabel}
+                </span>
+              </div>
+            )}
+
+            <div className="max-h-44 space-y-3 overflow-y-auto pr-0.5">
+              {slotDays.slice(0, 7).map((day) => (
+                <div key={day.slotDate} className="border-b border-gray-100 pb-2 last:border-0">
+                  <p className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold text-gray-600">
+                    <Calendar className="h-3 w-3" />
+                    {formatDayLabel(day.date)}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
                     {day.slots.map((slot) => (
                       <button
                         key={`${day.slotDate}-${slot.time}`}
                         type="button"
-                        onClick={() =>
-                          setSelectedSlot({ slotDate: day.slotDate, time: slot.time })
-                        }
-                        className={`rounded-lg px-2 py-1 text-[11px] font-medium transition ${
+                        onClick={() => setSelectedSlot({ slotDate: day.slotDate, time: slot.time })}
+                        className={`min-w-[4.5rem] rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${
                           selectedSlot?.slotDate === day.slotDate && selectedSlot?.time === slot.time
-                            ? 'bg-primary text-white'
+                            ? 'bg-primary text-white shadow-sm'
                             : 'bg-gray-100 text-gray-800 hover:bg-blue-100'
                         }`}
                       >
@@ -352,7 +386,7 @@ const ChatbotWidget = () => {
         )}
 
         {selectedSlot && selectedDoctor && (
-          <div className="space-y-2 rounded-xl border border-primary/30 bg-white p-3">
+          <div className="space-y-2 rounded-xl border border-primary/25 bg-white p-3 shadow-sm">
             {!token && (
               <>
                 <input
@@ -361,6 +395,7 @@ const ChatbotWidget = () => {
                   onChange={(e) => setPatientName(e.target.value)}
                   placeholder={t('Your name')}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  dir={isRtl ? 'rtl' : 'ltr'}
                 />
                 <input
                   type="tel"
@@ -368,6 +403,7 @@ const ChatbotWidget = () => {
                   onChange={(e) => setPatientPhone(e.target.value)}
                   placeholder={t('Your phone')}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  dir="ltr"
                 />
               </>
             )}
@@ -377,6 +413,7 @@ const ChatbotWidget = () => {
               onChange={(e) => setSymptoms(e.target.value)}
               placeholder={t('Reason for visit')}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              dir={isRtl ? 'rtl' : 'ltr'}
             />
             <button
               type="button"
@@ -410,7 +447,7 @@ const ChatbotWidget = () => {
           rows={1}
           placeholder={t('Type your symptoms or question...')}
           className="max-h-24 min-h-[44px] flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-primary"
-          dir={messageLooksArabic(input) ? 'rtl' : 'ltr'}
+          dir={messageLooksArabic(input) ? 'rtl' : isRtl ? 'rtl' : 'ltr'}
         />
         <button
           type="submit"
