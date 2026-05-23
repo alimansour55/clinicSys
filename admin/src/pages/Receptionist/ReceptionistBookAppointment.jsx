@@ -27,6 +27,7 @@ import { ReceptionistContext } from "../../context/ReceptionistContext";
 import { AppContext } from "../../context/AppContext";
 import { buildDoctorSlots, slotDateForCalendarOffset } from "../../utils/schedule";
 import { usesClinicWeeklySchedule } from "../../utils/doctorBooking";
+import { translateInsuranceProviderName } from "../../data/insuranceProviderNamesAr";
 import { RatingBadge, RatingsList, StarRow } from "../../components/DoctorRating";
 import { doctorOffersHomeVisit, emptyHomeVisitAddress, getDoctorHomeVisitAreas } from "../../utils/homeVisitAreas";
 import { computeDoctorPromoDiscountAmount, computeHomeVisitSurcharge, getHomeVisitFeeLabel, normalizeHomeVisitPricing, percentageDiscountAmount } from "../../utils/promoPricing";
@@ -893,7 +894,7 @@ const ReceptionistBookAppointment = () => {
                       <option value="">{t("Insurance provider")}</option>
                       {insuranceProvidersList.map((name) => (
                         <option key={name} value={name}>
-                          {name}
+                          {translateInsuranceProviderName(name, t)}
                         </option>
                       ))}
                     </select>
@@ -1023,7 +1024,7 @@ const ReceptionistBookAppointment = () => {
                         <option value="">{t("Insurance provider")}</option>
                         {insuranceProvidersList.map((name) => (
                           <option key={name} value={name}>
-                            {name}
+                            {translateInsuranceProviderName(name, t)}
                           </option>
                         ))}
                       </select>
@@ -1109,7 +1110,7 @@ const ReceptionistBookAppointment = () => {
                           <option value="">{t("Insurance provider")}</option>
                           {insuranceProvidersList.map((name) => (
                             <option key={name} value={name}>
-                              {name}
+                              {translateInsuranceProviderName(name, t)}
                             </option>
                           ))}
                         </select>

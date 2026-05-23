@@ -8,6 +8,7 @@ import MfaSetupBox from '../components/MfaSetupBox'
 import EgyptPhoneInput from '../components/EgyptPhoneInput'
 import SignupInlineVerify from '../components/SignupInlineVerify'
 import { isValidEgyptPhone, normalizeEgyptPhone } from '../utils/egyptPhone'
+import { translateInsuranceProviderName } from '../data/insuranceProviderNamesAr'
 
 const today = new Date().toISOString().split('T')[0]
 
@@ -363,7 +364,7 @@ const Login = () => {
                       <option value=''>{t('Select provider')}</option>
                       {insuranceProvidersList.map((name) => (
                         <option key={name} value={name}>
-                          {name}
+                          {translateInsuranceProviderName(name, t)}
                         </option>
                       ))}
                     </select>

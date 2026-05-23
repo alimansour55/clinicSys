@@ -1,9 +1,12 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { AdminContext } from '../../context/AdminContext'
+import { useLanguage } from '../../i18n'
+import { translateInsuranceProviderName } from '../../data/insuranceProviderNamesAr'
 import { Building2, Loader2, Plus, Save, Trash2 } from 'lucide-react'
 
 const InsuranceProvidersSettings = () => {
   const { aToken, siteSettings, getSiteSettings, updateInsuranceProviders } = useContext(AdminContext)
+  const { t } = useLanguage()
   const [providers, setProviders] = useState([])
   const [newName, setNewName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -47,29 +50,26 @@ const InsuranceProvidersSettings = () => {
             <Building2 className='w-7 h-7' />
           </div>
           <div>
-            <h1 className='text-2xl font-bold text-gray-900'>Insurance providers</h1>
-            <p className='text-sm text-gray-600 mt-1'>
-              Manage the directory used when patients, receptionists, and staff record insurance. At least one provider must remain. Changes apply everywhere
-              (patient portal, reception desk, booking, and staff views).
-            </p>
+            <h1 className='text-2xl font-bold text-gray-900'>{t('Insurance providers')}</h1>
+            <p className='text-sm text-gray-600 mt-1'>{t('Insurance providers page description')}</p>
           </div>
         </div>
 
         <div className='bg-white border border-gray-200 rounded-xl p-5 sm:p-6 shadow-sm space-y-4'>
-          <p className='text-sm text-gray-700'>
-            Remove providers you do not work with, or add new companies. Names must match exactly what you want shown in dropdowns.
-          </p>
+          <p className='text-sm text-gray-700'>{t('Insurance providers list hint')}</p>
 
           <ul className='divide-y divide-gray-100 border border-gray-200 rounded-lg max-h-[420px] overflow-y-auto'>
             {providers.map((name, index) => (
               <li key={`${name}-${index}`} className='flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50'>
-                <span className='flex-1 text-sm font-medium text-gray-900 break-words'>{name}</span>
+                <span className='flex-1 text-sm font-medium text-gray-900 break-words'>
+                  {translateInsuranceProviderName(name, t)}
+                </span>
                 <button
                   type='button'
                   onClick={() => removeAt(index)}
                   disabled={providers.length <= 1}
                   className='p-2 rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed'
-                  title={providers.length <= 1 ? 'Keep at least one provider' : 'Remove'}
+                  title={providers.length <= 1 ? t('Keep at least one provider') : t('Remove')}
                 >
                   <Trash2 className='w-4 h-4' />
                 </button>
@@ -81,7 +81,7 @@ const InsuranceProvidersSettings = () => {
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder='New provider name'
+              placeholder={t('New provider name')}
               className='flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary'
             />
             <button
@@ -90,7 +90,7 @@ const InsuranceProvidersSettings = () => {
               className='inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50'
             >
               <Plus className='w-4 h-4' />
-              Add
+              {t('Add')}
             </button>
           </div>
 
@@ -101,7 +101,7 @@ const InsuranceProvidersSettings = () => {
             className='inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-95 disabled:opacity-50'
           >
             {saving ? <Loader2 className='w-4 h-4 animate-spin' /> : <Save className='w-4 h-4' />}
-            Save directory
+            {t('Save list')}
           </button>
         </div>
       </div>

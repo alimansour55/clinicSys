@@ -29,6 +29,7 @@ import { ReceptionistContext } from "../../context/ReceptionistContext";
 import { AdminContext } from "../../context/AdminContext";
 import InsuranceVerificationPanel from "../../components/InsuranceVerificationPanel";
 import InsuranceStatusBadge from "../../components/InsuranceStatusBadge";
+import { translateInsuranceProviderName } from "../../data/insuranceProviderNamesAr";
 
 const formatDateTime = (value) => {
   if (!value) return "—";
@@ -71,6 +72,7 @@ const emptyAddForm = () => ({
 });
 
 function AddPatientModal({ open, onClose, createReceptionistPatient, onCreated, insuranceProviders = [] }) {
+  const { t } = useContext(AppContext);
   const [form, setForm] = useState(emptyAddForm);
   const [insuranceCard, setInsuranceCard] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -211,7 +213,7 @@ function AddPatientModal({ open, onClose, createReceptionistPatient, onCreated, 
                     <option value="">Select provider</option>
                     {insuranceProviders.map((name) => (
                       <option key={name} value={name}>
-                        {name}
+                        {translateInsuranceProviderName(name, t)}
                       </option>
                     ))}
                   </select>
