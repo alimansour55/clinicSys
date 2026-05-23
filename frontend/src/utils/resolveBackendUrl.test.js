@@ -88,4 +88,17 @@ describe('resolveBackendUrl', () => {
     })
     expect(resolveBackendUrl()).toBe('https://api.example.com')
   })
+
+  it('production build on clinivo.shop uses same origin (api proxy) even when env points at API host', () => {
+    vi.stubEnv('PROD', true)
+    vi.stubEnv('VITE_BACKEND_URL', 'https://clinic-sys-eight.vercel.app')
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.clinivo.shop',
+        protocol: 'https:',
+        origin: 'https://www.clinivo.shop',
+      },
+    })
+    expect(resolveBackendUrl()).toBe('https://www.clinivo.shop')
+  })
 })

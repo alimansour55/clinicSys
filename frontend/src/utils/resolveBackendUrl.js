@@ -19,6 +19,12 @@ function isHostedDeployHostname(hostname) {
   return /\.vercel\.(app|dev)$/.test(hostname) || hostname.endsWith('.netlify.app')
 }
 
+/** Hosts that serve the patient app with /api → backend proxy (see frontend/vercel.json). */
+function usesSameOriginApiProxy(hostname) {
+  if (isHostedDeployHostname(hostname)) return true
+  return /(^|\.)clinivo\.shop$/.test(hostname)
+}
+
 function envPointsToLocalApi(fromEnv) {
   if (!fromEnv) return true
   try {
@@ -43,7 +49,7 @@ export function resolveBackendUrl() {
 
   if (import.meta.env.PROD) {
     // Vercel/Netlify: use same-origin /api proxy (vercel.json) — avoids CORS.
-    if (typeof window !== 'undefined' && isHostedDeployHostname(window.location.hostname)) {
+    if (typeof window !== 'undefined' && usesSameOriginApiProxy(window.location.hostname)) {
       return window.location.origin
     }
     const api = productionApiFromEnv(fromEnv)
@@ -67,7 +73,7 @@ export function resolveBackendUrl() {
   const api = productionApiFromEnv(fromEnv)
   if (api) return api
 
-  if (isHostedDeployHostname(hostname)) {
+  if (usesSameOriginApiProxy(hostname)) {
     return window.location.origin
   }
 
