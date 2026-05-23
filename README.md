@@ -512,7 +512,8 @@ Permissions are defined per role in `backend/middlewares/rbac.js` (e.g. `manage 
 3. Set `VITE_BACKEND_URL` to your **production API URL** at build time for each frontend.
 4. Configure **CORS** if API and apps are on different origins (Express `cors` is enabled by default).
 5. Use **MongoDB Atlas** IP allowlist and strong `JWT_SECRET`.
-6. For teleconsultation, point `TELECONSULTATION_BASE_URL` to your Jitsi-compatible server.
+6. **Atlas connection limits:** each Vercel warm instance opens one pooled client (`maxPoolSize: 1` in `backend/config/mongodb.js`). Total usage ≈ `(concurrent serverless instances) × maxPoolSize`. If Atlas alerts on connection saturation, scale the cluster tier (e.g. M10) or reduce traffic; locally, avoid many parallel `nodemon`/`server` processes — each process holds its own pool (up to 10 on dev).
+7. For teleconsultation, point `TELECONSULTATION_BASE_URL` to your Jitsi-compatible server.
 
 ---
 

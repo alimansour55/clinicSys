@@ -1,7 +1,7 @@
 import './config/env.js'
 import express from 'express'
 import cors from 'cors'
-import connectDB from './config/mongodb.js'
+import connectDB, { MONGODB_URI_MISSING_MESSAGE } from './config/mongodb.js'
 import { getCorsOriginConfig } from './config/corsOrigins.js'
 import adminRouter from './routes/adminRoute.js'
 import doctorRouter from './routes/doctorRoute.js'
@@ -26,7 +26,11 @@ export function createApp() {
       next()
     } catch (error) {
       console.error('Database middleware:', error.message)
-      res.status(503).json({ success: false, message: 'Database connection failed' })
+      const message =
+        error?.message === MONGODB_URI_MISSING_MESSAGE
+          ? error.message
+          : 'Database connection failed'
+      res.status(503).json({ success: false, message })
     }
   })
   app.use((req, res, next) => {
