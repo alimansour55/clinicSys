@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -7,8 +7,14 @@ import { AppContext } from '../../context/AppContext'
 import { useLanguage } from '../../i18n'
 import { formatLocationLine } from '../../utils/placeTranslations'
 import { isValidEgyptPhone, normalizeEgyptPhone } from '../../utils/egyptPhone'
-import { isDoctorComingSoon, usesClinicWeeklySchedule } from '../../utils/doctorBooking'
-import { getDoctorHomeVisitAreas } from '../../utils/homeVisitAreas'
+import {
+  isDoctorComingSoon,
+  isDoctorBookableForPatients,
+  usesClinicWeeklySchedule,
+  hasDoctorPublishedSchedule
+} from '../../utils/doctorBooking'
+import { doctorBelongsToClinicSection } from '../../utils/doctorClinicPlaces'
+import { doctorOffersHomeVisit, getDoctorHomeVisitAreas } from '../../utils/homeVisitAreas'
 import {
   detectLanguage,
   detectSpecialtyFromMessage,
@@ -32,6 +38,10 @@ import {
 import axios from 'axios'
 import { bookChatbotAppointment } from '../../utils/chatbotApi'
 import { useMediaQuery } from '../../utils/useMediaQuery'
+import {
+  buildFallbackOpeningSuggestions,
+  buildOpeningSuggestions
+} from '../../utils/chatbotOpeningSuggestions'
 import DoctorChatCard from './DoctorChatCard'
 
 const CHAT_STEPS = {
@@ -63,7 +73,9 @@ const ChatbotWidget = () => {
     token,
     userData,
     doctors,
+    clinics,
     getDoctorsData,
+    getClinicsData,
     displayPersonName,
     placeTranslationOverrides,
     currencySymbol,
@@ -152,17 +164,29 @@ const ChatbotWidget = () => {
 
   const initialGreeting = () =>
     L(
-      'Hi 👋 I can help you choose the right doctor and book an appointment. Tell me what problem you have.',
-      'أهلاً 👋 أقدر أساعدك تختار الدكتور المناسب وتحجز موعد. اكتب لي ما المشكلة التي تعاني منها.'
+      'Hi 👋 Tap a clinic or option below—or describe your symptoms—and I will help you book.',
+      'أهلاً 👋 اختار عيادة أو خيار من الأسفل، أو اكتب أعراضك، وأنا أساعدك تحجز موعد.'
     )
 
-  const fallbackQuickReplies = () => [
-    { id: 'skin', label: L('Skin problem', 'مشكلة جلدية'), specialty: SPECIALTY_IDS.DERMATOLOGIST },
-    { id: 'child', label: L('Child doctor', 'طبيب أطفال'), specialty: SPECIALTY_IDS.PEDIATRICIANS },
-    { id: 'headache', label: L('Headache', 'صداع'), specialty: SPECIALTY_IDS.NEUROLOGIST },
-    { id: 'pregnancy', label: L('Pregnancy', 'حمل'), specialty: SPECIALTY_IDS.GYNECOLOGIST },
-    { id: 'flu', label: L('Flu or fever', 'برد أو حرارة'), specialty: SPECIALTY_IDS.GENERAL }
-  ]
+  const openingSuggestions = useMemo(
+    () =>
+      buildOpeningSuggestions({
+        doctors,
+        clinics,
+        siteSettings,
+        t,
+        tc,
+        displayPersonName,
+        language: siteLanguage,
+        placeTranslationOverrides
+      }),
+    [doctors, clinics, siteSettings, t, tc, displayPersonName, siteLanguage, placeTranslationOverrides]
+  )
+
+  const fallbackQuickReplies = () =>
+    openingSuggestions.length
+      ? openingSuggestions
+      : buildFallbackOpeningSuggestions(isRtl)
 
   const audienceQuickReplies = () => [
     { id: 'adult', label: L('Adult', 'شخص بالغ'), specialty: SPECIALTY_IDS.GENERAL },
@@ -176,8 +200,19 @@ const ChatbotWidget = () => {
     setChatLang(siteLanguage)
     setMessages([{ role: 'assistant', content: initialGreeting() }])
     setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
+    setQuickReplies(buildFallbackOpeningSuggestions(siteLanguage === 'ar'))
     getDoctorsData?.()
+    getClinicsData?.()
   }, [open, siteLanguage])
+
+  useEffect(() => {
+    if (!open || chatStep !== CHAT_STEPS.WAITING_SYMPTOMS) return
+    if (matchedDoctors.length > 0 || typing || booking) return
+    const next = openingSuggestions.length
+      ? openingSuggestions
+      : buildFallbackOpeningSuggestions(isRtl)
+    setQuickReplies(next)
+  }, [open, chatStep, openingSuggestions, matchedDoctors.length, typing, booking, isRtl])
 
   useEffect(() => {
     if (typeof document === 'undefined') return
@@ -332,16 +367,101 @@ const ChatbotWidget = () => {
     await showDoctorsForSpecialty(specialty, text)
   }
 
+  const showDoctorsForClinic = async (clinicName, clinicId, label) => {
+    const source = await resolveDoctorsList()
+    const list = source.filter(
+      (doctor) =>
+        isDoctorBookableForPatients(doctor) &&
+        !isDoctorComingSoon(doctor) &&
+        doctorBelongsToClinicSection(doctor, clinicName, { clinicId })
+    )
+
+    if (!list.length) {
+      pushBot(
+        L(
+          'No doctors are available in this clinic section right now.',
+          'مفيش دكاترة متاحين في قسم العيادة ده حالياً.'
+        )
+      )
+      setQuickReplies(fallbackQuickReplies())
+      return
+    }
+
+    setBookingData((b) => ({ ...b, symptoms: label, detectedSpecialty: '' }))
+    showMatchedDoctors(list, label)
+  }
+
+  const showDoctorsForService = async (service, label) => {
+    const source = await resolveDoctorsList()
+    let list = []
+
+    if (service === 'teleconsultation') {
+      list = source.filter(
+        (doctor) =>
+          isDoctorBookableForPatients(doctor) &&
+          !isDoctorComingSoon(doctor) &&
+          hasDoctorPublishedSchedule(doctor) &&
+          (doctor.acceptsVoiceCall !== false || doctor.acceptsVideoCall !== false)
+      )
+    } else if (service === 'home') {
+      list = source.filter(
+        (doctor) =>
+          isDoctorBookableForPatients(doctor) &&
+          !isDoctorComingSoon(doctor) &&
+          doctorOffersHomeVisit(doctor)
+      )
+    }
+
+    if (!list.length) {
+      pushBot(
+        L(
+          'No doctors are available for this service right now.',
+          'مفيش دكاترة متاحين للخدمة دي حالياً.'
+        )
+      )
+      setQuickReplies(fallbackQuickReplies())
+      return
+    }
+
+    setBookingData((b) => ({ ...b, symptoms: label }))
+    showMatchedDoctors(list, label)
+  }
+
   const handleQuickReply = async (reply) => {
     pushUser(reply.label)
     setQuickReplies([])
 
-    if (chatStep === CHAT_STEPS.CLARIFY_AUDIENCE) {
-      await showDoctorsForSpecialty(reply.specialty, bookingData.symptoms)
-      return
-    }
+    await withTyping(async () => {
+      if (reply.kind === 'clinic') {
+        await showDoctorsForClinic(reply.clinicName, reply.clinicId, reply.label)
+        return
+      }
 
-    await showDoctorsForSpecialty(reply.specialty, reply.label)
+      if (reply.kind === 'doctor') {
+        const source = await resolveDoctorsList()
+        const doc = source.find((d) => String(d._id) === String(reply.doctorId))
+        if (doc) showMatchedDoctors([doc], reply.label)
+        else {
+          pushBot(
+            L('Sorry, that doctor is not available right now.', 'آسف، الدكتور ده مش متاح حالياً.')
+          )
+          setQuickReplies(fallbackQuickReplies())
+        }
+        return
+      }
+
+      if (reply.kind === 'service') {
+        await showDoctorsForService(reply.service, reply.label)
+        return
+      }
+
+      if (chatStep === CHAT_STEPS.CLARIFY_AUDIENCE) {
+        await showDoctorsForSpecialty(reply.specialty, bookingData.symptoms)
+        return
+      }
+
+      await showDoctorsForSpecialty(reply.specialty, reply.label)
+    })
   }
 
   const applySlotDays = (days) => {
@@ -916,17 +1036,32 @@ const ChatbotWidget = () => {
           )}
 
           {quickReplies.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {quickReplies.map((q) => (
-                <button
-                  key={q.id}
-                  type="button"
-                  onClick={() => handleQuickReply(q)}
-                  className="rounded-full border border-primary/30 bg-white px-3 py-1.5 text-xs font-medium text-primary shadow-sm hover:bg-primary/5"
-                >
-                  {q.label}
-                </button>
-              ))}
+            <div className="space-y-2">
+              {chatStep === CHAT_STEPS.WAITING_SYMPTOMS && (
+                <p className="px-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                  {L('Quick suggestions', 'اقتراحات سريعة')}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {quickReplies.map((q) => (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => handleQuickReply(q)}
+                    className={`rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:bg-primary/5 ${
+                      q.kind === 'clinic'
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                        : q.kind === 'doctor'
+                          ? 'border-sky-300 bg-sky-50 text-sky-800'
+                          : q.kind === 'service'
+                            ? 'border-violet-300 bg-violet-50 text-violet-800'
+                            : 'border-primary/30 bg-white text-primary'
+                    }`}
+                  >
+                    {q.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
