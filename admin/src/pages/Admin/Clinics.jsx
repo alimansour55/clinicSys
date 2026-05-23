@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react'
 import { AdminContext } from '../../context/AdminContext'
+import { useLanguage } from '../../i18n'
 import { Building2, Check, Edit2, Plus, Save, Search, Trash2, Users, X } from 'lucide-react'
 
 const Clinics = () => {
@@ -15,6 +16,21 @@ const Clinics = () => {
     deleteClinic,
     assignDoctorsToClinic
   } = useContext(AdminContext)
+
+  const { t } = useLanguage()
+
+  const fillT = (key, vars = {}) => {
+    let s = String(t(key))
+    Object.entries(vars).forEach(([k, v]) => {
+      s = s.split(`{{${k}}}`).join(String(v))
+    })
+    return s
+  }
+
+  const formatDoctorCount = (count) => {
+    const n = Number(count) || 0
+    return n === 1 ? t('1 doctor') : fillT('{{n}} doctors', { n })
+  }
 
   const [selectedClinicId, setSelectedClinicId] = useState('')
   const [name, setName] = useState('')
@@ -109,10 +125,10 @@ const Clinics = () => {
         <div className='mb-6'>
           <h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2'>
             <Building2 className='w-6 h-6 text-indigo-600' />
-            Clinic Management
+            {t('Clinic Management')}
           </h1>
           <p className='mt-2 text-sm text-gray-600 ml-8'>
-            Manage default and custom clinics, then assign doctors to each clinic
+            {t('Manage default and custom clinics, then assign doctors to each clinic')}
           </p>
         </div>
 
@@ -121,7 +137,7 @@ const Clinics = () => {
             <form onSubmit={handleCreate} className='bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm'>
               <h2 className='text-base sm:text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2'>
                 <Plus className='w-5 h-5 text-indigo-600' />
-                Add Clinic
+                {t('Add Clinic')}
               </h2>
 
               <div className='grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_auto] gap-3'>
@@ -130,42 +146,46 @@ const Clinics = () => {
                   onChange={(event) => setName(event.target.value)}
                   className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white'
                   list='clinic-name-suggestions'
-                  placeholder='Select or type clinic'
+                  placeholder={t('Select or type clinic')}
                   required
                 />
                 <datalist id='clinic-name-suggestions'>
                   {suggestedNames.map((clinicName) => (
-                    <option key={clinicName} value={clinicName}>{clinicName}</option>
+                    <option key={clinicName} value={clinicName}>
+                      {t(clinicName)}
+                    </option>
                   ))}
                 </datalist>
                 <input
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500'
-                  placeholder='Optional description'
+                  placeholder={t('Optional description')}
                 />
                 <button className='inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition'>
                   <Plus className='w-4 h-4' />
-                  Add
+                  {t('Add')}
                 </button>
               </div>
 
               {suggestedNames.length === 0 && (
-                <p className='text-xs text-gray-500 mt-3'>All default clinics are already added. You can still type another clinic name.</p>
+                <p className='text-xs text-gray-500 mt-3'>
+                  {t('All default clinics are already added. You can still type another clinic name.')}
+                </p>
               )}
             </form>
 
             <div className='bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm'>
               <div className='p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between gap-3'>
                 <div>
-                  <h2 className='text-base sm:text-lg font-semibold text-gray-900'>Clinics</h2>
-                  <p className='text-sm text-gray-500'>{clinics.length} active records</p>
+                  <h2 className='text-base sm:text-lg font-semibold text-gray-900'>{t('Clinics')}</h2>
+                  <p className='text-sm text-gray-500'>{fillT('{{count}} active records', { count: clinics.length })}</p>
                 </div>
               </div>
 
               <div className='divide-y divide-gray-100'>
                 {clinics.length === 0 ? (
-                  <div className='p-6 text-sm text-gray-500'>No clinics added yet.</div>
+                  <div className='p-6 text-sm text-gray-500'>{t('No clinics added yet.')}</div>
                 ) : clinics.map((clinic) => {
                   const isEditing = editingId === clinic._id
 
@@ -178,18 +198,20 @@ const Clinics = () => {
                             onChange={(event) => setEditName(event.target.value)}
                             className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white'
                             list='clinic-edit-name-suggestions'
-                            placeholder='Clinic name'
+                            placeholder={t('Clinic name')}
                           />
                           <datalist id='clinic-edit-name-suggestions'>
                             {suggestedNames.map((clinicName) => (
-                              <option key={clinicName} value={clinicName}>{clinicName}</option>
+                              <option key={clinicName} value={clinicName}>
+                                {t(clinicName)}
+                              </option>
                             ))}
                           </datalist>
                           <input
                             value={editDescription}
                             onChange={(event) => setEditDescription(event.target.value)}
                             className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500'
-                            placeholder='Optional description'
+                            placeholder={t('Optional description')}
                           />
                           <div className='flex gap-2'>
                             <button
@@ -198,7 +220,7 @@ const Clinics = () => {
                               className='inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-2.5 text-sm font-semibold transition'
                             >
                               <Save className='w-4 h-4' />
-                              Save
+                              {t('Save')}
                             </button>
                             <button
                               type='button'
@@ -217,12 +239,14 @@ const Clinics = () => {
                             className={`text-left flex-1 rounded-lg p-3 transition ${selectedClinicId === clinic._id ? 'bg-indigo-50 ring-1 ring-indigo-200' : 'bg-white'}`}
                           >
                             <div className='flex items-center gap-2'>
-                              <h3 className='font-semibold text-gray-900'>{clinic.name}</h3>
+                              <h3 className='font-semibold text-gray-900'>{t(clinic.name)}</h3>
                               <span className='text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full'>
-                                {(clinic.doctors || []).length} doctors
+                                {formatDoctorCount((clinic.doctors || []).length)}
                               </span>
                             </div>
-                            <p className='text-sm text-gray-500 mt-1'>{clinic.description || 'No description added'}</p>
+                            <p className='text-sm text-gray-500 mt-1'>
+                              {clinic.description || t('No description added')}
+                            </p>
                           </button>
 
                           <div className='flex gap-2'>
@@ -232,7 +256,7 @@ const Clinics = () => {
                               className='inline-flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition'
                             >
                               <Edit2 className='w-4 h-4' />
-                              Edit
+                              {t('Edit')}
                             </button>
                             <button
                               type='button'
@@ -240,7 +264,7 @@ const Clinics = () => {
                               className='inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg px-3 py-2 text-sm font-medium transition'
                             >
                               <Trash2 className='w-4 h-4' />
-                              Delete
+                              {t('Delete')}
                             </button>
                           </div>
                         </div>
@@ -256,10 +280,10 @@ const Clinics = () => {
             <div className='p-4 sm:p-5 border-b border-gray-100'>
               <h2 className='text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2'>
                 <Users className='w-5 h-5 text-indigo-600' />
-                Assign Doctors
+                {t('Assign Doctors')}
               </h2>
               <p className='text-sm text-gray-500 mt-1'>
-                {selectedClinic ? selectedClinic.name : 'Select a clinic to manage assignments'}
+                {selectedClinic ? t(selectedClinic.name) : t('Select a clinic to manage assignments')}
               </p>
             </div>
 
@@ -271,15 +295,15 @@ const Clinics = () => {
                   onChange={(event) => setSearch(event.target.value)}
                   disabled={!selectedClinic}
                   className='w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100'
-                  placeholder='Search doctors'
+                  placeholder={t('Search doctors')}
                 />
               </div>
 
               <div className='max-h-[52vh] overflow-y-auto space-y-2 pr-1'>
                 {!selectedClinic ? (
-                  <div className='text-sm text-gray-500 bg-gray-50 rounded-lg p-4'>Choose a clinic from the list.</div>
+                  <div className='text-sm text-gray-500 bg-gray-50 rounded-lg p-4'>{t('Choose a clinic from the list.')}</div>
                 ) : filteredDoctors.length === 0 ? (
-                  <div className='text-sm text-gray-500 bg-gray-50 rounded-lg p-4'>No doctors found.</div>
+                  <div className='text-sm text-gray-500 bg-gray-50 rounded-lg p-4'>{t('No doctors found.')}</div>
                 ) : filteredDoctors.map((doctor) => {
                   const checked = selectedDoctors.includes(doctor._id)
 
@@ -300,7 +324,7 @@ const Clinics = () => {
                       <img src={doctor.image} alt={doctor.name} className='w-10 h-10 rounded-full object-cover bg-gray-100' />
                       <span className='min-w-0'>
                         <span className='block text-sm font-semibold text-gray-900 truncate'>{doctor.name}</span>
-                        <span className='block text-xs text-gray-500 truncate'>{doctor.speciality}</span>
+                        <span className='block text-xs text-gray-500 truncate'>{t(doctor.speciality)}</span>
                       </span>
                     </label>
                   )
@@ -314,7 +338,7 @@ const Clinics = () => {
                 className='mt-4 w-full inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:bg-gray-300 disabled:cursor-not-allowed'
               >
                 <Save className='w-4 h-4' />
-                Save Assignments
+                {t('Save Assignments')}
               </button>
             </div>
           </div>
