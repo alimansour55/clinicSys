@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react'
+import { CalendarClock, X, Send, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { AppContext } from '../../context/AppContext'
@@ -1153,9 +1153,9 @@ const ChatbotWidget = () => {
   const panel = (
     <div
       className={`chatbot-panel fixed z-[9998] flex flex-col overflow-hidden border border-gray-200 bg-white shadow-2xl transition-all
-        left-2 right-2 bottom-[4.5rem] h-[min(85dvh,680px)] min-h-[min(520px,85dvh)] max-h-[min(85dvh,calc(100dvh-5rem))] rounded-2xl
-        sm:left-auto sm:right-6 sm:bottom-6 sm:w-[min(100%,400px)]
-        ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}
+        left-2 right-2 h-[min(85dvh,680px)] min-h-[min(520px,85dvh)] max-h-[min(85dvh,calc(100dvh-5rem))] rounded-2xl
+        sm:left-auto sm:right-6 sm:w-[min(100%,400px)]
+        ${open ? 'bottom-[5rem] opacity-100 sm:bottom-6' : 'pointer-events-none bottom-[5.75rem] opacity-0 sm:bottom-24'}
       `}
       dir={isRtl ? 'rtl' : 'ltr'}
     >
@@ -1504,12 +1504,35 @@ const ChatbotWidget = () => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`fixed bottom-4 right-3 z-[9999] flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-lg sm:bottom-6 sm:right-6 sm:h-14 sm:w-14 ${
-          open ? 'ring-4 ring-primary/25' : ''
-        }`}
-        aria-label={L('Open chat', 'فتح المحادثة')}
+        aria-expanded={open}
+        aria-label={open ? t('Close chat') : t('Open booking assistant')}
+        className={
+          open
+            ? 'chatbot-launcher chatbot-launcher--open fixed bottom-4 right-3 z-[9999] flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_28px_rgba(14,147,132,0.45)] ring-4 ring-primary/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary-dark hover:shadow-[0_12px_36px_rgba(14,147,132,0.55)] active:scale-95 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14'
+            : 'chatbot-launcher chatbot-launcher--closed group fixed bottom-4 right-3 z-[9999] flex h-[3.75rem] items-center gap-3 overflow-hidden rounded-full border border-white/20 bg-gradient-to-br from-primary via-teal-600 to-primary-dark px-1.5 py-1.5 text-white shadow-[0_10px_36px_rgba(14,147,132,0.42)] transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-white/35 hover:shadow-[0_16px_44px_rgba(14,147,132,0.52)] active:scale-[0.98] max-[380px]:h-14 max-[380px]:w-14 max-[380px]:justify-center max-[380px]:p-0 sm:bottom-6 sm:right-6 sm:h-16 sm:gap-3.5 sm:pl-2 sm:pr-5'
+        }
       >
-        {open ? <X className="h-5 w-5 sm:h-6 sm:w-6" /> : <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />}
+        {open ? (
+          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+        ) : (
+          <>
+            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15 ring-2 ring-white/25 backdrop-blur-sm transition duration-300 group-hover:bg-white/25 group-hover:ring-white/40 sm:h-12 sm:w-12">
+              <CalendarClock className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2.25} />
+              <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-70" />
+                <span className="relative inline-flex h-3 w-3 rounded-full border-2 border-teal-700 bg-emerald-400" />
+              </span>
+            </span>
+            <span className="chatbot-launcher-copy min-w-0 flex-1 text-left max-[380px]:hidden">
+              <span className="block truncate text-sm font-bold leading-tight tracking-tight sm:text-[0.9375rem]">
+                {t('Booking assistant')}
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] font-medium text-white/85 sm:text-xs">
+                {t('Chat with us to book')}
+              </span>
+            </span>
+          </>
+        )}
       </button>
       {panel}
     </>,
