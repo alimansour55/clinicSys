@@ -30,12 +30,7 @@ import { AdminContext } from "../../context/AdminContext";
 import InsuranceVerificationPanel from "../../components/InsuranceVerificationPanel";
 import InsuranceStatusBadge from "../../components/InsuranceStatusBadge";
 import { translateInsuranceProviderName } from "../../data/insuranceProviderNamesAr";
-
-const formatDateTime = (value) => {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
-};
+import { LANGUAGES, useLanguage } from "../../i18n";
 
 const formatGender = (gender) => (gender && gender !== "Not Selected" ? gender : "Prefer not to say");
 
@@ -275,7 +270,14 @@ const ReceptionistPatients = () => {
     createReceptionistPatient,
     verifyPatientInsurance
   } = useContext(ReceptionistContext);
-  const { calculateAge, slotDateFormat, currency } = useContext(AppContext);
+  const { calculateAge, slotDateFormat, currency, t, language } = useContext(AppContext);
+  const { localizeDigits } = useLanguage();
+  const dateLocale = LANGUAGES[language]?.locale || "en-US";
+  const formatDateTime = (value) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString(dateLocale);
+  };
   const location = useLocation();
   const navigate = useNavigate();
   const isAdmin = Boolean(aToken);
@@ -470,7 +472,7 @@ const ReceptionistPatients = () => {
               className="inline-flex w-fit items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to registry
+              {t("Back to registry")}
             </button>
             {isAdmin && patient && (
               <div className="flex flex-wrap gap-2">
@@ -480,7 +482,7 @@ const ReceptionistPatients = () => {
                   className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${patient.isActive !== false ? "bg-amber-50 text-amber-700 hover:bg-amber-100" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}
                 >
                   {patient.isActive !== false ? <UserRoundX className="h-4 w-4" /> : <UserRoundCheck className="h-4 w-4" />}
-                  {patient.isActive !== false ? "Deactivate" : "Activate"}
+                  {patient.isActive !== false ? t("Deactivate") : t("Activate")}
                 </button>
                 <button
                   type="button"
@@ -488,7 +490,7 @@ const ReceptionistPatients = () => {
                   className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
                 >
                   <Trash2 className="h-4 w-4" />
-                  Delete
+                  {t("Delete")}
                 </button>
               </div>
             )}
@@ -508,12 +510,13 @@ const ReceptionistPatients = () => {
                       <div className="flex flex-wrap items-center gap-2">
                         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{patient.name}</h1>
                         <span className={`rounded-full px-3 py-1 text-xs font-bold ${patient.isActive !== false ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
-                          {patient.isActive !== false ? "Active" : "Inactive"}
+                          {patient.isActive !== false ? t("Active") : t("Inactive")}
                         </span>
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Clinical record</span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{t("Clinical record")}</span>
                       </div>
                       <p className="mt-2 text-sm text-gray-600">
-                        Patient ID <span className="font-mono font-semibold text-gray-900">{patient.patientId || "—"}</span>
+                        {t("Patient ID")}{" "}
+                        <span className="font-mono font-semibold text-gray-900">{patient.patientId || "—"}</span>
                       </p>
                       <div className="mt-4 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
                         <p className="flex min-w-0 items-center gap-2">
@@ -576,7 +579,7 @@ const ReceptionistPatients = () => {
                     <span className={`rounded-full px-3 py-1 text-xs font-bold ${patient.insurance?.enabled ? "bg-emerald-50 text-emerald-800" : "bg-gray-100 text-gray-600"}`}>
                       {patient.insurance?.enabled ? "On file" : "Not on file"}
                     </span>
-                    {patient.insurance?.enabled && <InsuranceStatusBadge insurance={patient.insurance} />}
+                    {patient.insurance?.enabled && <InsuranceStatusBadge insurance={patient.insurance} t={t} />}
                   </div>
                 </div>
                 {patient.insurance?.enabled ? (
@@ -701,7 +704,7 @@ const ReceptionistPatients = () => {
               </div>
             </>
           ) : (
-            <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-gray-500">Patient could not be loaded.</div>
+            <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-gray-500">{t("Patient could not be loaded.")}</div>
           )}
         </div>
       </div>
@@ -719,13 +722,13 @@ const ReceptionistPatients = () => {
               <div className="max-w-2xl">
                 <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/90 ring-1 ring-white/20">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Patient registry
+                  {t("Patient registry")}
                 </div>
-                <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">All patients</h1>
+                <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">{t("All patients")}</h1>
                 <p className="mt-3 text-sm leading-relaxed text-white/85 sm:text-base">
                   {isAdmin
-                    ? "Register patients, search and filter the directory, and open records to review visits, insurance, and medical history."
-                    : "Register new patients, search and filter the directory, and open records to review visits, insurance, and history. Use Book appointment for fast scheduling."}
+                    ? t("Patients registry description")
+                    : t("Patients registry receptionist description")}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -735,7 +738,7 @@ const ReceptionistPatients = () => {
                   className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-900 shadow-md transition hover:bg-white/95"
                 >
                   <UserPlus className="h-4 w-4 text-primary" />
-                  Add patient
+                  {t("Add patient")}
                 </button>
                 {!isAdmin && (
                   <Link
@@ -743,53 +746,54 @@ const ReceptionistPatients = () => {
                     className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
                   >
                     <CalendarPlus className="h-4 w-4" />
-                    Book visit
+                    {t("Book visit")}
                   </Link>
                 )}
                 <button
                   type="button"
                   onClick={handleRefresh}
                   disabled={refreshing}
+                  aria-label={t("Refresh")}
                   className="inline-flex items-center gap-2 rounded-xl border border-white/25 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
                 >
                   <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-                  Refresh
+                  {t("Refresh")}
                 </button>
               </div>
             </div>
 
             <div className="relative mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {[
-                { label: "Total", value: stats.total, icon: Users, tone: "text-sky-200" },
-                { label: "Active", value: stats.active, icon: ShieldCheck, tone: "text-emerald-200" },
-                { label: "Inactive", value: stats.inactive, icon: UserRound, tone: "text-rose-200" },
-                { label: "With visits", value: stats.withAppts, icon: CalendarClock, tone: "text-amber-200" },
-                { label: "With insurance", value: stats.withInsurance, icon: WalletCards, tone: "text-cyan-200" }
+                { label: t("Total"), value: stats.total, icon: Users, tone: "text-sky-200" },
+                { label: t("Patients stat active"), value: stats.active, icon: ShieldCheck, tone: "text-emerald-200" },
+                { label: t("Patients stat inactive"), value: stats.inactive, icon: UserRound, tone: "text-rose-200" },
+                { label: t("With visits"), value: stats.withAppts, icon: CalendarClock, tone: "text-amber-200" },
+                { label: t("Patients with insurance"), value: stats.withInsurance, icon: WalletCards, tone: "text-cyan-200" }
               ].map(({ label, value, icon: Icon, tone }) => (
                 <div key={label} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70">
                     <Icon className={`h-3.5 w-3.5 ${tone}`} />
                     {label}
                   </div>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-white">{value}</p>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-white">{localizeDigits(value)}</p>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end lg:justify-between">
+        <div dir="ltr" className="mt-6 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-5xl lg:grid-cols-2 xl:grid-cols-4">
             <div className="relative sm:col-span-2 xl:col-span-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search name, ID, email, phone…"
+                placeholder={t("Search name, ID, email, phone…")}
                 className="w-full rounded-xl border border-gray-200 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
               {searchQuery && (
-                <button type="button" onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label="Clear search">
+                <button type="button" onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label={t("Clear search")}>
                   <X className="h-4 w-4" />
                 </button>
               )}
@@ -800,9 +804,9 @@ const ReceptionistPatients = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
-                <option value="all">All statuses</option>
-                <option value="active">Active only</option>
-                <option value="inactive">Inactive only</option>
+                <option value="all">{t("All statuses")}</option>
+                <option value="active">{t("Active only")}</option>
+                <option value="inactive">{t("Inactive only")}</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             </div>
@@ -812,9 +816,9 @@ const ReceptionistPatients = () => {
                 onChange={(e) => setInsuranceFilter(e.target.value)}
                 className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
-                <option value="all">All patients</option>
-                <option value="with">With insurance</option>
-                <option value="without">Without insurance</option>
+                <option value="all">{t("All patients")}</option>
+                <option value="with">{t("With insurance")}</option>
+                <option value="without">{t("Without insurance")}</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             </div>
@@ -828,30 +832,33 @@ const ReceptionistPatients = () => {
                 }}
                 className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
-                <option value="name:asc">Name A → Z</option>
-                <option value="name:desc">Name Z → A</option>
-                <option value="joined:desc">Newest first</option>
-                <option value="joined:asc">Oldest first</option>
-                <option value="appointments:desc">Most appointments</option>
-                <option value="appointments:asc">Fewest appointments</option>
+                <option value="name:asc">{t("Name A → Z")}</option>
+                <option value="name:desc">{t("Name Z → A")}</option>
+                <option value="joined:desc">{t("Newest first")}</option>
+                <option value="joined:asc">{t("Oldest first")}</option>
+                <option value="appointments:desc">{t("Most appointments")}</option>
+                <option value="appointments:asc">{t("Fewest appointments")}</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             </div>
           </div>
           <p className="text-center text-sm font-medium text-gray-600 lg:text-right">
-            Showing <span className="font-bold text-gray-900">{sortedPatients.length}</span> of {patients.length}
+            {t("Showing")}{" "}
+            <span className="font-bold text-gray-900">{localizeDigits(sortedPatients.length)}</span>{" "}
+            {t("of")}{" "}
+            <span className="font-bold text-gray-900">{localizeDigits(patients.length)}</span>
           </p>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div dir="ltr" className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,0.7fr)_minmax(0,0.75fr)_minmax(0,1fr)_minmax(0,1.15fr)] gap-3 border-b border-gray-100 bg-gray-50/90 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-gray-500 xl:grid">
-            <span>Patient</span>
-            <span>Contact</span>
-            <span>Patient ID</span>
-            <span>Visits</span>
-            <span>Status</span>
-            <span>Joined</span>
-            <span className="text-right">Actions</span>
+            <span>{t("Patient")}</span>
+            <span>{t("Contact")}</span>
+            <span>{t("Patient ID")}</span>
+            <span>{t("Visits")}</span>
+            <span>{t("Status")}</span>
+            <span>{t("Joined")}</span>
+            <span className="text-right">{t("Actions")}</span>
           </div>
 
           {loading ? (
@@ -863,11 +870,11 @@ const ReceptionistPatients = () => {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
                 <Users className="h-8 w-8" />
               </div>
-              <p className="mt-4 text-lg font-semibold text-gray-900">No patients match</p>
-              <p className="mt-1 text-sm text-gray-600">Try another search or add a new patient to the registry.</p>
+              <p className="mt-4 text-lg font-semibold text-gray-900">{t("No patients match")}</p>
+              <p className="mt-1 text-sm text-gray-600">{t("Try another search or add a new patient to the registry.")}</p>
               <button type="button" onClick={() => setShowAddModal(true)} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm">
                 <UserPlus className="h-4 w-4" />
-                Add patient
+                {t("Add patient")}
               </button>
             </div>
           ) : (
@@ -881,7 +888,7 @@ const ReceptionistPatients = () => {
                         <p className="truncate font-semibold text-gray-900">{patient.name}</p>
                         {patient.insurance?.enabled && (
                           <div className="mt-1">
-                            <InsuranceStatusBadge insurance={patient.insurance} className="text-[10px]" />
+                            <InsuranceStatusBadge insurance={patient.insurance} t={t} className="text-[10px]" />
                           </div>
                         )}
                         <p className="truncate text-xs text-gray-500 xl:hidden">{patient.patientId}</p>
@@ -889,16 +896,16 @@ const ReceptionistPatients = () => {
                     </div>
                     <div className="min-w-0 text-sm">
                       <p className="truncate font-medium text-gray-800">{patient.email}</p>
-                      <p className="truncate text-xs text-gray-500">{patient.phone || "No phone"}</p>
+                      <p className="truncate text-xs text-gray-500">{patient.phone || t("No phone")}</p>
                     </div>
                     <p className="font-mono text-sm text-gray-700">{patient.patientId || "—"}</p>
                     <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 tabular-nums">
                       <ShieldCheck className="h-4 w-4 shrink-0 text-primary xl:hidden" aria-hidden />
-                      <span>{patient.appointmentStats?.appointments ?? 0}</span>
+                      <span>{localizeDigits(patient.appointmentStats?.appointments ?? 0)}</span>
                     </div>
                     <div>
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${patient.isActive !== false ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
-                        {patient.isActive !== false ? "Active" : "Inactive"}
+                        {patient.isActive !== false ? t("Active") : t("Inactive")}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">{formatDateTime(patient.createdAt)}</p>
@@ -908,14 +915,14 @@ const ReceptionistPatients = () => {
                         onClick={() => selectPatient(patient._id)}
                         className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-800 shadow-sm transition hover:border-primary/40 hover:text-primary"
                       >
-                        Open record
+                        {t("Open record")}
                       </button>
                       {!isAdmin && (
                         <Link
                           to={`/receptionist-book-appointment?patient=${patient._id}`}
                           className="rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:opacity-95"
                         >
-                          Book
+                          {t("Book")}
                         </Link>
                       )}
                     </div>
