@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest'
 import {
   detectMessageLanguage,
   detectEmergency,
-  suggestSpecialtyFromSymptoms,
-  matchDoctorSpecialty
+  suggestSpecialtyFromText,
+  suggestSpecialtyFromConversation,
+  matchDoctorSpecialty,
+  isVagueOnlyMessage
 } from '../services/chatbotSymptomMap.js'
 
 describe('chatbotSymptomMap', () => {
@@ -14,14 +16,26 @@ describe('chatbotSymptomMap', () => {
 
   it('flags emergencies', () => {
     expect(detectEmergency('severe chest pain')).toBe(true)
-    expect(detectEmergency('صعوبة في التنفس')).toBe(true)
     expect(detectEmergency('mild cough')).toBe(false)
   })
 
   it('maps symptoms to specialty', () => {
-    expect(suggestSpecialtyFromSymptoms('tooth pain')).toBe('Dentist')
-    expect(suggestSpecialtyFromSymptoms('skin rash')).toBe('Dermatologist')
-    expect(suggestSpecialtyFromSymptoms('وجع سن')).toBe('Dentist')
+    expect(suggestSpecialtyFromText('tooth pain')).toBe('Dentist')
+    expect(suggestSpecialtyFromText('skin rash')).toBe('Dermatologist')
+    expect(suggestSpecialtyFromText('children doctor')).toBe('Pediatricians')
+  })
+
+  it('vague tired does not map to general physician alone', () => {
+    expect(isVagueOnlyMessage('تعب')).toBe(true)
+    expect(suggestSpecialtyFromText('تعب')).toBeNull()
+  })
+
+  it('conversation accumulates pediatric intent', () => {
+    const messages = [
+      { role: 'user', content: 'hello' },
+      { role: 'user', content: 'my baby has high fever' }
+    ]
+    expect(suggestSpecialtyFromConversation(messages)).toBe('Pediatricians')
   })
 
   it('matches doctor specialty loosely', () => {

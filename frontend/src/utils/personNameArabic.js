@@ -3,6 +3,20 @@
  * Uses a dictionary of common names; unknown tokens get a simple letter transliteration.
  */
 
+/** Exact full-name overrides (normalized lowercase Latin key) */
+const FULL_NAME_AR = {
+  'menna mohsen': 'منة محسن',
+  sara: 'سارة',
+  'adam kareem': 'آدم كريم',
+  'lina mostafa adel': 'لينا مصطفى عادل',
+  'maya sherif fouad': 'مايا شريف فؤاد',
+  martin: 'مارتن',
+  mohamed: 'محمد',
+  'sophia nader aziz': 'صوفيا نادر عزيز',
+  'youssef emad selim': 'يوسف عماد سليم',
+  'tarek wahba karim': 'طارق وهبة كريم'
+}
+
 const COMMON_NAMES = {
   ahmed: 'أحمد',
   ahmad: 'أحمد',
@@ -14,8 +28,8 @@ const COMMON_NAMES = {
   mahmud: 'محمود',
   mansour: 'منصور',
   mansur: 'منصور',
-  martin: 'مارتين',
-  martine: 'مارتين',
+  martin: 'مارتن',
+  martine: 'مارتن',
   sara: 'سارة',
   sarah: 'سارة',
   ali: 'علي',
@@ -71,6 +85,11 @@ const COMMON_NAMES = {
   michael: 'مايكل',
   david: 'ديفيد',
   daniel: 'دانيال',
+  emad: 'عماد',
+  wahba: 'وهبة',
+  fouad: 'فؤاد',
+  aziz: 'عزيز',
+  selim: 'سليم',
   emily: 'إيميلي',
   anna: 'آنا',
   lisa: 'ليزا',
@@ -202,11 +221,19 @@ const translateToken = (raw) => {
     .join('-')
 }
 
+const normFullNameKey = (name) =>
+  String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+
 /** Full display name: space-separated tokens, hyphens preserved. */
 export const displayPersonName = (name, language) => {
   const s = String(name || '').trim()
   if (!s) return ''
   if (language !== 'ar') return s
   if (/[\u0600-\u06FF]/.test(s)) return s
+  const fullKey = normFullNameKey(s)
+  if (FULL_NAME_AR[fullKey]) return FULL_NAME_AR[fullKey]
   return s.split(/\s+/).map(translateToken).join(' ')
 }

@@ -1,6 +1,6 @@
 import OpenAI from 'openai'
 import { listKnownSpecialties } from './chatbotSymptomMap.js'
-import { buildRuleBasedReply, isGreetingOnly, hasHealthConcern } from './chatbotConversation.js'
+import { buildRuleBasedReply, isGreetingOnly } from './chatbotConversation.js'
 
 let openaiClient = null
 
@@ -13,7 +13,7 @@ const getClient = () => {
   return openaiClient
 }
 
-const buildSystemPrompt = ({ language, doctorsContext, siteName, userText }) => {
+const buildSystemPrompt = ({ language, doctorsContext, siteName, userText, bookingContext = {} }) => {
   const specialties = listKnownSpecialties().join(', ')
   const langLabel = language === 'ar' ? 'Arabic' : 'English'
   const greetingTurn = isGreetingOnly(userText)
@@ -31,6 +31,8 @@ CONVERSATION FLOW:
 7. Do not give a final diagnosis — the examining doctor decides.
 8. Keep replies short (2-3 sentences + optional one line). No long disclaimers at the end.
 ${greetingTurn ? '\nThe patient just sent a greeting only — welcome them and ask about their symptoms. Do not mention specific doctors by name yet.' : ''}
+${bookingContext?.docId ? `\nThe patient already selected a doctor (id: ${bookingContext.docId}). Help with appointment times only — do NOT suggest other doctors or show a new doctor list.` : ''}
+${doctorsContext === '[]' ? '\nDo not list doctor names yet — ask clarifying questions about symptoms first.' : ''}
 
 Available doctors (use only these, do not invent):
 ${doctorsContext}`
@@ -43,7 +45,8 @@ export const generateChatbotReply = async ({
   siteName = 'Clinivo',
   userText = '',
   suggestedSpecialty = null,
-  isFirstTurn = false
+  isFirstTurn = false,
+  bookingContext = {}
 }) => {
   const fallback = () =>
     buildRuleBasedReply({
@@ -69,7 +72,7 @@ export const generateChatbotReply = async ({
       messages: [
         {
           role: 'system',
-          content: buildSystemPrompt({ language, doctorsContext, siteName, userText })
+          content: buildSystemPrompt({ language, doctorsContext, siteName, userText, bookingContext })
         },
         ...messages
           .filter((m) => m.role === 'user' || m.role === 'assistant')

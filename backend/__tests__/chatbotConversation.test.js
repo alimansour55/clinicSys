@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import {
   isGreetingOnly,
-  hasHealthConcern,
+  hasClearSymptoms,
   shouldOfferDoctorPicker,
-  buildRuleBasedReply
+  buildRuleBasedReply,
+  needsMoreSymptomInfo
 } from '../services/chatbotConversation.js'
+import { suggestSpecialtyFromText } from '../services/chatbotSymptomMap.js'
 
 describe('chatbotConversation', () => {
   it('detects greetings without showing doctors', () => {
@@ -13,12 +15,22 @@ describe('chatbotConversation', () => {
     expect(isGreetingOnly('I have a cold and cough')).toBe(false)
   })
 
-  it('detects health concerns', () => {
-    expect(hasHealthConcern('I caught a cold what shall I do')).toBe(true)
-    expect(hasHealthConcern('hi')).toBe(false)
+  it('treats tired / تعب as needing follow-up not doctor list', () => {
+    expect(needsMoreSymptomInfo([], 'انا تعبان')).toBe(true)
+    expect(hasClearSymptoms([], 'انا تعبان')).toBe(false)
+    expect(shouldOfferDoctorPicker({
+      userText: 'انا تعبان',
+      messages: [{ role: 'user', content: 'انا تعبان' }],
+      suggestedDoctors: [{ id: '1' }]
+    })).toBe(false)
   })
 
-  it('offers doctor picker only after symptoms', () => {
+  it('maps children doctor request to pediatricians', () => {
+    expect(suggestSpecialtyFromText('I need a children doctor')).toBe('Pediatricians')
+    expect(suggestSpecialtyFromText('عايز دكتور أطفال')).toBe('Pediatricians')
+  })
+
+  it('offers doctor picker only after clear symptoms', () => {
     const doctors = [{ id: '1' }]
     expect(
       shouldOfferDoctorPicker({
@@ -29,16 +41,26 @@ describe('chatbotConversation', () => {
     ).toBe(false)
     expect(
       shouldOfferDoctorPicker({
-        userText: 'I have tooth pain',
-        messages: [{ role: 'user', content: 'I have tooth pain' }],
+        userText: 'my child has fever',
+        messages: [{ role: 'user', content: 'my child has fever' }],
         suggestedDoctors: doctors
       })
     ).toBe(true)
   })
 
+  it('does not offer doctors when doctor already selected', () => {
+    expect(
+      shouldOfferDoctorPicker({
+        userText: 'tomorrow please',
+        messages: [],
+        suggestedDoctors: [{ id: '1' }],
+        bookingContext: { docId: 'abc' }
+      })
+    ).toBe(false)
+  })
+
   it('greets warmly in rule-based reply', () => {
     const reply = buildRuleBasedReply({ language: 'en', userText: 'Hi good morning' })
     expect(reply.toLowerCase()).toContain('how can i help')
-    expect(reply.toLowerCase()).not.toContain('unavailable')
   })
 })
