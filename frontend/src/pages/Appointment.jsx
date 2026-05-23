@@ -769,7 +769,7 @@ const Appointment = () => {
           )}
         </div>
 
-        <div className='flex w-full items-center gap-3 overflow-x-auto pb-2' >
+        <div className='tap-row-mobile-wrap flex w-full items-center gap-3 overflow-x-auto pb-2'>
           {
             docSlots.length && docSlots.map((item, index) => (
              <button

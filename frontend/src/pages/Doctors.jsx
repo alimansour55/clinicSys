@@ -261,7 +261,7 @@ const Doctors = () => {
           )}
         </div>
 
-        <div className='flex gap-2 overflow-x-auto pb-1 lg:pb-0'>
+        <div className='tap-row-mobile-wrap flex gap-2 overflow-x-auto pb-1 lg:pb-0'>
           {consultationOptions.map(({ key, label, icon: Icon }) => {
             const selected = (key === 'clinic' && !consultationMode) || consultationMode === key
 

@@ -3,15 +3,15 @@
 @import "tailwindcss";
 @import "react-toastify/dist/ReactToastify.css";
 
-/* Hover only on real mouse/trackpad — prevents first-tap “sticky hover” on phones */
-@variant hover {
+/* Override built-in hover (must be @custom-variant, not @variant) */
+@custom-variant hover {
   @media (hover: hover) and (pointer: fine) {
     &:hover {
       @slot;
     }
   }
 }
-@variant group-hover {
+@custom-variant group-hover {
   @media (hover: hover) and (pointer: fine) {
     &:is(:where(.group):hover *) {
       @slot;
@@ -21,6 +21,10 @@
 
 *{
   font-family: Outfit, Arial, sans-serif;
+}
+
+html {
+  touch-action: manipulation;
 }
 
 html[dir="rtl"] * {
@@ -53,9 +57,19 @@ html[dir="rtl"] select {
   }
 }
 
-/* Toast portal lives inside #root — must not use body > (that selector never matched) */
+/* Horizontal chip rows: wrap on phones so iOS does not eat the first tap for scroll */
+@media (max-width: 1023px) {
+  .tap-row-mobile-wrap {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    overflow-y: visible;
+  }
+}
+
+/* Toast portal (body or #root): never block taps when empty */
 section.Toastify,
-#root section.Toastify {
+#root section.Toastify,
+body > section.Toastify {
   pointer-events: none !important;
   width: 0 !important;
   height: 0 !important;
@@ -63,12 +77,14 @@ section.Toastify,
 }
 
 section.Toastify:empty,
-#root section.Toastify:empty {
+#root section.Toastify:empty,
+body > section.Toastify:empty {
   display: none !important;
 }
 
 section.Toastify .Toastify__toast-container,
-#root section.Toastify .Toastify__toast-container {
+#root section.Toastify .Toastify__toast-container,
+body > section.Toastify .Toastify__toast-container {
   pointer-events: none !important;
   width: max-content !important;
   max-width: calc(100vw - 1rem) !important;
@@ -78,12 +94,14 @@ section.Toastify .Toastify__toast-container,
 }
 
 section.Toastify .Toastify__toast-container--top-right,
-#root section.Toastify .Toastify__toast-container--top-right {
+#root section.Toastify .Toastify__toast-container--top-right,
+body > section.Toastify .Toastify__toast-container--top-right {
   top: max(0.75rem, env(safe-area-inset-top, 0px)) !important;
 }
 
 section.Toastify .Toastify__toast,
-#root section.Toastify .Toastify__toast {
+#root section.Toastify .Toastify__toast,
+body > section.Toastify .Toastify__toast {
   pointer-events: auto !important;
   touch-action: manipulation;
 }
@@ -108,14 +126,17 @@ section.Toastify .Toastify__toast,
 /* Printing: hide toast layer; keep page content normal */
 @media print {
   section.Toastify,
-  #root section.Toastify {
+  #root section.Toastify,
+  body > section.Toastify {
     display: none !important;
   }
 
   section.Toastify,
   section.Toastify *,
   #root section.Toastify,
-  #root section.Toastify * {
+  #root section.Toastify *,
+  body > section.Toastify,
+  body > section.Toastify * {
     pointer-events: auto !important;
   }
 }

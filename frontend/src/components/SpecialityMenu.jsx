@@ -167,7 +167,7 @@ const SpecialityMenu = () => {
           </div>
         </div>
 
-        <div ref={clinicsRef} className="mb-7 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div ref={clinicsRef} className="tap-row-mobile-wrap mb-7 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex min-w-max gap-3">
             <button
               key="all-doctors"
@@ -225,7 +225,7 @@ const SpecialityMenu = () => {
 
             <div
               ref={doctorsRef}
-              className="grid auto-cols-[166px] grid-flow-col grid-rows-2 gap-4 overflow-x-auto pb-3 pr-2 [scrollbar-width:none] sm:auto-cols-[184px] md:auto-cols-[188px] [&::-webkit-scrollbar]:hidden"
+              className="tap-row-mobile-wrap grid auto-cols-[166px] grid-flow-col grid-rows-2 gap-4 overflow-x-auto pb-3 pr-2 [scrollbar-width:none] sm:auto-cols-[184px] md:auto-cols-[188px] [&::-webkit-scrollbar]:hidden"
             >
               {visibleDoctors.map((doctor) => (
                 <button

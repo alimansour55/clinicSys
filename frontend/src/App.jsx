@@ -1,4 +1,5 @@
 import React, { useContext, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { AppContext } from './context/AppContext'
 import { getPolicyForRole } from './utils/languageAvailability'
 import Home from './pages/Home'
@@ -36,7 +37,7 @@ const App = () => {
       <LanguagePolicySync policy={patientLanguagePolicy} />
       <LanguageDomSync />
       <ScrollToTop />
-      <ToastContainer position='top-right' />
+      {createPortal(<ToastContainer position='top-right' />, document.body)}
       <Navbar />
       {/* Add routes to file and import it here */}
       <Routes location={location} key={location.pathname}>
