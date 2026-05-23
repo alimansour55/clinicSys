@@ -1,9 +1,10 @@
-import { createContext, useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { readCachedPublicSiteSettings, writeCachedPublicSiteSettings } from '../utils/siteSettingsCache'
 import { resolveBackendUrl } from '../utils/resolveBackendUrl'
 import { getApiErrorMessage, isDatabaseConfig503 } from '../utils/apiErrorMessage'
+import { buildAdminAuthHeaders } from '../utils/staffAuthHeaders'
 
 export const AdminContext = createContext()
 
@@ -33,7 +34,16 @@ const fetchPublicSiteSettings = (backendUrl) => {
 
 const AdminContextProvider = (props) => {
 
-    const [aToken, setAToken] = useState(localStorage.getItem('aToken')? localStorage.getItem('aToken'): '')
+    const [aToken, setATokenState] = useState(() => localStorage.getItem('aToken') || '')
+    const persistAToken = useCallback((token) => {
+      const next = token || ''
+      setATokenState(next)
+      if (next) localStorage.setItem('aToken', next)
+      else localStorage.removeItem('aToken')
+    }, [])
+    const clearAdminSession = useCallback(() => {
+      persistAToken('')
+    }, [persistAToken])
     const [doctors, setDoctors] = useState([])
     const [appointments, setAppointments] = useState([])
     const [dashData, setDashData] = useState(false)
@@ -53,11 +63,28 @@ const AdminContextProvider = (props) => {
     })
 
     const backendUrl = resolveBackendUrl()
+    const adminHeaders = useMemo(() => buildAdminAuthHeaders(aToken), [aToken])
+
+    useEffect(() => {
+      if (!aToken) return undefined
+      let cancelled = false
+      axios
+        .get(`${backendUrl}/api/admin/profile`, { headers: adminHeaders })
+        .catch((error) => {
+          if (!cancelled && error?.response?.status === 401) {
+            clearAdminSession()
+            toast.info('Session expired. Please sign in again.', { toastId: 'admin-session-expired' })
+          }
+        })
+      return () => {
+        cancelled = true
+      }
+    }, [aToken, adminHeaders, backendUrl, clearAdminSession])
 
     const refreshAdminNavSummary = useCallback(async () => {
       if (!aToken) return
       try {
-        const { data } = await axios.get(`${backendUrl}/api/admin/profile`, { headers: { aToken } })
+        const { data } = await axios.get(`${backendUrl}/api/admin/profile`, { headers: adminHeaders })
         if (data.success && data.profile) {
           setAdminNavSummary({
             email: data.profile.email || '',
@@ -70,7 +97,7 @@ const AdminContextProvider = (props) => {
       } catch {
         // Nav summary is optional; profile page shows errors
       }
-    }, [aToken, backendUrl])
+    }, [aToken, adminHeaders, backendUrl])
 
     useEffect(() => {
       if (aToken) refreshAdminNavSummary()
@@ -104,7 +131,7 @@ const AdminContextProvider = (props) => {
 
     const getAllDoctors = async () => {
        try {
-        const { data } = await axios.post(backendUrl + '/api/admin/all-doctors', {} , {headers:{aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/all-doctors', {} , { headers: adminHeaders })
         if(data.success) {
             setDoctors(data.doctors)
         } else {
@@ -119,7 +146,7 @@ const AdminContextProvider = (props) => {
 
     const updateDoctorByAdmin = async (formData) => {
       try {
-       const { data } = await axios.post(backendUrl + '/api/admin/update-doctor', formData,{headers: {aToken}})
+       const { data } = await axios.post(backendUrl + '/api/admin/update-doctor', formData,{ headers: adminHeaders })
        if (data.success) {
        toast.success(data.message)
        getAllDoctors() // context refresh
@@ -138,7 +165,7 @@ const AdminContextProvider = (props) => {
         try {
         const payload = { docId }
         if (typeof available === 'boolean') payload.available = available
-        const { data } = await axios.post(backendUrl + '/api/admin/change-availability', payload, {headers:{aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/change-availability', payload, { headers: adminHeaders })
         if(data.success) {
             toast.success(data.message)
             getAllDoctors()
@@ -155,7 +182,7 @@ const AdminContextProvider = (props) => {
 
     const getAllAppointments = async () => {
         try {        
-          const { data } = await axios.get(backendUrl + '/api/admin/appointments', {headers: {aToken}})
+          const { data } = await axios.get(backendUrl + '/api/admin/appointments', { headers: adminHeaders })
           if(data.success){
             setAppointments(data.appointments)
           } else {
@@ -171,7 +198,7 @@ const AdminContextProvider = (props) => {
 
     const cancelAppointment = async (appointmentId) => {
        try {    
-        const { data } = await axios.post(backendUrl+ '/api/admin/cancel-appointment', {appointmentId}, {headers:{aToken}})
+        const { data } = await axios.post(backendUrl+ '/api/admin/cancel-appointment', {appointmentId}, { headers: adminHeaders })
         if(data.success) {
             toast.success(data.message)
             getAllAppointments()
@@ -187,7 +214,7 @@ const AdminContextProvider = (props) => {
 
     const getDashData = async () => {
         try {        
-           const { data } = await axios.get(backendUrl + '/api/admin/dashboard', {headers: {aToken} })
+           const { data } = await axios.get(backendUrl + '/api/admin/dashboard', { headers: adminHeaders })
            if(data.success) {
             setDashData(data.dashData)
            } else {
@@ -202,7 +229,7 @@ const AdminContextProvider = (props) => {
 
     const getAppointmentsHistory = async () => {
         try {
-            const { data } = await axios.get(backendUrl + '/api/admin/appointment-history', {headers: {aToken}})
+            const { data } = await axios.get(backendUrl + '/api/admin/appointment-history', { headers: adminHeaders })
             if(data.success){
                setmembersHistory(data.appointments)
             } else {
@@ -217,7 +244,7 @@ const AdminContextProvider = (props) => {
 
     const deleteAppointmentHistory = async (appointmentId) => {
       try {
-      const { data } = await axios.post( backendUrl + '/api/admin/delete-appointment-history', { appointmentId },{ headers: { aToken } })
+      const { data } = await axios.post( backendUrl + '/api/admin/delete-appointment-history', { appointmentId },{ headers: adminHeaders })
       if (data.success) {
       toast.success(data.message)
       getAppointmentsHistory() 
@@ -231,7 +258,7 @@ const AdminContextProvider = (props) => {
 
     const getAllPatients = async () => {
       try {
-        const { data } = await axios.get(backendUrl + '/api/admin/patients', {headers: {aToken}})
+        const { data } = await axios.get(backendUrl + '/api/admin/patients', { headers: adminHeaders })
         if(data.success){
           setPatients(data.patients)
         } else {
@@ -244,7 +271,7 @@ const AdminContextProvider = (props) => {
 
     const getPatientDetails = async (patientId) => {
       try {
-        const { data } = await axios.get(backendUrl + `/api/admin/patients/${patientId}`, {headers: {aToken}})
+        const { data } = await axios.get(backendUrl + `/api/admin/patients/${patientId}`, { headers: adminHeaders })
         if(data.success){
           return data
         }
@@ -259,7 +286,7 @@ const AdminContextProvider = (props) => {
 
     const changePatientStatus = async (patientId) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/change-patient-status', {patientId}, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/change-patient-status', {patientId}, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           getAllPatients()
@@ -276,7 +303,7 @@ const AdminContextProvider = (props) => {
 
     const deletePatient = async (patientId) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/delete-patient', {patientId}, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/delete-patient', {patientId}, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           getAllPatients()
@@ -311,9 +338,9 @@ const AdminContextProvider = (props) => {
 
     const getUsersFromExistingEndpoints = async () => {
       const [patientsResult, doctorsResult, receptionistsResult] = await Promise.allSettled([
-        axios.get(backendUrl + '/api/admin/patients', {headers: {aToken}}),
-        axios.post(backendUrl + '/api/admin/all-doctors', {}, {headers: {aToken}}),
-        axios.get(backendUrl + '/api/admin/receptionists', {headers: {aToken}})
+        axios.get(backendUrl + '/api/admin/patients', { headers: adminHeaders }),
+        axios.post(backendUrl + '/api/admin/all-doctors', {}, { headers: adminHeaders }),
+        axios.get(backendUrl + '/api/admin/receptionists', { headers: adminHeaders })
       ])
 
       const fallbackUsers = [
@@ -328,7 +355,7 @@ const AdminContextProvider = (props) => {
 
     const getAllUsers = async () => {
       try {
-        const { data } = await axios.get(backendUrl + '/api/admin/users', {headers: {aToken}})
+        const { data } = await axios.get(backendUrl + '/api/admin/users', { headers: adminHeaders })
         if(data.success){
           setUsers(data.users)
         } else {
@@ -343,7 +370,7 @@ const AdminContextProvider = (props) => {
 
     const createUserByAdmin = async (payload) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/create-user', payload, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/create-user', payload, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           await getAllUsers()
@@ -369,7 +396,7 @@ const AdminContextProvider = (props) => {
           }
 
           if (payload.profileType === 'receptionist') {
-            const { data } = await axios.post(backendUrl + '/api/admin/add-receptionist', payload, {headers: {aToken}})
+            const { data } = await axios.post(backendUrl + '/api/admin/add-receptionist', payload, { headers: adminHeaders })
             if (data.success) {
               toast.success(data.message)
               await getAllUsers()
@@ -391,7 +418,7 @@ const AdminContextProvider = (props) => {
 
     const updateUserByAdmin = async (payload) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/update-user', payload, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/update-user', payload, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           await getAllUsers()
@@ -411,7 +438,7 @@ const AdminContextProvider = (props) => {
 
     const resetUserPassword = async (payload) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/reset-user-password', payload, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/reset-user-password', payload, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           return true
@@ -425,7 +452,7 @@ const AdminContextProvider = (props) => {
             const formData = new FormData()
             formData.append('docId', payload.profileId)
             formData.append('password', payload.password)
-            const { data } = await axios.post(backendUrl + '/api/admin/update-doctor', formData, {headers: {aToken}})
+            const { data } = await axios.post(backendUrl + '/api/admin/update-doctor', formData, { headers: adminHeaders })
             if (data.success) {
               toast.success('Password reset successfully')
               return true
@@ -445,7 +472,7 @@ const AdminContextProvider = (props) => {
 
     const updateUserMfaRequirement = async (payload) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/update-user-mfa-requirement', payload, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/update-user-mfa-requirement', payload, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           await getAllUsers()
@@ -462,7 +489,7 @@ const AdminContextProvider = (props) => {
 
     const resetUserMfa = async (payload) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/reset-user-mfa', payload, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/reset-user-mfa', payload, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           await getAllUsers()
@@ -479,7 +506,7 @@ const AdminContextProvider = (props) => {
 
     const deleteUserAccount = async (payload) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/delete-user-account', payload, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/delete-user-account', payload, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           await getAllUsers()
@@ -499,7 +526,7 @@ const AdminContextProvider = (props) => {
           const fallbackBody = payload.profileType === 'patient'
             ? { patientId: payload.profileId }
             : { profileType: payload.profileType, profileId: payload.profileId }
-          const { data } = await axios.post(backendUrl + fallbackEndpoint, fallbackBody, {headers: {aToken}})
+          const { data } = await axios.post(backendUrl + fallbackEndpoint, fallbackBody, { headers: adminHeaders })
 
           if(data.success) {
             toast.success(data.message)
@@ -521,7 +548,7 @@ const AdminContextProvider = (props) => {
 
     const getReceptionists = async () => {
       try {
-        const { data } = await axios.get(backendUrl + '/api/admin/receptionists', {headers: {aToken}})
+        const { data } = await axios.get(backendUrl + '/api/admin/receptionists', { headers: adminHeaders })
         if(data.success) {
           setReceptionists(data.receptionists)
         } else {
@@ -534,7 +561,7 @@ const AdminContextProvider = (props) => {
 
     const changeReceptionistStatus = async (receptionistId) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/change-receptionist-status', {receptionistId}, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/change-receptionist-status', {receptionistId}, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           getReceptionists()
@@ -548,7 +575,7 @@ const AdminContextProvider = (props) => {
 
     const getReceptionistById = async (receptionistId) => {
       try {
-        const { data } = await axios.get(`${backendUrl}/api/admin/receptionist/${receptionistId}`, { headers: { aToken } })
+        const { data } = await axios.get(`${backendUrl}/api/admin/receptionist/${receptionistId}`, { headers: adminHeaders })
         if (data.success) return data.receptionist
         toast.error(data.message)
         return null
@@ -560,7 +587,7 @@ const AdminContextProvider = (props) => {
 
     const updateReceptionistByAdmin = async (formData) => {
       try {
-        const { data } = await axios.post(`${backendUrl}/api/admin/update-receptionist`, formData, { headers: { aToken } })
+        const { data } = await axios.post(`${backendUrl}/api/admin/update-receptionist`, formData, { headers: adminHeaders })
         if (data.success) {
           toast.success(data.message)
           getReceptionists()
@@ -576,7 +603,7 @@ const AdminContextProvider = (props) => {
 
     const getClinics = async () => {
       try {
-        const { data } = await axios.get(backendUrl + '/api/admin/clinics', {headers: {aToken}})
+        const { data } = await axios.get(backendUrl + '/api/admin/clinics', { headers: adminHeaders })
         if(data.success) {
           setClinics(data.clinics)
           setAllowedClinics(data.defaultClinics || data.allowedClinics || [])
@@ -590,7 +617,7 @@ const AdminContextProvider = (props) => {
 
     const createClinic = async (clinicData) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/create-clinic', clinicData, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/create-clinic', clinicData, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           getClinics()
@@ -604,7 +631,7 @@ const AdminContextProvider = (props) => {
 
     const updateClinic = async (clinicData) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/update-clinic', clinicData, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/update-clinic', clinicData, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           getClinics()
@@ -618,7 +645,7 @@ const AdminContextProvider = (props) => {
 
     const deleteClinic = async (clinicId) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/delete-clinic', {clinicId}, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/delete-clinic', {clinicId}, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           getClinics()
@@ -632,7 +659,7 @@ const AdminContextProvider = (props) => {
 
     const assignDoctorsToClinic = async (clinicId, doctorIds) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/assign-clinic-doctors', {clinicId, doctorIds}, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/assign-clinic-doctors', {clinicId, doctorIds}, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           getClinics()
@@ -647,7 +674,7 @@ const AdminContextProvider = (props) => {
 
     const getSiteSettings = async () => {
       try {
-        const { data } = await axios.get(backendUrl + '/api/admin/site-settings', {headers: {aToken}})
+        const { data } = await axios.get(backendUrl + '/api/admin/site-settings', { headers: adminHeaders })
         if(data.success) {
           setSiteSettings(data.settings)
         } else {
@@ -660,7 +687,7 @@ const AdminContextProvider = (props) => {
 
     const updateHomeHeroSettings = async (formData) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/home-hero', formData, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/home-hero', formData, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           setSiteSettings(data.settings)
@@ -677,7 +704,7 @@ const AdminContextProvider = (props) => {
 
     const updateHomeBannerSettings = async (formData) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/home-banner', formData, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/home-banner', formData, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           setSiteSettings(data.settings)
@@ -694,7 +721,7 @@ const AdminContextProvider = (props) => {
 
     const updateHomeServiceCardsSettings = async (formData) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/home-service-cards', formData, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/home-service-cards', formData, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           setSiteSettings(data.settings)
@@ -711,7 +738,7 @@ const AdminContextProvider = (props) => {
 
     const updateFooterSettings = async (footerData) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/footer', footerData, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/footer', footerData, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           setSiteSettings(data.settings)
@@ -731,7 +758,7 @@ const AdminContextProvider = (props) => {
         const { data } = await axios.post(
           backendUrl + '/api/admin/site-settings/insurance-providers',
           { providers },
-          { headers: { aToken } }
+          { headers: adminHeaders }
         )
         if (data.success) {
           toast.success(data.message)
@@ -748,11 +775,11 @@ const AdminContextProvider = (props) => {
 
     const updateBrandingSettings = async (payload) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/branding', payload, { headers: { aToken } })
+        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/branding', payload, { headers: adminHeaders })
         if (data.success) {
           toast.success(data.message)
           try {
-            const refreshed = await axios.get(backendUrl + '/api/admin/site-settings', { headers: { aToken } })
+            const refreshed = await axios.get(backendUrl + '/api/admin/site-settings', { headers: adminHeaders })
             if (refreshed.data?.success && refreshed.data.settings) {
               setSiteSettings(refreshed.data.settings)
             } else if (data.settings) {
@@ -774,7 +801,7 @@ const AdminContextProvider = (props) => {
 
     const updateSecuritySettings = async (securityData) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/security', securityData, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/site-settings/security', securityData, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           setSiteSettings(data.settings)
@@ -794,7 +821,7 @@ const AdminContextProvider = (props) => {
         const { data } = await axios.post(
           backendUrl + '/api/admin/site-settings/language-policies',
           { languagePolicies },
-          { headers: { aToken } }
+          { headers: adminHeaders }
         )
         if (data.success) {
           toast.success(data.message)
@@ -814,7 +841,7 @@ const AdminContextProvider = (props) => {
         const { data } = await axios.post(
           backendUrl + '/api/admin/site-settings/home-visit-pricing',
           homeVisitPricingData,
-          { headers: { aToken } }
+          { headers: adminHeaders }
         )
         if (data.success) {
           toast.success(data.message)
@@ -834,7 +861,7 @@ const AdminContextProvider = (props) => {
         const { data } = await axios.post(
           backendUrl + '/api/admin/site-settings/global-visit-fees',
           globalVisitFeesData,
-          { headers: { aToken } }
+          { headers: adminHeaders }
         )
         if (data.success) {
           toast.success(data.message)
@@ -851,7 +878,7 @@ const AdminContextProvider = (props) => {
 
     const getDoctorRatings = async (docId) => {
       try {
-        const { data } = await axios.get(backendUrl + `/api/admin/doctor-ratings/${docId}`, {headers: {aToken}})
+        const { data } = await axios.get(backendUrl + `/api/admin/doctor-ratings/${docId}`, { headers: adminHeaders })
         if(data.success) return data
 
         toast.error(data.message)
@@ -864,7 +891,7 @@ const AdminContextProvider = (props) => {
 
     const deleteDoctorRating = async (ratingId) => {
       try {
-        const { data } = await axios.post(backendUrl + '/api/admin/delete-rating', {ratingId}, {headers: {aToken}})
+        const { data } = await axios.post(backendUrl + '/api/admin/delete-rating', {ratingId}, { headers: adminHeaders })
         if(data.success) {
           toast.success(data.message)
           await getAllDoctors()
@@ -882,7 +909,7 @@ const AdminContextProvider = (props) => {
     
 
     const value = {
-       aToken, setAToken,
+       aToken, setAToken: persistAToken,
        adminNavSummary, refreshAdminNavSummary,
        backendUrl, doctors,
        getAllDoctors, 

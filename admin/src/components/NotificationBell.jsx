@@ -7,6 +7,7 @@ import { DoctorContext } from '../context/DoctorContext'
 import { ReceptionistContext } from '../context/ReceptionistContext'
 import { useLanguage } from '../i18n'
 import { resolveBackendUrl } from '../utils/resolveBackendUrl'
+import { buildStaffAuthHeaders } from '../utils/staffAuthHeaders'
 
 const REFRESH_EVENT = 'clinic:notifications-refresh'
 
@@ -30,12 +31,10 @@ const NotificationBell = () => {
 
   const backendUrl = resolveBackendUrl()
 
-  const authHeaders = useMemo(() => {
-    if (aToken) return { atoken: aToken }
-    if (dToken) return { dtoken: dToken }
-    if (rToken) return { rtoken: rToken }
-    return null
-  }, [aToken, dToken, rToken])
+  const authHeaders = useMemo(
+    () => buildStaffAuthHeaders({ aToken, dToken, rToken }),
+    [aToken, dToken, rToken]
+  )
 
   const [open, setOpen] = useState(false)
   const [unread, setUnread] = useState(0)

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { localizeWesternDigits } from "./utils/arabicNumerals.js";
 import {
   DEFAULT_ROLE_LANGUAGE_POLICY,
@@ -791,24 +791,32 @@ export const LanguageProvider = ({ children }) => {
     resolveLanguageForPolicy(getStoredLanguage(), DEFAULT_ROLE_LANGUAGE_POLICY)
   );
 
-  const setLanguagePolicy = (nextPolicy) => {
-    setLanguagePolicyState(normalizeRoleLanguagePolicy(nextPolicy));
-  };
+  const setLanguagePolicy = useCallback((nextPolicy) => {
+    setLanguagePolicyState((prev) => {
+      const normalized = normalizeRoleLanguagePolicy(nextPolicy);
+      if (prev.en === normalized.en && prev.ar === normalized.ar) return prev;
+      return normalized;
+    });
+  }, []);
 
-  const setLanguage = (nextLanguage) => {
+  const setLanguage = useCallback((nextLanguage) => {
     const safeLanguage = nextLanguage === "ar" ? "ar" : "en";
-    if (!allowedLanguages.includes(safeLanguage)) return;
-    localStorage.setItem(STORAGE_KEY, safeLanguage);
-    setLanguageState(safeLanguage);
-  };
+    setLanguageState((prev) => {
+      const allowed = getAllowedLanguagesFromPolicy(languagePolicy);
+      if (!allowed.includes(safeLanguage) || prev === safeLanguage) return prev;
+      localStorage.setItem(STORAGE_KEY, safeLanguage);
+      return safeLanguage;
+    });
+  }, [languagePolicy]);
 
   useEffect(() => {
     const resolved = resolveLanguageForPolicy(getStoredLanguage(), languagePolicy);
-    if (resolved !== language) {
+    setLanguageState((prev) => {
+      if (resolved === prev) return prev;
       localStorage.setItem(STORAGE_KEY, resolved);
-      setLanguageState(resolved);
-    }
-  }, [languagePolicy, allowedLanguages, language]);
+      return resolved;
+    });
+  }, [languagePolicy, allowedLanguages]);
 
   const value = useMemo(() => {
     const direction = LANGUAGES[language].dir;
@@ -830,7 +838,7 @@ export const LanguageProvider = ({ children }) => {
       tc: (content) => translateContent(content, language),
       localizeDigits: (v) => localizeWesternDigits(v, language),
     };
-  }, [language, languagePolicy, allowedLanguages]);
+  }, [language, languagePolicy, allowedLanguages, setLanguage, setLanguagePolicy]);
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -888,7 +896,11 @@ export const LanguagePolicySync = ({ policy }) => {
   const { setLanguagePolicy } = useLanguage();
   const en = policy?.en;
   const ar = policy?.ar;
+  const lastAppliedRef = useRef(null);
   useEffect(() => {
+    const key = `${en === true ? 1 : 0}:${ar === true ? 1 : 0}`;
+    if (lastAppliedRef.current === key) return;
+    lastAppliedRef.current = key;
     setLanguagePolicy({ en, ar });
   }, [en, ar, setLanguagePolicy]);
   return null;
