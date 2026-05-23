@@ -1,3 +1,8 @@
+import {
+  getStaticDoctorAboutAr,
+  isKnownDoctorAboutEn,
+} from '../data/doctorAboutEnToAr.js'
+
 const hasArabic = (s) => /[\u0600-\u06FF]/.test(String(s || ''))
 const hasLatinLetters = (s) => /[A-Za-z]/.test(String(s || ''))
 
@@ -9,7 +14,7 @@ export const collectDoctorAboutTextsNeedingTranslate = (doctors = [], targetLang
   for (const d of doctors) {
     const about = String(d?.about || '').trim()
     if (!about) continue
-    if (targetLang === 'ar' && hasLatinLetters(about)) set.add(about)
+    if (targetLang === 'ar' && hasLatinLetters(about) && !isKnownDoctorAboutEn(about)) set.add(about)
     if (targetLang === 'en' && hasArabic(about)) set.add(about)
   }
   return [...set]
@@ -21,10 +26,22 @@ export const collectDoctorAboutTextsNeedingTranslate = (doctors = [], targetLang
  * @param {Record<string, string>} overrides map original → translated from `/api/user/translate-texts`
  */
 export const getTranslatedDoctorAbout = (raw, language, overrides = {}) => {
-  const s = String(raw || '')
-  if (!s.trim()) return ''
-  if (overrides[s]) return overrides[s]
-  if (language === 'ar' && hasLatinLetters(s)) return overrides[s] || s
-  if (language === 'en' && hasArabic(s)) return overrides[s] || s
+  const s = String(raw || '').trim()
+  if (!s) return ''
+
+  if (language === 'ar') {
+    const staticAr = getStaticDoctorAboutAr(s)
+    if (staticAr) return staticAr
+    if (overrides[s]) return overrides[s]
+    if (hasLatinLetters(s)) return overrides[s] || s
+    return s
+  }
+
+  if (language === 'en') {
+    if (overrides[s]) return overrides[s]
+    if (hasArabic(s)) return overrides[s] || s
+    return s
+  }
+
   return s
 }
