@@ -14,9 +14,13 @@ const isServerless = Boolean(process.env.VERCEL);
 
 export const MONGODB_URI_MISSING_MESSAGE = 'MONGODB_URI is not set';
 
+export const MONGODB_URI_MISSING_VERCEL_MESSAGE = 'MONGODB_URI is not configured on the server';
+
 export function getMongoUriOrThrow() {
    const uri = process.env.MONGODB_URI?.trim();
-   if (!uri) throw new Error(MONGODB_URI_MISSING_MESSAGE);
+   if (!uri) {
+      throw new Error(isServerless ? MONGODB_URI_MISSING_VERCEL_MESSAGE : MONGODB_URI_MISSING_MESSAGE);
+   }
    return uri;
 }
 

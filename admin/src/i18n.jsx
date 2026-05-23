@@ -704,6 +704,14 @@ const ar = {
     "لم يُسجَّل تأمين بعد. يمكن إضافته عند الحجز أو من أدوات المريض إن وُجدت.",
   "Medical record": "سجل طبي",
   "Social History": "التاريخ الاجتماعي",
+  "Database not configured on server": "قاعدة البيانات غير مهيأة على الخادم",
+  "Backend Vercel MONGODB_URI hint":
+    "في مشروع Vercel للخادم (Backend — clinic-sys-eight)، أضف متغير البيئة MONGODB_URI برابط MongoDB Atlas، ثم أعد النشر. تأكد أن Atlas يسمح بالوصول من 0.0.0.0/0.",
+  "API database not configured hint":
+    "قاعدة البيانات غير مهيأة على الخادم. أضف MONGODB_URI في مشروع Vercel للـ Backend وأعد النشر.",
+  "Database connection failed": "فشل الاتصال بقاعدة البيانات",
+  "API request timed out": "انتهت مهلة طلب الخادم",
+  "Network Error": "خطأ في الشبكة",
 };
 
 const dictionaries = { en: {}, ar };

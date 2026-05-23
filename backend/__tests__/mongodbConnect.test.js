@@ -18,14 +18,16 @@ describe('mongodb connect config', () => {
   it('throws on Vercel when MONGODB_URI is missing', async () => {
     delete process.env.MONGODB_URI
     process.env.VERCEL = '1'
-    const { getMongoUriOrThrow, MONGODB_URI_MISSING_MESSAGE } = await import('../config/mongodb.js')
-    expect(() => getMongoUriOrThrow()).toThrow(MONGODB_URI_MISSING_MESSAGE)
+    const { getMongoUriOrThrow, MONGODB_URI_MISSING_VERCEL_MESSAGE } = await import(
+      '../config/mongodb.js'
+    )
+    expect(() => getMongoUriOrThrow()).toThrow(MONGODB_URI_MISSING_VERCEL_MESSAGE)
   })
 
   it('returns trimmed URI when set', async () => {
     process.env.MONGODB_URI = '  mongodb://localhost:27017/test  '
     delete process.env.VERCEL
-    const { getMongoUriOrThrow } = await import('../config/mongodb.js')
-    expect(getMongoUriOrThrow()).toBe('mongodb://localhost:27017/test')
+    const mod = await import('../config/mongodb.js')
+    expect(mod.getMongoUriOrThrow()).toBe('mongodb://localhost:27017/test')
   })
 })

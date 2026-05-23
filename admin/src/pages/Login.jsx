@@ -13,6 +13,7 @@ import { assets } from '../assets/assets'
 import { staffLoginLogoClassName } from '../utils/brandingLogo'
 import { DEFAULT_APP_DISPLAY_NAME } from '../utils/appDisplayName'
 import { shouldShowMobileApiHint } from '../utils/resolveBackendUrl'
+import { getApiErrorMessage, isDatabaseConfig503 } from '../utils/apiErrorMessage'
 
 const Login = () => {
   
@@ -26,7 +27,7 @@ const Login = () => {
   const [mfaToken, setMfaToken] = useState('')
   const [mfaCode, setMfaCode] = useState('')
   const [mfaSetup, setMfaSetup] = useState(null)
-  const [apiStatus, setApiStatus] = useState('checking')
+  const [apiStatus, setApiStatus] = useState('checking') // checking | ok | error | db_error
 
   const {setAToken, backendUrl, siteSettings} = useContext(AdminContext)
   const {setDToken} = useContext(DoctorContext)
@@ -42,12 +43,13 @@ const Login = () => {
     let cancelled = false
     setApiStatus('checking')
     axios
-      .get(`${backendUrl}/`, { timeout: 8000 })
+      .get(`${backendUrl}/api/user/site-settings`, { timeout: 15_000 })
       .then(() => {
         if (!cancelled) setApiStatus('ok')
       })
-      .catch(() => {
-        if (!cancelled) setApiStatus('error')
+      .catch((error) => {
+        if (cancelled) return
+        setApiStatus(isDatabaseConfig503(error) ? 'db_error' : 'error')
       })
     return () => {
       cancelled = true
@@ -184,7 +186,7 @@ const Login = () => {
      }
     } catch (error) {
       const msg = error?.response?.data?.message || error?.message || 'Network Error'
-      toast.error(msg)
+      toast.error(isDatabaseConfig503(error) ? getApiErrorMessage(error, t) : msg)
     }
   }
 
@@ -216,6 +218,18 @@ const Login = () => {
           <p className='w-full rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500'>
             {t('Connecting to server...')}
           </p>
+        )}
+        {apiStatus === 'db_error' && (
+          <div className='w-full rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-xs text-red-900'>
+            <p className='flex items-start gap-2 font-semibold'>
+              <AlertCircle className='mt-0.5 h-4 w-4 shrink-0' />
+              {t('Database not configured on server')}
+            </p>
+            <p className='mt-2 leading-relaxed'>
+              {t('Backend Vercel MONGODB_URI hint')}
+            </p>
+            <p className='mt-2 font-mono text-[11px] break-all opacity-80'>{backendUrl}/api</p>
+          </div>
         )}
         {apiStatus === 'error' && (
           <div className='w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900'>

@@ -3,6 +3,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import { readCachedPublicSiteSettings, writeCachedPublicSiteSettings } from '../utils/siteSettingsCache'
 import { resolveBackendUrl } from '../utils/resolveBackendUrl'
+import { getApiErrorMessage, isDatabaseConfig503 } from '../utils/apiErrorMessage'
 
 export const AdminContext = createContext()
 
@@ -12,7 +13,15 @@ const fetchPublicSiteSettings = (backendUrl) => {
     publicSiteSettingsInflight = axios
       .get(`${backendUrl}/api/user/site-settings`)
       .catch((error) => {
-        console.log(error)
+        console.error(error)
+        if (isDatabaseConfig503(error)) {
+          toast.error(
+            'Server database is not configured. Add MONGODB_URI to the backend Vercel project (clinic-sys-eight) and redeploy.',
+            { toastId: 'api-db-config' }
+          )
+        } else if (error?.response?.status === 503) {
+          toast.error(getApiErrorMessage(error), { toastId: 'api-db-503' })
+        }
         return { data: { success: false } }
       })
       .finally(() => {
