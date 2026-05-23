@@ -1,5 +1,6 @@
 export const CHAT_STEPS = {
   WAITING_SYMPTOMS: 'waiting_for_symptoms',
+  SUGGESTING_ALTERNATIVES: 'suggesting_alternatives',
   CLARIFY_AUDIENCE: 'clarifying_audience',
   SHOWING_DOCTORS: 'showing_doctors',
   WAITING_APPOINTMENT_TYPE: 'waiting_for_appointment_type',

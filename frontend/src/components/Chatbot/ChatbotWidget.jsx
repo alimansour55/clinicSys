@@ -43,6 +43,10 @@ import {
   buildFallbackOpeningSuggestions
 } from '../../utils/chatbotOpeningSuggestions'
 import {
+  buildEmptySpecialtyGuidance,
+  specialtyToClinicName
+} from '../../utils/chatbotEmptySpecialty'
+import {
   captureChatSnapshot,
   canGoBack as navCanGoBack,
   canShowNavControls,
@@ -432,6 +436,38 @@ const ChatbotWidget = () => {
     return []
   }
 
+  const showNoDoctorsGuidance = (emptyClinicName, emptyClinicId = null, messageOverride = '') => {
+    const guidance = buildEmptySpecialtyGuidance({
+      doctors,
+      clinics,
+      emptyClinicName,
+      emptyClinicId,
+      language: chatLang,
+      t,
+      tc,
+      placeTranslationOverrides,
+      messageOverride
+    })
+
+    setMatchedDoctors([])
+    setChatStep(CHAT_STEPS.SUGGESTING_ALTERNATIVES)
+
+    if (guidance.suggestions.length) {
+      setQuickReplies(guidance.suggestions)
+      pushBot(guidance.message)
+      return
+    }
+
+    pushBot(
+      L(
+        `${guidance.message}\n\nPlease try again later or contact the clinic.`,
+        `${guidance.message}\n\nحاول مرة أخرى لاحقاً أو تواصل مع العيادة.`
+      )
+    )
+    setQuickReplies(fallbackQuickReplies())
+    setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
+  }
+
   const showDoctorsForSpecialty = async (specialty, symptomsText, options = {}) => {
     if (!options.skipHistory) pushHistory()
     const source = await resolveDoctorsList()
@@ -447,26 +483,8 @@ const ChatbotWidget = () => {
 
     let list = filterDoctorsBySpecialty(source, specialty)
 
-    if (!list.length && specialty !== SPECIALTY_IDS.GENERAL) {
-      pushBot(
-        L(
-          'I could not find doctors for this specialty. I can show you general physicians instead.',
-          'مش لاقي دكاترة في التخصص ده حالياً. أقدر أعرض عليك أطباء عامين بدل ذلك.'
-        )
-      )
-      list = filterDoctorsBySpecialty(source, SPECIALTY_IDS.GENERAL)
-      specialty = SPECIALTY_IDS.GENERAL
-    }
-
     if (!list.length) {
-      pushBot(
-        L(
-          'No doctors are available for booking right now. Please try again later.',
-          'لا يوجد أطباء متاحين للحجز حالياً. حاول مرة أخرى لاحقاً.'
-        )
-      )
-      setMatchedDoctors([])
-      setQuickReplies(fallbackQuickReplies())
+      showNoDoctorsGuidance(specialtyToClinicName(specialty))
       return
     }
 
@@ -551,13 +569,7 @@ const ChatbotWidget = () => {
     )
 
     if (!list.length) {
-      pushBot(
-        L(
-          'No doctors are available in this clinic section right now.',
-          'مفيش دكاترة متاحين في قسم العيادة ده حالياً.'
-        )
-      )
-      setQuickReplies(fallbackQuickReplies())
+      showNoDoctorsGuidance(clinicName, clinicId)
       return
     }
 
@@ -587,13 +599,14 @@ const ChatbotWidget = () => {
     }
 
     if (!list.length) {
-      pushBot(
+      showNoDoctorsGuidance(
+        '',
+        null,
         L(
-          'No doctors are available for this service right now.',
-          'مفيش دكاترة متاحين للخدمة دي حالياً.'
+          'No doctors are available for this service right now. Here are other options:',
+          'لا يوجد أطباء متاحين لهذه الخدمة حالياً. إليك خيارات أخرى:'
         )
       )
-      setQuickReplies(fallbackQuickReplies())
       return
     }
 
@@ -1215,6 +1228,39 @@ const ChatbotWidget = () => {
                   onChoose={chooseDoctor}
                 />
               ))}
+            </div>
+          )}
+
+          {quickReplies.length > 0 && chatStep === CHAT_STEPS.SUGGESTING_ALTERNATIVES && (
+            <div className="space-y-2.5 rounded-xl border border-amber-100 bg-gradient-to-b from-amber-50 to-white p-3 shadow-sm">
+              <p className="text-xs font-bold text-amber-900">
+                {L('Suggested options', 'خيارات مقترحة')}
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {quickReplies.map((q) => (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => handleQuickReply(q)}
+                    className={`rounded-xl border px-3 py-3 text-left text-xs font-semibold leading-snug shadow-sm transition ${
+                      q.isFallback
+                        ? 'border-primary bg-primary text-white hover:bg-primary/90'
+                        : 'border-emerald-200 bg-white text-emerald-900 hover:border-emerald-400'
+                    }`}
+                  >
+                    <span className="block">{q.label}</span>
+                    {q.isFallback && (
+                      <span
+                        className={`mt-1 block text-[10px] font-medium ${
+                          q.isFallback ? 'text-white/90' : 'text-gray-500'
+                        }`}
+                      >
+                        {L('Initial evaluation', 'للتقييم المبدئي')}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

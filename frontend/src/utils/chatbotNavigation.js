@@ -50,6 +50,7 @@ export const getChangeSelectionStep = (step) => {
       return CHAT_STEPS.SHOWING_DOCTORS
     case CHAT_STEPS.SHOWING_DOCTORS:
     case CHAT_STEPS.CLARIFY_AUDIENCE:
+    case CHAT_STEPS.SUGGESTING_ALTERNATIVES:
       return CHAT_STEPS.WAITING_SYMPTOMS
     default:
       return CHAT_STEPS.WAITING_SYMPTOMS
