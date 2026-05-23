@@ -22,6 +22,7 @@ import ResetPassword from './pages/ResetPassword'
 import MedicalHistory from './pages/MedicalHistory'
 import Insurance from './pages/Insurance'
 import { LanguageDomSync, LanguagePolicySync } from './i18n'
+import ChatbotWidget from './components/Chatbot/ChatbotWidget'
 
 const App = () => {
   const { siteSettings } = useContext(AppContext)
@@ -58,6 +59,7 @@ const App = () => {
         <Route path='/appointment/:docId' element={<Appointment />} />
       </Routes>
       <Footer />
+      <ChatbotWidget />
     </div>
   )
 }

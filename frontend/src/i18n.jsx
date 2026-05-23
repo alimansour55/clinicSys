@@ -450,6 +450,27 @@ const ar = {
   [DEFAULT_FOOTER_COPYRIGHT]: `حقوق النشر © ${DEFAULT_APP_DISPLAY_NAME} - جميع الحقوق محفوظة.`,
   [`${DEFAULT_APP_DISPLAY_NAME} logo`]: `شعار ${DEFAULT_APP_DISPLAY_NAME}`,
   Clinivo: "Clinivo",
+  "Booking assistant": "مساعد الحجز",
+  "Chat with us to book": "تحدث معنا للحجز",
+  "Type your symptoms or question...": "اكتب أعراضك أو سؤالك...",
+  "Send message": "إرسال الرسالة",
+  "Close chat": "إغلاق المحادثة",
+  "Open booking assistant": "فتح مساعد الحجز",
+  "Assistant is typing": "المساعد يكتب",
+  "Book this doctor": "احجز مع هذا الطبيب",
+  "Available times": "الأوقات المتاحة",
+  "Confirm booking": "تأكيد الحجز",
+  "Your name": "اسمك",
+  "Your phone": "رقم هاتفك",
+  "Reason for visit": "سبب الزيارة",
+  "Booking confirmed": "تم تأكيد الحجز",
+  "Reservation number": "رقم الحجز",
+  "Please log in to complete booking": "يرجى تسجيل الدخول لإتمام الحجز",
+  "Select a clinic branch": "اختر فرع العيادة",
+  "Chat welcome":
+    "مرحباً! أنا مساعد الحجز. صف أعراضك وسأساعدك في اختيار التخصص المناسب وحجز موعد. لست طبيباً — الطبيب يقرر التشخيص بعد الكشف.",
+  "Chat welcome en":
+    "Hello! I'm your booking assistant. Tell me your symptoms and I'll help you choose the right specialty and book an appointment. I'm not a doctor — your doctor makes the final decision after your visit.",
 };
 
 const dictionaries = { en: {}, ar };

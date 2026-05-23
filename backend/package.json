@@ -27,6 +27,7 @@
     "multer": "^2.0.2",
     "nodemailer": "^7.0.12",
     "nodemon": "^3.1.11",
+    "openai": "^4.104.0",
     "pdfkit": "^0.18.0",
     "stripe": "^22.1.1",
     "validator": "^13.15.23"

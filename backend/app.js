@@ -9,6 +9,7 @@ import userRouter from './routes/userRoute.js'
 import receptionistRouter from './routes/receptionistRoute.js'
 import auditLogRouter from './routes/auditLogRoute.js'
 import notificationRouter from './routes/notificationRoute.js'
+import chatbotRouter from './routes/chatbotRoute.js'
 
 /** Express app without listen/DB — used by server.js and integration tests. */
 export function createApp() {
@@ -39,6 +40,7 @@ export function createApp() {
   app.use('/api/receptionist', receptionistRouter)
   app.use('/api/audit-logs', auditLogRouter)
   app.use('/api/notifications', notificationRouter)
+  app.use('/api/chatbot', chatbotRouter)
 
   app.get('/', (req, res) => {
     res.send('API WORKING')
