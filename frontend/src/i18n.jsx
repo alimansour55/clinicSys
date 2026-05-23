@@ -464,7 +464,7 @@ const ar = {
   "Send message": "إرسال الرسالة",
   "Close chat": "إغلاق المحادثة",
   "Open booking assistant": "فتح مساعد Clinivo الذكي",
-  "Clinic Assistant": "مساعد Clinivo الذكي",
+  "Clinic Assistant": "مساعد الحجز الطبي",
   "Assistant is typing": "المساعد يكتب",
   "Book this doctor": "احجز مع هذا الطبيب",
   "Available times": "الأوقات المتاحة",
