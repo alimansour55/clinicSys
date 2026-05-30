@@ -11,6 +11,7 @@ import { isDoctorComingSoon } from "../utils/doctorBooking";
 import { doctorBelongsToClinicSection } from "../utils/doctorClinicPlaces";
 import { useMediaQuery } from "../utils/useMediaQuery";
 import { toast } from "react-toastify";
+import { ClinicChipSkeleton, DoctorCardSkeleton } from "./DoctorCatalogSkeleton";
 
 const DOCTORS_PER_MOBILE_PAGE = 4;
 const DESKTOP_SCROLL_COLUMNS = 5;
@@ -19,7 +20,21 @@ const SpecialityMenu = () => {
   const navigate = useNavigate();
   const doctorsRef = useRef(null);
   const clinicsRef = useRef(null);
-  const { doctors, clinics, siteSettings, t, tc, formatMoney, language, displayPersonName, placeTranslationOverrides, localizeDigits } = useContext(AppContext);
+  const {
+    doctors,
+    clinics,
+    isDoctorsLoading,
+    isClinicsLoading,
+    siteSettings,
+    t,
+    tc,
+    formatMoney,
+    language,
+    displayPersonName,
+    placeTranslationOverrides,
+    localizeDigits,
+  } = useContext(AppContext);
+  const catalogLoading = isDoctorsLoading || isClinicsLoading;
   const [selectedSection, setSelectedSection] = useState({ name: "All Specialities", id: null });
   const isMobile = useMediaQuery("(max-width: 1023px)");
 
@@ -264,7 +279,10 @@ const SpecialityMenu = () => {
                 {formatDoctorCountLabel(getClinicDoctorCount("All Specialities"), language, localizeDigits)}
               </span>
             </button>
-            {activeClinics.length ? activeClinics.map((clinic) => {
+            {isClinicsLoading ? (
+              <ClinicChipSkeleton count={4} />
+            ) : activeClinics.length ? (
+              activeClinics.map((clinic) => {
               const isActive = selectedSection.name === clinic.name;
               const count = getClinicDoctorCount(clinic.name, clinic.id);
 
@@ -287,13 +305,18 @@ const SpecialityMenu = () => {
                   </span>
                 </button>
               );
-            }) : (
+            })
+            ) : (
               <span className="col-span-2 rounded-xl border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 sm:col-span-1">{t("No clinics added yet")}</span>
             )}
           </div>
         </div>
 
-        {visibleDoctors.length > 0 ? (
+        {catalogLoading ? (
+          <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-2 sm:p-3">
+            <DoctorCardSkeleton count={isMobile ? 4 : 6} />
+          </div>
+        ) : visibleDoctors.length > 0 ? (
           <div
             className={
               isMobile

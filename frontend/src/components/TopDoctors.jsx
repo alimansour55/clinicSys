@@ -6,6 +6,7 @@ import PromoOfferBadge from './PromoOfferBadge'
 import { MapPin } from 'lucide-react'
 import { formatLocationLine } from '../utils/placeTranslations'
 import { isDoctorBookableForPatients, isDoctorComingSoon } from '../utils/doctorBooking'
+import { DoctorCardSkeleton } from './DoctorCatalogSkeleton'
 
 const sortDoctorsForTopSection = (list = []) =>
   [...list].sort((a, b) => {
@@ -23,7 +24,7 @@ const sortDoctorsForTopSection = (list = []) =>
 const TopDoctors = () => {
 
    const navigate = useNavigate()
-   const { doctors, t, tc, formatMoney, language, displayPersonName, placeTranslationOverrides } = useContext(AppContext)
+   const { doctors, isDoctorsLoading, t, tc, formatMoney, language, displayPersonName, placeTranslationOverrides } = useContext(AppContext)
    const topDoctors = useMemo(
      () => sortDoctorsForTopSection(doctors).slice(0, 4),
      [doctors]
@@ -53,7 +54,11 @@ const TopDoctors = () => {
       </div>
 
       {/* Mobile: 2×2 (max 4). Desktop: up to 4 in a wider row */}
-      <div className='mx-auto grid w-full max-w-lg grid-cols-2 gap-3 px-3 sm:max-w-3xl sm:gap-4 sm:px-0 lg:max-w-5xl lg:grid-cols-4'>
+      <div className='mx-auto w-full max-w-lg px-3 sm:max-w-3xl sm:px-0 lg:max-w-5xl'>
+        {isDoctorsLoading ? (
+          <DoctorCardSkeleton count={4} />
+        ) : (
+        <div className='grid w-full grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4'>
         {topDoctors.map((item) => (
             <button
               type='button'
@@ -86,6 +91,8 @@ const TopDoctors = () => {
                </div>
             </button>
         ))}
+        </div>
+        )}
       </div>
 
       {/* Responsive Button */}

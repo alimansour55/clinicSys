@@ -17,6 +17,7 @@ import {
 import { extractMainPlaceFromLocation, placeFilterKey } from '../utils/placeTranslations'
 import { formatSlotsThisWeekLabel } from '../utils/arabicMedicalUi'
 import { useMediaQuery } from '../utils/useMediaQuery'
+import { DoctorListSkeleton } from '../components/DoctorCatalogSkeleton'
 
 const MOBILE_PAGE_SIZE = 10
 
@@ -34,11 +35,7 @@ const Doctors = () => {
   const isMobile = useMediaQuery('(max-width: 1023px)')
   const doctorsListRef = useRef(null)
 
-  const { token, doctors, getDoctorsData, t, tc, formatMoney, displayPersonName, language, placeTranslationOverrides, localizeDigits } = useContext(AppContext)
-
-  useEffect(() => {
-    getDoctorsData()
-  }, [])
+  const { token, doctors, isDoctorsLoading, t, tc, formatMoney, displayPersonName, language, placeTranslationOverrides, localizeDigits } = useContext(AppContext)
 
   useEffect(() => {
     if (!showFilter) return undefined
@@ -649,6 +646,9 @@ const Doctors = () => {
             </div>
           </div>
 
+          {isDoctorsLoading ? (
+            <DoctorListSkeleton count={isMobile ? 6 : 8} isMobile={isMobile} />
+          ) : (
           <div className={`grid gap-3 sm:gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-[repeat(auto-fill,minmax(166px,188px))] justify-center sm:justify-start'}`}>
             {displayedDoctors.length > 0 ? (
               displayedDoctors.map((item, index) => renderDoctorCard(item, index))
@@ -669,6 +669,7 @@ const Doctors = () => {
               </div>
             )}
           </div>
+          )}
 
           {isMobile && totalMobilePages > 1 && (
             <nav className='mt-6 flex flex-wrap items-center justify-center gap-2' aria-label={t('Page')}>

@@ -3,6 +3,12 @@ import axios from 'axios'
 import { toast } from "react-toastify";
 import { useLanguage } from "../i18n";
 import { readCachedPublicSiteSettings, writeCachedPublicSiteSettings } from "../utils/siteSettingsCache";
+import {
+  readCachedPublicClinics,
+  readCachedPublicDoctors,
+  writeCachedPublicClinics,
+  writeCachedPublicDoctors,
+} from "../utils/publicCatalogCache";
 import { displayPersonName as displayPersonNameAr } from '../utils/personNameArabic.js'
 import { collectPlaceStringsNeedingTranslate } from '../utils/placeTranslations.js'
 import { collectDoctorAboutTextsNeedingTranslate } from '../utils/doctorAboutTranslate.js'
@@ -18,8 +24,10 @@ const AppContextProvider = (props) => {
   const currencySymbol = language === 'ar' ? 'ج.م ' : 'EGP '
   const formatMoney = (amount) => formatMoneyAmount(amount, language, localizeDigits)
   
-  const [doctors, setDoctors] = useState([])
-  const [clinics, setClinics] = useState([])
+  const [doctors, setDoctors] = useState(() => readCachedPublicDoctors() || [])
+  const [clinics, setClinics] = useState(() => readCachedPublicClinics() || [])
+  const [isDoctorsLoading, setIsDoctorsLoading] = useState(() => !(readCachedPublicDoctors()?.length))
+  const [isClinicsLoading, setIsClinicsLoading] = useState(() => !(readCachedPublicClinics()?.length))
   const [token, setToken] = useState(localStorage.getItem('token') ? localStorage.getItem('token') : false)
   const [userData, setUserData] = useState(false)
   const [appointments, setAppointments] = useState([])
@@ -69,40 +77,58 @@ const AppContextProvider = (props) => {
 
   
   // DOCTORS API 
-  const getDoctorsData = async () => {
+  const getDoctorsData = async ({ background = false } = {}) => {
+    if (!background && doctors.length === 0) {
+      setIsDoctorsLoading(true)
+    }
     try {
       const { data } = await axios.get(backendUrl + '/api/doctor/list', {
         params: { _t: Date.now() }
       })
       if (data.success) {
         const list = Array.isArray(data.doctors) ? data.doctors : []
-        setDoctors(list.map((doctor) => ({
+        const normalized = list.map((doctor) => ({
           ...doctor,
           available: doctor?.available !== false,
           patientBookable: typeof doctor?.patientBookable === 'boolean'
             ? doctor.patientBookable
             : undefined
-        })))
+        }))
+        setDoctors(normalized)
+        writeCachedPublicDoctors(normalized)
       } else {
         toast.error(data.message)
       }
     } catch (error) {
       console.log(error)
-      toast.error(error.message)
+      if (!background || doctors.length === 0) {
+        toast.error(error.message)
+      }
+    } finally {
+      setIsDoctorsLoading(false)
     }
   }
 
-  const getClinicsData = async () => {
+  const getClinicsData = async ({ background = false } = {}) => {
+    if (!background && clinics.length === 0) {
+      setIsClinicsLoading(true)
+    }
     try {
       const { data } = await axios.get(backendUrl + '/api/doctor/clinics')
       if (data.success) {
-        setClinics(data.clinics)
+        const list = Array.isArray(data.clinics) ? data.clinics : []
+        setClinics(list)
+        writeCachedPublicClinics(list)
       } else {
         toast.error(data.message)
       }
     } catch (error) {
       console.log(error)
-      toast.error(error.message)
+      if (!background || clinics.length === 0) {
+        toast.error(error.message)
+      }
+    } finally {
+      setIsClinicsLoading(false)
     }
   }
 
@@ -461,6 +487,8 @@ const AppContextProvider = (props) => {
     // State
     doctors,
     clinics,
+    isDoctorsLoading,
+    isClinicsLoading,
     token,
     setToken,
     userData,
@@ -518,7 +546,7 @@ const AppContextProvider = (props) => {
 
   useEffect(() => {
     const refreshDoctors = () => {
-      if (document.visibilityState === 'visible') getDoctorsData()
+      if (document.visibilityState === 'visible') getDoctorsData({ background: true })
     }
     window.addEventListener('focus', refreshDoctors)
     document.addEventListener('visibilitychange', refreshDoctors)
