@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600">
+  <rect width="1000" height="600" fill="white"/>
+  <text x="500" y="30" text-anchor="middle" font-family="Arial" font-size="18" font-weight="bold">Package Diagram - Clinivo Architecture</text>
+  <rect x="40" y="60" width="200" height="180" fill="#e3f2fd" stroke="#1565c0"/>
+  <text x="140" y="85" text-anchor="middle" font-weight="bold">Patient Portal</text>
+  <text x="50" y="110" font-size="11">React + Vite :5173</text>
+  <rect x="40" y="280" width="200" height="180" fill="#e8eaf6" stroke="#3949ab"/>
+  <text x="140" y="305" text-anchor="middle" font-weight="bold">Staff Panel</text>
+  <text x="50" y="330" font-size="11">React + Vite :5174</text>
+  <rect x="320" y="170" width="220" height="180" fill="#fff3e0" stroke="#e65100"/>
+  <text x="430" y="195" text-anchor="middle" font-weight="bold">Backend API</text>
+  <text x="330" y="220" font-size="11">Express 5 :4000</text>
+  <text x="330" y="240" font-size="11">JWT + RBAC</text>
+  <rect x="620" y="120" width="180" height="100" fill="#e8f5e9" stroke="#2e7d32"/>
+  <text x="710" y="145" text-anchor="middle" font-weight="bold">MongoDB</text>
+  <rect x="620" y="260" width="180" height="140" fill="#fce4ec" stroke="#c2185b"/>
+  <text x="710" y="285" text-anchor="middle" font-weight="bold">External</text>
+  <text x="630" y="310" font-size="11">Stripe, Cloudinary</text>
+  <text x="630" y="330" font-size="11">Email, Twilio, Jitsi</text>
+  <line x1="240" y1="150" x2="320" y2="230" stroke="#333" marker-end="url(#a)"/>
+  <line x1="240" y1="370" x2="320" y2="290" stroke="#333"/>
+  <line x1="540" y1="230" x2="620" y2="170" stroke="#333"/>
+  <line x1="540" y1="290" x2="620" y2="310" stroke="#333"/>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#333"/></marker></defs>
+</svg>

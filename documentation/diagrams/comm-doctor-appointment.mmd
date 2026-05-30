@@ -1,0 +1,10 @@
+flowchart LR
+    Doctor -->|1: view appointments| AdminPanel
+    AdminPanel -->|2: GET /api/doctor/appointments| Backend
+    Backend -->|3: fetch| Database[(MongoDB)]
+    Doctor -->|4: view patient history| AdminPanel
+    AdminPanel -->|5: GET /api/doctor/patient-history| Backend
+    Doctor -->|6: add prescription| AdminPanel
+    AdminPanel -->|7: POST /api/doctor/complete-appointment| Backend
+    Backend -->|8: save prescription & update status| Database
+    Backend -->|9: completed| AdminPanel

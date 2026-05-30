@@ -1,0 +1,47 @@
+flowchart TB
+    subgraph Patient
+        P1[Register Account]
+        P2[Login]
+        P3[Update Profile]
+        P4[Manage Medical History]
+        P5[Browse Doctors]
+        P6[Book Appointment]
+        P7[View Appointments]
+        P8[Cancel Appointment]
+        P9[View Prescriptions]
+        P10[Make Payment]
+    end
+
+    subgraph Doctor
+        D1[Login]
+        D2[Set Availability]
+        D3[View Appointments]
+        D4[View Patient Info]
+        D5[Update Medical History]
+        D6[Add Prescription]
+        D7[Complete Appointment]
+    end
+
+    subgraph Receptionist
+        R1[Login]
+        R2[Check In Patient]
+        R3[Update Appointment Status]
+        R4[Process Payment]
+        R5[Book Appointment]
+    end
+
+    subgraph Admin
+        A1[Login]
+        A2[Register Doctor]
+        A3[Assign Clinics]
+        A4[View Analytics]
+        A5[Manage Users]
+        A6[Configure Site CMS]
+    end
+
+    CMS((Clinic Management System))
+
+    P1 & P2 & P3 & P4 & P5 & P6 & P7 & P8 & P9 & P10 --> CMS
+    D1 & D2 & D3 & D4 & D5 & D6 & D7 --> CMS
+    R1 & R2 & R3 & R4 & R5 --> CMS
+    A1 & A2 & A3 & A4 & A5 & A6 --> CMS

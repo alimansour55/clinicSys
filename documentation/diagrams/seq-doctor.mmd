@@ -1,0 +1,33 @@
+sequenceDiagram
+    participant D as Doctor
+    participant AP as Staff Panel
+    participant BE as Backend API
+    participant DB as MongoDB
+
+    Note over D,DB: Login
+    D->>AP: Enter credentials
+    AP->>BE: POST /api/doctor/login
+    BE->>DB: Validate doctor
+    BE-->>AP: JWT token (dtoken)
+
+    Note over D,DB: Set Available Time
+    D->>AP: Configure schedule
+    AP->>BE: Admin updates via /api/admin/change-availability
+    BE->>DB: Save schedule & slots
+
+    Note over D,DB: View Appointments
+    D->>AP: Open appointments
+    AP->>BE: GET /api/doctor/appointments
+    BE->>DB: Query appointments
+    BE-->>AP: Appointment list
+
+    Note over D,DB: Update Patient Medical History
+    D->>AP: Edit medical history
+    AP->>BE: POST /api/doctor/patient-medical-history
+    BE->>DB: Update patient record
+
+    Note over D,DB: Add Medication & Complete
+    D->>AP: Add prescription details
+    AP->>BE: POST /api/doctor/complete-appointment
+    BE->>DB: Save prescription & mark Finished
+    BE-->>AP: Success

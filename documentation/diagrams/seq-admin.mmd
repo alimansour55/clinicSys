@@ -1,0 +1,35 @@
+sequenceDiagram
+    participant A as Admin
+    participant AP as Staff Panel
+    participant BE as Backend API
+    participant DB as MongoDB
+
+    Note over A,DB: Login
+    A->>AP: Enter admin credentials
+    AP->>BE: POST /api/admin/login
+    BE-->>AP: JWT token (atoken)
+
+    Note over A,DB: Setup Doctor Account
+    A->>AP: Fill doctor registration form
+    AP->>BE: POST /api/admin/add-doctor
+    BE->>DB: Create doctor document
+    BE-->>AP: Doctor created
+
+    Note over A,DB: Assign Clinics to Doctors
+    A->>AP: Select clinic & doctors
+    AP->>BE: POST /api/admin/assign-clinic-doctors
+    BE->>DB: Update clinic assignments
+    BE-->>AP: Success
+
+    Note over A,DB: View Analytics
+    A->>AP: Open dashboard / financial analytics
+    AP->>BE: GET /api/admin/dashboard
+    AP->>BE: GET /api/admin/financial-analytics
+    BE->>DB: Aggregate statistics
+    BE-->>AP: Analytics data
+
+    Note over A,DB: Delete User Profile
+    A->>AP: Confirm delete user
+    AP->>BE: POST /api/admin/delete-user-account
+    BE->>DB: Remove / deactivate user
+    BE-->>AP: Success

@@ -1,0 +1,35 @@
+sequenceDiagram
+    participant R as Receptionist
+    participant AP as Staff Panel
+    participant BE as Backend API
+    participant DB as MongoDB
+
+    Note over R,DB: Login
+    R->>AP: Enter credentials
+    AP->>BE: POST /api/receptionist/login
+    BE->>DB: Validate receptionist
+    BE-->>AP: JWT token (rtoken)
+
+    Note over R,DB: Check Patient Attendance
+    R->>AP: Search patient appointment
+    AP->>BE: GET /api/receptionist/appointments
+    BE->>DB: Fetch today's queue
+    R->>AP: Check in patient
+    AP->>BE: POST /api/receptionist/check-in
+    BE->>DB: Status → Checked In
+
+    Note over R,DB: Check Appointment Status
+    R->>AP: Update to In Progress / Finished
+    AP->>BE: POST /api/receptionist/appointment-status
+    BE->>DB: Update appointmentStatus
+
+    Note over R,DB: Check Payment Status
+    R->>AP: View unpaid visits
+    AP->>BE: GET /api/receptionist/appointments
+    BE-->>AP: Payment status list
+
+    Note over R,DB: Process Payment
+    R->>AP: Select Cash or Visa
+    AP->>BE: POST /api/receptionist/payment
+    BE->>DB: paymentStatus → Paid
+    BE-->>AP: Payment recorded

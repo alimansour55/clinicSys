@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="650" viewBox="0 0 1000 650">
+  <rect width="1000" height="650" fill="white"/>
+  <text x="500" y="30" text-anchor="middle" font-family="Arial" font-size="18" font-weight="bold">Class Diagram</text>
+  <rect x="40" y="60" width="180" height="120" fill="#e8f4fc" stroke="#333"/>
+  <text x="130" y="85" text-anchor="middle" font-weight="bold">User</text>
+  <text x="50" y="105" font-size="11">+patientId, name, email</text>
+  <text x="50" y="120" font-size="11">+medicalHistory</text>
+  <rect x="280" y="60" width="180" height="120" fill="#e8f4fc" stroke="#333"/>
+  <text x="370" y="85" text-anchor="middle" font-weight="bold">Doctor</text>
+  <text x="290" y="105" font-size="11">+speciality, fees</text>
+  <text x="290" y="120" font-size="11">+schedule, locations</text>
+  <rect x="520" y="60" width="180" height="100" fill="#e8f4fc" stroke="#333"/>
+  <text x="610" y="85" text-anchor="middle" font-weight="bold">Receptionist</text>
+  <rect x="760" y="60" width="180" height="100" fill="#e8f4fc" stroke="#333"/>
+  <text x="850" y="85" text-anchor="middle" font-weight="bold">Admin</text>
+  <rect x="160" y="280" width="200" height="130" fill="#fff8e8" stroke="#333"/>
+  <text x="260" y="305" text-anchor="middle" font-weight="bold">Appointment</text>
+  <text x="170" y="325" font-size="11">+slotDate, slotTime</text>
+  <text x="170" y="340" font-size="11">+status, payment</text>
+  <rect x="420" y="280" width="180" height="100" fill="#fff8e8" stroke="#333"/>
+  <text x="510" y="305" text-anchor="middle" font-weight="bold">Prescription</text>
+  <rect x="640" y="280" width="160" height="100" fill="#fff8e8" stroke="#333"/>
+  <text x="720" y="305" text-anchor="middle" font-weight="bold">Clinic</text>
+  <line x1="130" y1="180" x2="260" y2="280" stroke="#333"/>
+  <text x="180" y="240" font-size="10">books</text>
+  <line x1="370" y1="180" x2="300" y2="280" stroke="#333"/>
+  <text x="340" y="240" font-size="10">conducts</text>
+  <line x1="260" y1="410" x2="510" y2="280" stroke="#333"/>
+  <text x="380" y="360" font-size="10">has</text>
+</svg>

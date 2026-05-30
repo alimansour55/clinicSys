@@ -1,0 +1,9 @@
+flowchart LR
+    Admin -->|1: add doctor form| AdminPanel
+    AdminPanel -->|2: POST /api/admin/add-doctor| Backend
+    Backend -->|3: create doctor account| Database[(MongoDB)]
+    Admin -->|4: assign clinics| AdminPanel
+    AdminPanel -->|5: POST /api/admin/assign-clinic-doctors| Backend
+    Backend -->|6: link doctor to clinics| Database
+    Backend -->|7: success| AdminPanel
+    AdminPanel -->|8: confirmation| Admin

@@ -1,0 +1,55 @@
+sequenceDiagram
+    participant P as Patient
+    participant FE as Patient Portal
+    participant BE as Backend API
+    participant DB as MongoDB
+
+    Note over P,DB: Login
+    P->>FE: Enter credentials
+    FE->>BE: POST /api/user/login
+    BE->>DB: Validate user
+    DB-->>BE: User record
+    BE-->>FE: JWT token
+    FE-->>P: Dashboard access
+
+    Note over P,DB: Update Profile
+    P->>FE: Edit profile
+    FE->>BE: POST /api/user/update-profile
+    BE->>DB: Update user
+    BE-->>FE: Success
+
+    Note over P,DB: Fill Medical History
+    P->>FE: Submit medical history
+    FE->>BE: POST /api/user/medical-history
+    BE->>DB: Save history
+    BE-->>FE: Success
+
+    Note over P,DB: View Doctors & Search by Clinic
+    P->>FE: Browse / filter doctors
+    FE->>BE: GET /api/doctor/list
+    BE->>DB: Query doctors
+    DB-->>BE: Doctor list
+    BE-->>FE: Results
+    FE-->>P: Display doctors
+
+    Note over P,DB: Book Appointment
+    P->>FE: Select slot & payment
+    FE->>BE: POST /api/user/book-appointment
+    BE->>DB: Create appointment
+    BE-->>FE: Confirmation
+    FE-->>P: Booking success
+
+    Note over P,DB: View & Cancel Appointments
+    P->>FE: View appointment history
+    FE->>BE: GET /api/user/appointments
+    BE->>DB: Fetch appointments
+    BE-->>FE: List
+    P->>FE: Cancel appointment
+    FE->>BE: POST /api/user/cancel-appointment
+    BE->>DB: Update status
+
+    Note over P,DB: View Prescriptions
+    P->>FE: Request prescription
+    FE->>BE: POST /api/user/get-prescription
+    BE->>DB: Fetch prescription
+    BE-->>FE: Prescription data

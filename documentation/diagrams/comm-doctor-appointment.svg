@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="200" viewBox="0 0 900 200">
+  <rect width="900" height="200" fill="white"/>
+  <text x="450" y="25" text-anchor="middle" font-weight="bold">Figure 5.2: Doctor conducts appointment</text>
+  <rect x="20" y="60" width="90" height="40" fill="#e3f2fd" stroke="#333"/><text x="65" y="85" text-anchor="middle" font-size="11">Doctor</text>
+  <rect x="160" y="60" width="110" height="40" fill="#fff" stroke="#333"/><text x="215" y="85" text-anchor="middle" font-size="11">Staff Panel</text>
+  <rect x="320" y="60" width="100" height="40" fill="#fff" stroke="#333"/><text x="370" y="85" text-anchor="middle" font-size="11">Backend</text>
+  <rect x="470" y="60" width="100" height="40" fill="#e8f5e9" stroke="#333"/><text x="520" y="85" text-anchor="middle" font-size="11">MongoDB</text>
+  <text x="120" y="130" font-size="10">1-3: view appointments</text>
+  <text x="120" y="155" font-size="10">4-6: view patient history</text>
+  <text x="350" y="130" font-size="10">7: complete-appointment</text>
+  <text x="350" y="155" font-size="10">8-9: save prescription</text>
+</svg>

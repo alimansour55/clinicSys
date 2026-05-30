@@ -1,0 +1,37 @@
+flowchart TD
+    Start([Start]) --> Login{User Login}
+    Login -->|Patient| PMenu[Patient Dashboard]
+    Login -->|Doctor| DMenu[Doctor Dashboard]
+    Login -->|Receptionist| RMenu[Reception Desk]
+    Login -->|Admin| AMenu[Admin Dashboard]
+
+    PMenu --> PAction{Patient Action}
+    PAction -->|Register/Profile| PReg[Update Profile & Medical History]
+    PAction -->|Browse| PBrowse[Search Doctors by Specialty/Clinic]
+    PAction -->|Book| PBook[Select Slot & Payment Method]
+    PBook --> PConfirm[Confirm Appointment]
+    PAction -->|View| PView[View Appointments & Prescriptions]
+    PAction -->|Cancel| PCancel[Cancel Appointment]
+
+    DMenu --> DAction{Doctor Action}
+    DAction -->|Schedule| DAvail[Set Available Time Slots]
+    DAction -->|Consult| DConsult[View Patient & Medical History]
+    DConsult --> DPresc[Add Medication & Dosage]
+    DPresc --> DComplete[Mark Appointment Complete]
+
+    RMenu --> RAction{Receptionist Action}
+    RAction -->|Check In| RCheckIn[Check In Patient]
+    RAction -->|Status| RStatus[Update Status: In Progress / Finished]
+    RAction -->|Payment| RPay[Process Cash or Visa Payment]
+
+    AMenu --> AAction{Admin Action}
+    AAction -->|Doctors| ARegDoc[Register Doctor Account]
+    ARegDoc --> AAssign[Assign Clinics to Doctors]
+    AAction -->|Analytics| AStats[View System Statistics]
+    AAction -->|Users| ADelete[Delete User Profile]
+
+    PConfirm --> End([End])
+    DComplete --> End
+    RPay --> End
+    AStats --> End
+    PCancel --> End

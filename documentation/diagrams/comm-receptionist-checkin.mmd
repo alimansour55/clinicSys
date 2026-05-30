@@ -1,0 +1,10 @@
+flowchart LR
+    Receptionist -->|1: search patient| AdminPanel
+    AdminPanel -->|2: GET /api/receptionist/patients| Backend
+    Backend -->|3: patient data| Database[(MongoDB)]
+    Receptionist -->|4: check in| AdminPanel
+    AdminPanel -->|5: POST /api/receptionist/check-in| Backend
+    Backend -->|6: update status to Checked In| Database
+    Receptionist -->|7: update status| AdminPanel
+    AdminPanel -->|8: POST /api/receptionist/appointment-status| Backend
+    Backend -->|9: status updated| Database

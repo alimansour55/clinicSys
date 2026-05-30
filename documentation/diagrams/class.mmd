@@ -1,0 +1,81 @@
+classDiagram
+    class User {
+        +String patientId
+        +String name
+        +String email
+        +String phone
+        +Object medicalHistory
+        +Object insurance
+        +register()
+        +login()
+        +updateProfile()
+    }
+
+    class Doctor {
+        +String name
+        +String speciality
+        +String fees
+        +Object schedule
+        +Array locations
+        +login()
+        +setAvailability()
+        +completeAppointment()
+    }
+
+    class Receptionist {
+        +String name
+        +String email
+        +login()
+        +checkInPatient()
+        +updateStatus()
+        +processPayment()
+    }
+
+    class Admin {
+        +login()
+        +registerDoctor()
+        +assignClinic()
+        +viewAnalytics()
+        +deleteUser()
+    }
+
+    class Appointment {
+        +String reservationNumber
+        +String slotDate
+        +String slotTime
+        +String appointmentType
+        +String appointmentStatus
+        +String paymentStatus
+        +String paymentMethod
+        +book()
+        +cancel()
+        +complete()
+    }
+
+    class Prescription {
+        +Array medications
+        +String diagnosis
+        +String notes
+        +create()
+        +edit()
+    }
+
+    class Clinic {
+        +String name
+        +String address
+        +Array specialities
+    }
+
+    class Notification {
+        +String message
+        +Boolean read
+        +send()
+    }
+
+    User "1" --> "*" Appointment : books
+    Doctor "1" --> "*" Appointment : conducts
+    Receptionist "1" --> "*" Appointment : manages
+    Appointment "1" --> "0..1" Prescription : has
+    Doctor "*" --> "*" Clinic : assigned to
+    Admin --> Doctor : registers
+    Admin --> Clinic : manages

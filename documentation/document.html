@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clinic Management System &mdash; Project Documentation</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ENGLISH TITLE PAGE -->
+<div class="title-page">
+  <h1>HELWAN UNIVERSITY</h1>
+  <h2>Faculty of Computers and Artificial Intelligence</h2>
+  <h2>Information System Department</h2>
+  <h2>Software Engineering Program</h2>
+  <br>
+  <h1>Clinic Management System</h1>
+  <br>
+  <p>A project documentation by:</p>
+  <div class="authors">
+    <p>Ali Mansour Mohamed Ahmed</p>
+    <p>Alaa Ahmed Mohamed Abdellatif</p>
+    <p>Sayed Gamal Mohamed Ahmed</p>
+    <p>Mohamed Samhan Abdelalim Abdelwahab</p>
+  </div>
+  <p>Submitted in partial fulfilment of the requirements for the degree of Software<br>
+  Engineering Diploma, at Information System Department, Faculty of Computers &amp;<br>
+  Artificial Intelligence, Helwan University</p>
+  <p class="supervisor">Supervised by:<br><strong>Dr/ Sarah Naiem</strong></p>
+  <p class="date">January 2026</p>
+</div>
+
+<!-- ARABIC TITLE PAGE -->
+<div class="title-page-ar">
+  <h1>جامعة حلوان</h1>
+  <h2>كلية الحاسبات والذكاء الاصطناعي</h2>
+  <h2>قسم نظم المعلومات</h2>
+  <h2>برنامج هندسة البرمجيات</h2>
+  <br>
+  <h1>نظام إدارة العيادات</h1>
+  <br>
+  <p>مشروع مقدم من خلال الرسالة الخاصة بمادة:</p>
+  <div class="authors">
+    <p>علي منصور محمد أحمد</p>
+    <p>آلاء أحمد محمد عبداللطيف</p>
+    <p>سيد جمال محمد أحمد</p>
+    <p>محمد سمهان عبدالعليم عبدالوهاب</p>
+  </div>
+  <p>مقدم تقريرًا ضمن متطلبات الحصول على درجة دبلومة هندسة البرمجيات،<br>
+  قسم نظم المعلومات، كلية الحاسبات والذكاء الاصطناعي، جامعة حلوان</p>
+  <p class="supervisor">تحت إشراف<br><strong>د/ سارة نعيم</strong></p>
+  <p class="date">يناير 2026</p>
+</div>
+
+<!-- ABSTRACT -->
+<div class="page-break"></div>
+<h2 class="section-title">Abstract</h2>
+<p>Healthcare clinics often face operational challenges due to the reliance on manual procedures and disconnected systems, which result in scheduling conflicts, inefficient record handling, and administrative errors that negatively affect service quality and patient satisfaction. This project aims to design a Clinic Management System that centralizes and automates essential clinic operations such as patient registration, appointment management, medical record handling, billing, and staff coordination in order to improve efficiency, accuracy, and organization. To achieve these goals, a systematic analysis of clinic workflows and user requirements was conducted, followed by the design of a structured system model that defines system components, user roles, data flow, and process interactions. The proposed solution focuses on clarity, scalability, and ease of use to ensure it can adapt to real clinical environments. The project successfully delivers a complete conceptual design that addresses the identified problems by reducing manual workload, minimizing errors, and improving information accessibility, thereby providing a strong foundation for the future development and implementation of an effective clinic management software system.</p>
+
+<div class="abstract-ar">
+  <h2 class="section-title">الملخص</h2>
+  <p>تواجه العيادات الطبية العديد من التحديات التشغيلية نتيجة الاعتماد على الإجراءات اليدوية والأنظمة غير المتكاملة، مما يؤدي إلى تعارض المواعيد وضعف إدارة السجلات ووقوع أخطاء إدارية تؤثر سلبًا على جودة الخدمة ورضا المرضى. يهدف هذا المشروع إلى تصميم نظام إدارة العيادات الطبية يقوم بتجميع وأتمتة العمليات الأساسية مثل تسجيل المرضى، إدارة المواعيد، التعامل مع السجلات الطبية، الفوترة، وتنسيق عمل الطاقم الطبي والإداري، وذلك بهدف تحسين الكفاءة والدقة والتنظيم. ولتحقيق هذه الأهداف، تم تحليل سير العمل داخل العيادة ومتطلبات المستخدمين، ثم تصميم نموذج نظام منظم يوضح مكونات النظام وأدوار المستخدمين وتدفق البيانات وتفاعل العمليات. يركز الحل المقترح على المرونة وقابلية التوسع وسهولة الاستخدام لضمان ملاءمته للبيئة الطبية الواقعية. وقد أسفر المشروع عن تقديم تصميم مفاهيمي متكامل يعالج المشكلات المحددة من خلال تقليل الجهد اليدوي والحد من الأخطاء وتحسين الوصول إلى المعلومات، مما يشكل أساسًا قويًا لتطوير وتنفيذ نظام برمجي فعّال لإدارة العيادات مستقبلاً.</p>
+</div>
+
+<!-- KEYWORDS -->
+<div class="page-break"></div>
+<h2 class="section-title">Keywords</h2>
+<p>dosage information, medication information, patient records, treatment details, clinic management system, appointment scheduling, digital prescriptions, telemedicine</p>
+
+<!-- ACKNOWLEDGEMENT -->
+<h2 class="section-title">Acknowledgement</h2>
+<p>We would like to express our sincere gratitude to our supervisor, Dr. Sarah Naiem, for her valuable guidance, continuous support, and constructive feedback throughout the development of this project. We would also like to thank the faculty members and instructors who contributed to our academic development and provided the knowledge and skills necessary to complete this project successfully.</p>
+
+<!-- TABLE OF CONTENTS -->
+<div class="page-break"></div>
+<h2 class="section-title">Table of Contents</h2>
+<div class="toc">
+  <div class="toc-entry"><span>Abstract</span><span>I</span></div>
+  <div class="toc-entry"><span>Keywords</span><span>I</span></div>
+  <div class="toc-entry"><span>Acknowledgement</span><span>I</span></div>
+  <div class="toc-entry"><span>Table of Contents</span><span>II&ndash;III</span></div>
+  <div class="toc-entry"><span>List of Figures</span><span>IV</span></div>
+  <div class="toc-entry"><span>List of Tables</span><span>IV</span></div>
+  <div class="toc-entry"><span>List of Abbreviations</span><span>IV</span></div>
+  <div class="toc-entry"><span>Glossary</span><span>V</span></div>
+  <br>
+  <div class="toc-entry"><span><strong>Chapter 1: Introduction</strong></span><span>1&ndash;3</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;1.1 Overview</span><span>1</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;1.2 Problem Statement</span><span>1</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;1.3 Scope and Objectives</span><span>1</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;1.4 Report Organization</span><span>2</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;1.5 Work Methodology</span><span>2</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;1.6 Work Plan</span><span>3</span></div>
+  <br>
+  <div class="toc-entry"><span><strong>Chapter 2: Background &amp; Related Work</strong></span><span>4&ndash;6</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;2.1 Background</span><span>4</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;2.2 Literature Survey</span><span>4</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;2.3 Analysis of Related Work</span><span>5&ndash;6</span></div>
+  <br>
+  <div class="toc-entry"><span><strong>Chapter 3: The Proposed Solution</strong></span><span>7&ndash;28</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;3.1 Solution Methodology</span><span>7</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;3.2 Functional &amp; Non-Functional Requirements</span><span>8&ndash;11</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.2.1 Functional Requirements</span><span>8&ndash;9</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.2.2 Non-Functional Requirements</span><span>10&ndash;11</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;3.3 System Analysis &amp; Design</span><span>12&ndash;28</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.3.1 Use Case</span><span>12</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.3.2 Activity Diagram</span><span>13</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.3.3 Class Diagram</span><span>14</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.3.4 Package Diagram</span><span>15</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.3.5 Communication Diagram</span><span>16&ndash;17</span></div>
+  <div class="toc-entry"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.3.6 Sequence Diagram</span><span>18&ndash;28</span></div>
+  <br>
+  <div class="toc-entry"><span>References</span><span>29</span></div>
+</div>
+
+<!-- LIST OF FIGURES -->
+<div class="page-break"></div>
+<h2 class="section-title">List of Figures</h2>
+<p>Figure 1: Use case diagram &nbsp;&nbsp;&nbsp;&nbsp; 12</p>
+<p>Figure 2: Activity diagram &nbsp;&nbsp;&nbsp;&nbsp; 13</p>
+<p>Figure 3: Class diagram &nbsp;&nbsp;&nbsp;&nbsp; 14</p>
+<p>Figure 4: Package diagram &nbsp;&nbsp;&nbsp;&nbsp; 15</p>
+<p>Figure 5.1: Patient books appointment &nbsp;&nbsp;&nbsp;&nbsp; 16</p>
+<p>Figure 5.2: Doctor conducts appointment &nbsp;&nbsp;&nbsp;&nbsp; 16</p>
+<p>Figure 5.3: Receptionist checks in patient &nbsp;&nbsp;&nbsp;&nbsp; 17</p>
+<p>Figure 5.4: Admin registers doctor &nbsp;&nbsp;&nbsp;&nbsp; 17</p>
+<p>Figure 6.1: Patient sequence diagram &nbsp;&nbsp;&nbsp;&nbsp; 18&ndash;22</p>
+<p>Figure 6.2: Doctor sequence diagram &nbsp;&nbsp;&nbsp;&nbsp; 23&ndash;24</p>
+<p>Figure 6.3: Admin sequence diagram &nbsp;&nbsp;&nbsp;&nbsp; 25&ndash;26</p>
+<p>Figure 6.4: Receptionist sequence diagram &nbsp;&nbsp;&nbsp;&nbsp; 27&ndash;28</p>
+
+<!-- LIST OF TABLES -->
+<h2 class="section-title">List of Tables</h2>
+<p>Table 1: Work plan &nbsp;&nbsp;&nbsp;&nbsp; 3</p>
+<p>Table 2: Comparative Overview of Key Clinic Management Modules &nbsp;&nbsp;&nbsp;&nbsp; 11</p>
+<p>Table 3: Patient functional requirements &nbsp;&nbsp;&nbsp;&nbsp; 8</p>
+<p>Table 4: Doctor functional requirements &nbsp;&nbsp;&nbsp;&nbsp; 9</p>
+<p>Table 5: Receptionist functional requirements &nbsp;&nbsp;&nbsp;&nbsp; 9</p>
+<p>Table 6: Admin functional requirements &nbsp;&nbsp;&nbsp;&nbsp; 10</p>
+
+<!-- LIST OF ABBREVIATIONS -->
+<h2 class="section-title">List of Abbreviations</h2>
+<table>
+  <tr><th>Term</th><th>Definition</th></tr>
+  <tr><td>CMS</td><td>Clinic Management System</td></tr>
+  <tr><td>RSD</td><td>Requirement Specification Document</td></tr>
+  <tr><td>UI</td><td>User Interface</td></tr>
+  <tr><td>API</td><td>Application Programming Interface</td></tr>
+  <tr><td>SQL</td><td>Structured Query Language</td></tr>
+  <tr><td>NFR</td><td>Non-Functional Requirement</td></tr>
+  <tr><td>FR</td><td>Functional Requirement</td></tr>
+  <tr><td>RBAC</td><td>Role-Based Access Control</td></tr>
+  <tr><td>MFA</td><td>Multi-Factor Authentication</td></tr>
+</table>
+
+<!-- GLOSSARY -->
+<div class="page-break"></div>
+<h2 class="section-title">Glossary</h2>
+<p><strong>Appointment:</strong> A scheduled meeting between a patient and a doctor within a specified date and time.</p>
+<p><strong>Billing:</strong> The process of generating and managing payment records for medical services provided by the clinic.</p>
+<p><strong>Dosage:</strong> The specified amount and frequency of medication prescribed to a patient by a doctor.</p>
+<p><strong>Prescription:</strong> A medical instruction recorded by a doctor that specifies medications and their dosages for patient treatment.</p>
+
+<!-- CHAPTER 1 -->
+<h2 class="chapter">Chapter 1: Introduction</h2>
+
+<h3>1.1 Overview</h3>
+<p>Healthcare clinics rely on efficient coordination between administrative and medical processes to deliver timely and accurate patient care. However, many clinics still depend on manual procedures or fragmented digital tools for managing appointments, patient information, and clinical documentation, which often results in operational inefficiencies, data inconsistency, and increased workload for staff. As patient demand continues to grow, the need for reliable and integrated software solutions has become increasingly important. This project focuses on the design of a Clinic Management System that aims to streamline and organize essential clinic operations within a single platform. The system addresses both administrative and clinical aspects by supporting patient registration, appointment scheduling, medical record management, prescription documentation, and billing processes. By centralizing these functions, the system seeks to improve workflow efficiency, reduce human error, and enhance accessibility to patient information for authorized users. The work carried out in this project involves analyzing clinic workflows, identifying system requirements, and designing a structured solution that clearly defines user roles, system functionality, and process interactions. The resulting system design provides a conceptual foundation for implementing a scalable and secure clinic management solution that can support daily operations and improve the overall quality of healthcare service delivery.</p>
+
+<p>The implemented platform, <strong>Clinivo</strong>, is a full-stack web application built with React/Vite frontends, Express 5 backend, and MongoDB database. It supports four user roles (Patient, Doctor, Receptionist, Admin), bilingual English/Arabic interfaces, telemedicine (voice and video calls), home visits, Stripe online payments, multi-clinic locations, digital prescriptions, insurance management, MFA security, and an admin CMS for site branding.</p>
+
+<div class="screenshot avoid-break">
+  <img src="images/hero-section.png" alt="Patient portal hero section">
+  <div class="figure-caption">Clinivo patient portal &mdash; homepage hero section</div>
+</div>
+
+<h3>1.2 Problem Statement</h3>
+<p>Healthcare clinics often face operational challenges due to fragmented processes, manual record keeping, and insufficient coordination between doctors, administrative staff, and patients. These challenges result in appointment conflicts, delays in accessing patient information, errors in medical records, and inefficiencies in billing and reporting. Such problems can negatively impact patient satisfaction, increase staff workload, and reduce the overall quality of healthcare services. The lack of an integrated system that centralizes clinic operations makes it difficult to manage patient data, track treatments, and ensure smooth communication between staff and patients. Therefore, there is a need for a reliable, automated, and user-friendly Clinic Management System that organizes clinic workflows, enhances data accuracy, reduces manual errors, and improves operational efficiency.</p>
+
+<h3>1.3 Scope and Objectives</h3>
+<p>The Clinic Management System aims to digitalize and streamline various operations within a medical clinic, including patient registration, appointment scheduling, medical record management, billing, and administrative tasks. The system will cater to the needs of patients, doctors, receptionists, and administrators, enhancing efficiency, accuracy, and overall service delivery. This document covers all aspects of the system from user interaction to data management and security.</p>
+<p><strong>Objectives:</strong></p>
+<ul>
+  <li>Design and implement a centralized platform for clinic operations</li>
+  <li>Support four distinct user roles with role-based access control</li>
+  <li>Enable online appointment booking with multiple visit modes (clinic, voice, video, home visit)</li>
+  <li>Provide digital prescription and medical history management</li>
+  <li>Integrate payment processing (Cash, Visa/Stripe, Insurance)</li>
+  <li>Deliver bilingual (English/Arabic) user interfaces</li>
+  <li>Ensure security through JWT authentication, MFA, and audit logging</li>
+</ul>
+
+<h3>1.4 Report Organization</h3>
+<p><strong>Chapter 1: Introduction</strong> &mdash; This chapter introduces the project, its background, and context. Section 1.1 provides an overview of the clinic management challenges and the purpose of the project. Section 1.2 presents a precise problem statement, while Section 1.3 outlines the scope and objectives of the system. Section 1.4 describes the organization of the report, and Sections 1.5 and 1.6 discuss the work methodology and project plan.</p>
+<p><strong>Chapter 2: Related Work</strong> &mdash; Chapter 2 reviews the existing literature and related systems. Section 2.1 gives the background of similar clinic management solutions, Section 2.2 surveys relevant studies and applications, and Section 2.3 analyzes the strengths and limitations of previous work, providing a foundation for the proposed solution.</p>
+<p><strong>Chapter 3: The Proposed Solution</strong> &mdash; Chapter 3 focuses on the design and methodology of the proposed Clinic Management System. Section 3.1 describes the solution methodology, Section 3.2 defines the functional and non-functional requirements, and Section 3.3 presents a detailed system analysis and design, including user roles, workflows, and key features.</p>
+<p>The following chapters continue with the implementation, testing, and evaluation of the system, followed by conclusions and recommendations for future work. This organization ensures logical progression from understanding the problem to presenting a structured solution.</p>
+
+<h3>1.5 Work Methodology</h3>
+<p>The development of the Clinic Management System followed the Agile software development methodology, which emphasizes iterative progress, flexibility, and continuous collaboration with stakeholders. Agile was chosen due to its adaptability to changing requirements and its focus on delivering functional components in short development cycles. The project was divided into multiple sprints, with each sprint targeting specific features such as patient registration, appointment scheduling, medical record management, prescription handling, and billing. At the end of each sprint, deliverables were reviewed, tested, and refined based on feedback, ensuring early detection of problems and continuous improvement. Agile practices also promoted regular assessment of project priorities, transparent communication among team members, and frequent evaluation of progress against objectives. This approach facilitated a structured yet flexible development process, enabling the project to address clinic operational challenges effectively while maintaining high quality and usability.</p>
+
+<h3>1.6 Work Plan</h3>
+<p><strong>Table 1: Work plan</strong></p>
+<table>
+  <tr><th>Sprint</th><th>Duration</th><th>Tasks</th><th>Deliverables</th></tr>
+  <tr><td>Sprint 1</td><td>Week 1&ndash;2</td><td>Requirement gathering &amp; analysis</td><td>Documented functional and non-functional requirements</td></tr>
+  <tr><td>Sprint 2</td><td>Week 3&ndash;4</td><td>System design</td><td>System architecture, data flow diagrams, use case identification</td></tr>
+  <tr><td>Sprint 3</td><td>Week 5&ndash;6</td><td>Patient module implementation</td><td>Registration, login, profile, medical history, doctor browsing</td></tr>
+  <tr><td>Sprint 4</td><td>Week 7&ndash;8</td><td>Appointment &amp; payment module</td><td>Booking, cancellation, Stripe payments, appointment history</td></tr>
+  <tr><td>Sprint 5</td><td>Week 9&ndash;10</td><td>Doctor &amp; receptionist modules</td><td>Prescriptions, check-in workflow, payment processing</td></tr>
+  <tr><td>Sprint 6</td><td>Week 11&ndash;12</td><td>Admin module &amp; integration</td><td>User management, analytics, CMS, security policies</td></tr>
+  <tr><td>Sprint 7</td><td>Week 13&ndash;14</td><td>Testing &amp; documentation</td><td>Integration tests, UML diagrams, project documentation</td></tr>
+</table>
+
+<!-- CHAPTER 2 -->
+<h2 class="chapter">Chapter 2: Background &amp; Related Work</h2>
+
+<h3>2.1 Background</h3>
+<p>Healthcare delivery in clinics and hospitals has faced challenges due to manual administrative processes, long patient waiting times, and redundant record-keeping. Traditional systems often require extensive filing and manual tracking of patient information, which increases staff workload and delays access to critical data. Web-based Clinic Management Systems have been proposed as a solution to these challenges, offering automation of patient registration, record-keeping, appointment management, and prescription handling. Such systems aim to reduce redundancy, improve access to patient details, and decrease waiting times, thereby enhancing overall service quality [1]. Existing systems have demonstrated improvements in efficiency and accuracy for individual modules such as patient registration or appointment scheduling. However, many solutions focus on specific functionalities without providing a fully integrated system, leaving gaps in workflow coordination, data consistency, and module interoperability. These gaps justify the need for a modular, user-friendly Clinic Management System that addresses administrative and clinical operations within a single platform, providing accurate data management, reduced errors, and improved operational efficiency.</p>
+
+<h3>2.2 Literature Survey</h3>
+<p>Clinic Management Systems aim to automate administrative and clinical tasks in healthcare facilities to improve efficiency, reduce errors, and enhance patient care. The main modules of such systems typically include patient registration, appointment scheduling, medical record management, prescription handling, and billing.</p>
+<p><strong>Patient Registration:</strong> Web-based registration modules are commonly used to capture patient information and maintain a centralized database [1]. Advantages include reduced data entry errors, faster processing, and easier retrieval of patient details. However, these systems require accurate input from staff and patients, and initial setup can be challenging in clinics with limited technical expertise.</p>
+<p><strong>Appointment Scheduling:</strong> Automated scheduling systems help organize doctor-patient interactions efficiently, reduce waiting times, and avoid conflicts in doctor availability [1]. While this approach improves time management, some systems lack flexibility for urgent or walk-in appointments, which may limit adaptability in busy clinics.</p>
+<p><strong>Medical Record Management:</strong> Digital health record systems allow storing patient history, diagnoses, and treatment information in an accessible format [2]. The main advantages include improved data accuracy, better accessibility, and easier reporting. Disadvantages often include partial integration with other modules, potential duplication of records, and occasional technical complexity for staff.</p>
+<p><strong>Prescription Handling:</strong> Some clinic systems enable doctors to upload prescriptions and document medication dosages digitally [2]. This reduces paperwork and errors in manual prescription management. Limitations include minimal integration with billing or dosage validation features in many existing systems.</p>
+<p><strong>Billing:</strong> Integrated billing modules automate invoice generation and track payments efficiently. Advantages include faster processing and reducing human error. Limitations may arise in handling insurance claims, multi-department billing, or complex fee structures [2].</p>
+
+<h3>2.3 Analysis of Related Works</h3>
+<p>The analysis of related work shows that while existing Clinic Management Systems provide improvements in specific areas, such as registration or appointment scheduling, few offer fully integrated solutions that combine all administrative and clinical functions.</p>
+<p>Key observations from the literature include:</p>
+<ol>
+  <li><strong>Partial module integration:</strong> Most systems focus on individual modules rather than unified platforms, resulting in fragmented workflows.</li>
+  <li><strong>Manual intervention remains:</strong> Certain processes, such as dosage verification or cross-checking records, still require human intervention in many systems.</li>
+  <li><strong>Scalability and adaptability limitations:</strong> Existing solutions may not adapt well to clinics with diverse workflows or increasing patient volumes.</li>
+  <li><strong>Usability challenges:</strong> Some systems are technically complex, reducing adoption efficiency among staff with limited IT experience.</li>
+</ol>
+<p>These observations indicate that there is a need for a modular, fully integrated, and user-friendly Clinic Management System. Such a system should automate core tasks including registration, scheduling, records, prescriptions, and billing while ensuring data consistency, workflow efficiency, and ease of use, addressing the gaps left by current solutions.</p>
+
+<p><strong>Table 2: Comparative Overview of Key Clinic Management Modules</strong></p>
+<table>
+  <tr><th>Module</th><th>Common Approach</th><th>Advantages</th><th>Disadvantages</th></tr>
+  <tr><td>Patient Registration</td><td>Web forms / Database</td><td>Reduces errors, fast processing</td><td>Requires accurate input, staff training</td></tr>
+  <tr><td>Appointment Scheduling</td><td>Automated scheduling</td><td>Reduces waiting time, avoids conflicts</td><td>Limited flexibility for urgent/walk-in appointments</td></tr>
+  <tr><td>Medical Record Management</td><td>Digital records</td><td>Accurate, accessible, easier reporting</td><td>Partial integration, possible duplication, complexity</td></tr>
+  <tr><td>Prescription Handling</td><td>Digital upload</td><td>Reduce paperwork, minimizes errors</td><td>Limited integration with billing, minimal validation</td></tr>
+  <tr><td>Billing</td><td>Integrated billing module</td><td>Faster, fewer errors</td><td>Complex insurance/multi-department handling</td></tr>
+</table>
+
+<!-- CHAPTER 3 -->
+<h2 class="chapter">Chapter 3: The Proposed Solution</h2>
+
+<h3>3.1 Solution Methodology</h3>
+<p>The proposed solution for the Clinic Management System is designed to address the operational challenges identified in the previous chapters, including manual record-keeping, appointment conflicts, long patient waiting times, and fragmented workflows. The system aims to provide a modular, integrated, and user-friendly platform that automates core clinic processes such as patient registration, appointment management, medical records, prescription handling, and billing. The development of the system followed an Agile methodology, which emphasizes iterative progress, adaptability, and continuous feedback. The project was organized into multiple sprints, with each sprint focusing on specific modules and deliverables. This iterative approach allowed for early identification of problems, regular evaluation of progress, and incorporation of feedback to improve functionality and usability.</p>
+<p>The solution methodology involved several key steps:</p>
+<ol>
+  <li><strong>Requirement Analysis:</strong> Detailed assessment of clinic workflows and user needs to identify functional and non-functional requirements.</li>
+  <li><strong>System Design:</strong> Conceptual modeling of system modules, user roles, data flow, and interactions between components to ensure clarity, integration, and scalability.</li>
+  <li><strong>Module Implementation:</strong> Development of each core module&mdash;patient registration, appointments, medical records, prescriptions, and billing&mdash;following best practices for usability and data integrity.</li>
+  <li><strong>Integration and Testing:</strong> Modules were integrated to form a cohesive system, followed by testing to verify functionality, data consistency, and user accessibility.</li>
+  <li><strong>Documentation:</strong> Comprehensive documentation of system design, workflow diagrams, and user guides to facilitate future development and deployment.</li>
+</ol>
+<p>By adopting this methodology, the proposed Clinic Management System ensures that all core functions are automated, integrated, and aligned with real clinical workflows, providing a robust foundation for efficient and accurate clinic management.</p>
+
+<h3>3.2 Functional &amp; Non-Functional Requirements</h3>
+
+<h4>3.2.1 Functional Requirements</h4>
+
+<h4>3.2.1.1 Patient</h4>
+<p><strong>Table 3: Patient functional requirements</strong></p>
+<table>
+  <tr><th>Requirement ID</th><th>Description</th><th>Source</th></tr>
+  <tr><td>FR-P-001</td><td>The system allows patients to register for a new account.</td><td>Use Case Diagram, Activity Diagram</td></tr>
+  <tr><td>FR-P-002</td><td>The system allows registered patients to log in securely.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-P-003</td><td>The system allows patients to update their personal profile information.</td><td>Use Case Diagram, Activity Diagram</td></tr>
+  <tr><td>FR-P-004</td><td>The system allows patients to fill in their medical history.</td><td>Use Case Diagram, Activity Diagram</td></tr>
+  <tr><td>FR-P-005</td><td>The system allows patients to view their medical history.</td><td>Use Case Diagram</td></tr>
+  <tr><td>FR-P-006</td><td>The system allows patients to search for doctors by clinic.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-P-007</td><td>The system allows patients to view a list of available doctors.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-P-008</td><td>The system allows patients to book appointments with selected doctors.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-P-009</td><td>The system allows patients to choose a payment method (Visa, Cash) for appointments.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-P-010</td><td>The system allows patients to view their appointment history.</td><td>Use Case Diagram, Activity Diagram</td></tr>
+  <tr><td>FR-P-011</td><td>The system allows patients to cancel existing appointments.</td><td>Use Case Diagram, Activity Diagram</td></tr>
+  <tr><td>FR-P-012</td><td>The system allows patients to view their prescriptions.</td><td>Use Case Diagram, Sequence Diagram</td></tr>
+</table>
+
+<div class="screenshot avoid-break">
+  <img src="images/patient-login.png" alt="Patient login">
+  <div class="figure-caption">Patient login interface (Clinivo)</div>
+</div>
+<div class="screenshot avoid-break">
+  <img src="images/patient-register.png" alt="Patient registration">
+  <div class="figure-caption">Patient registration with email/phone verification</div>
+</div>
+<div class="screenshot avoid-break">
+  <img src="images/browse-doctors.png" alt="Browse doctors">
+  <div class="figure-caption">Browse and search doctors by specialty and clinic</div>
+</div>
+
+<h4>3.2.1.2 Doctor</h4>
+<p><strong>Table 4: Doctor functional requirements</strong></p>
+<table>
+  <tr><th>Requirement ID</th><th>Description</th><th>Source</th></tr>
+  <tr><td>FR-D-001</td><td>The system shall allow doctors to log in securely.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-D-002</td><td>The system shall allow doctors to set their available time slots.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-D-003</td><td>The system shall allow doctors to view their current appointments.</td><td>Sequence Diagram</td></tr>
+  <tr><td>FR-D-004</td><td>The system shall allow doctors to view patient information during a consultation.</td><td>Sequence Diagram</td></tr>
+  <tr><td>FR-D-005</td><td>The system shall allow doctors to update a patient&rsquo;s medical history.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-D-006</td><td>The system shall allow doctors to add medication details, including dosage, to a patient&rsquo;s record.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-D-007</td><td>The system shall allow doctors to mark an appointment as complete.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+</table>
+
+<div class="screenshot avoid-break">
+  <img src="images/doctor-patient-history.png" alt="Doctor patient history">
+  <div class="figure-caption">Doctor portal &mdash; patient history and clinical records</div>
+</div>
+<div class="screenshot avoid-break">
+  <img src="images/doctor-financial.png" alt="Doctor financial analysis">
+  <div class="figure-caption">Doctor portal &mdash; financial analysis dashboard</div>
+</div>
+
+<h4>3.2.1.3 Receptionist</h4>
+<p><strong>Table 5: Receptionist functional requirements</strong></p>
+<table>
+  <tr><th>Requirement ID</th><th>Description</th><th>Source</th></tr>
+  <tr><td>FR-R-001</td><td>The system shall allow receptionists to log in securely.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-R-002</td><td>The system shall allow receptionists to check in patients.</td><td>Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-R-003</td><td>The system shall allow receptionists to change appointment status to &lsquo;In Progress&rsquo;, &lsquo;Finished&rsquo;, or &lsquo;Cancelled&rsquo;.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-R-004</td><td>The system shall allow receptionists to change payment status to &lsquo;Paid&rsquo; or &lsquo;Not Paid&rsquo;.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-R-005</td><td>The system shall allow receptionists to process payments via Cash or Visa.</td><td>Activity Diagram, Sequence Diagram</td></tr>
+</table>
+
+<div class="screenshot avoid-break">
+  <img src="images/receptionist-dashboard.png" alt="Receptionist dashboard">
+  <div class="figure-caption">Receptionist dashboard &mdash; today&rsquo;s queue and check-ins</div>
+</div>
+
+<h4>3.2.1.4 Admin</h4>
+<p><strong>Table 6: Admin functional requirements</strong></p>
+<table>
+  <tr><th>Requirement ID</th><th>Description</th><th>Source</th></tr>
+  <tr><td>FR-A-001</td><td>The system shall allow administrators to log in securely.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-A-002</td><td>The system shall allow administrators to register new doctor accounts.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-A-003</td><td>The system shall allow administrators to assign clinics to doctors.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-A-004</td><td>The system shall allow administrators to view system analytics and statistics (e.g., patient numbers, revenue, appointment trends).</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+  <tr><td>FR-A-005</td><td>The system shall allow administrators to delete user profiles.</td><td>Use Case Diagram, Activity Diagram, Sequence Diagram</td></tr>
+</table>
+
+<div class="screenshot avoid-break">
+  <img src="images/staff-login.png" alt="Staff login">
+  <div class="figure-caption">Staff panel login (Admin, Doctor, Receptionist)</div>
+</div>
+<div class="screenshot avoid-break">
+  <img src="images/admin-doctors.png" alt="Admin doctor directory">
+  <div class="figure-caption">Admin portal &mdash; doctor directory management</div>
+</div>
+<div class="screenshot avoid-break">
+  <img src="images/admin-users.png" alt="Admin user accounts">
+  <div class="figure-caption">Admin portal &mdash; user accounts management</div>
+</div>
+<div class="screenshot avoid-break">
+  <img src="images/admin-financial.png" alt="Admin financial analytics">
+  <div class="figure-caption">Admin portal &mdash; financial analytics dashboard</div>
+</div>
+<div class="screenshot avoid-break">
+  <img src="images/admin-appointments.png" alt="Admin appointments">
+  <div class="figure-caption">Admin portal &mdash; active appointments overview</div>
+</div>
+
+<h4>3.2.2 Non-Functional Requirements</h4>
+<p>Non-functional requirements specify criteria that can be used to judge the operation of a system, rather than specific behaviors.</p>
+
+<h4>3.2.2.1 Performance Requirements</h4>
+<ul>
+  <li><strong>NFR-PERF-001:</strong> The system shall load all patient and doctor profiles within 3 seconds under normal load conditions.</li>
+  <li><strong>NFR-PERF-002:</strong> Appointment booking and cancellation processes shall complete within 2 seconds.</li>
+  <li><strong>NFR-PERF-003:</strong> Search queries for doctors or clinics shall return results within 2 seconds.</li>
+</ul>
+
+<h4>3.2.2.2 Security Requirements</h4>
+<ul>
+  <li><strong>NFR-SEC-001:</strong> The system shall implement role-based access control (RBAC) to ensure users can only access functionalities and data relevant to their roles.</li>
+  <li><strong>NFR-SEC-002:</strong> All sensitive patient data (medical history, personal information) shall be encrypted both in transit and at rest.</li>
+  <li><strong>NFR-SEC-003:</strong> User authentication shall utilize strong password policies and secure login mechanisms (e.g., hashed passwords).</li>
+  <li><strong>NFR-SEC-004:</strong> The system shall log all critical security events, including failed login attempts and unauthorized access attempts.</li>
+</ul>
+
+<h4>3.2.2.3 Usability Requirements</h4>
+<ul>
+  <li><strong>NFR-USAB-001:</strong> The user interface shall be intuitive and easy to navigate for all user roles, requiring minimal training.</li>
+  <li><strong>NFR-USAB-002:</strong> The system shall provide clear and concise error messages to guide users in resolving problems.</li>
+  <li><strong>NFR-USAB-003:</strong> The system shall be accessible on common web browsers and devices (desktop, tablet, mobile).</li>
+</ul>
+
+<h4>3.2.2.4 Reliability Requirements</h4>
+<ul>
+  <li><strong>NFR-REL-001:</strong> The system shall maintain an up-time of 99.5% during operational hours.</li>
+  <li><strong>NFR-REL-002:</strong> The system shall implement robust data backup and recovery mechanisms to prevent data loss.</li>
+  <li><strong>NFR-REL-003:</strong> In case of system failure, data integrity shall be maintained, and recovery shall be possible without significant data loss.</li>
+</ul>
+
+<h4>3.2.2.5 Scalability Requirements</h4>
+<ul>
+  <li><strong>NFR-SCAL-001:</strong> The system shall be capable of supporting up to 50 concurrent users without significant degradation in performance.</li>
+  <li><strong>NFR-SCAL-002:</strong> The system architecture shall allow for easy expansion to accommodate an increasing number of clinics, doctors, and patients.</li>
+</ul>
+
+<h4>3.2.2.6 Maintainability Requirements</h4>
+<ul>
+  <li><strong>NFR-MAINT-001:</strong> The system&rsquo;s codebase shall be well-documented and follow established coding standards to facilitate future maintenance and enhancements.</li>
+  <li><strong>NFR-MAINT-002:</strong> The system shall be designed with modular components to allow for independent updates and bug fixes.</li>
+</ul>
+
+<h3>3.3 System Analysis &amp; Design</h3>
+
+<h4>3.3.1 Use Case</h4>
+<div class="figure avoid-break">
+  <img src="diagrams/use-case.svg" alt="Use case diagram">
+  <div class="figure-caption">Figure 1: Use case diagram</div>
+</div>
+
+<h4>3.3.2 Activity Diagram</h4>
+<div class="figure avoid-break">
+  <img src="diagrams/activity.svg" alt="Activity diagram">
+  <div class="figure-caption">Figure 2: Activity diagram</div>
+</div>
+
+<h4>3.3.3 Class Diagram</h4>
+<div class="figure avoid-break">
+  <img src="diagrams/class.svg" alt="Class diagram">
+  <div class="figure-caption">Figure 3: Class diagram</div>
+</div>
+
+<h4>3.3.4 Package Diagram</h4>
+<div class="figure avoid-break">
+  <img src="diagrams/package.svg" alt="Package diagram">
+  <div class="figure-caption">Figure 4: Package diagram</div>
+</div>
+
+<h4>3.3.5 Communication Diagram</h4>
+
+<h4>3.3.5.1 Patient books appointment</h4>
+<div class="figure avoid-break">
+  <img src="diagrams/comm-patient-book.svg" alt="Patient books appointment">
+  <div class="figure-caption">Figure 5.1: Patient books appointment</div>
+</div>
+
+<h4>3.3.5.2 Doctor conducts appointment</h4>
+<div class="figure avoid-break">
+  <img src="diagrams/comm-doctor-appointment.svg" alt="Doctor conducts appointment">
+  <div class="figure-caption">Figure 5.2: Doctor conducts appointment</div>
+</div>
+
+<h4>3.3.5.3 Receptionist checks in patient</h4>
+<div class="figure avoid-break">
+  <img src="diagrams/comm-receptionist-checkin.svg" alt="Receptionist checks in patient">
+  <div class="figure-caption">Figure 5.3: Receptionist checks in patient</div>
+</div>
+
+<h4>3.3.5.4 Admin registers doctor</h4>
+<div class="figure avoid-break">
+  <img src="diagrams/comm-admin-register.svg" alt="Admin registers doctor">
+  <div class="figure-caption">Figure 5.4: Admin registers doctor</div>
+</div>
+
+<h4>3.3.6 Sequence Diagram</h4>
+
+<h4>3.3.6.1 Patient Diagram</h4>
+<p>Login, Register, Update Profile, Fill Medical History, View Doctors, Search by Clinic, Book Appointment, Cancel Appointment, View Appointments History, View Prescriptions</p>
+<div class="figure avoid-break">
+  <img src="diagrams/seq-patient.svg" alt="Patient sequence diagram">
+  <div class="figure-caption">Figure 6.1: Patient sequence diagram</div>
+</div>
+
+<h4>3.3.6.2 Doctor Diagram</h4>
+<p>Update Patient Medical History, Set Available Time, Add Medication, Set Appointment as Complete</p>
+<div class="figure avoid-break">
+  <img src="diagrams/seq-doctor.svg" alt="Doctor sequence diagram">
+  <div class="figure-caption">Figure 6.2: Doctor sequence diagram</div>
+</div>
+
+<h4>3.3.6.3 Admin Diagram</h4>
+<p>Setup Doctors Account, Assign Clinics to Doctors, View Analytics, Delete User Profile</p>
+<div class="figure avoid-break">
+  <img src="diagrams/seq-admin.svg" alt="Admin sequence diagram">
+  <div class="figure-caption">Figure 6.3: Admin sequence diagram</div>
+</div>
+
+<h4>3.3.6.4 Receptionist Diagram</h4>
+<p>Check Patient Attendance Status, Check Payment Status, Check Appointment Status</p>
+<div class="figure avoid-break">
+  <img src="diagrams/seq-receptionist.svg" alt="Receptionist sequence diagram">
+  <div class="figure-caption">Figure 6.4: Receptionist sequence diagram</div>
+</div>
+
+<!-- REFERENCES -->
+<h2 class="chapter">References</h2>
+<div class="references">
+  <p>[1] Kumar, A., &amp; Sharma, R. (2023). Web-based healthcare management systems: A review of patient registration and appointment scheduling modules. <em>International Journal of Health Informatics</em>, 12(3), 45&ndash;62.</p>
+  <p>[2] El-Sayed, M., Hassan, T., &amp; Ibrahim, K. (2024). Digital health records and prescription management in outpatient clinics. <em>Journal of Medical Systems Engineering</em>, 8(1), 112&ndash;128.</p>
+  <p>[3] React Team. (2025). React Documentation. Retrieved from https://react.dev</p>
+  <p>[4] MongoDB Inc. (2025). MongoDB Manual. Retrieved from https://docs.mongodb.com</p>
+  <p>[5] Express.js. (2025). Express 5 Documentation. Retrieved from https://expressjs.com</p>
+</div>
+
+</body>
+</html>

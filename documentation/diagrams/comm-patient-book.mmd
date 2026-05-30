@@ -1,0 +1,11 @@
+flowchart LR
+    Patient -->|1: search doctors| Frontend
+    Frontend -->|2: GET /api/doctor/list| Backend
+    Backend -->|3: query| Database[(MongoDB)]
+    Database -->|4: doctors| Backend
+    Backend -->|5: doctor list| Frontend
+    Patient -->|6: select slot & pay| Frontend
+    Frontend -->|7: POST /api/user/book-appointment| Backend
+    Backend -->|8: save appointment| Database
+    Backend -->|9: confirmation| Frontend
+    Frontend -->|10: booking success| Patient

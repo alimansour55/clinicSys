@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="700" viewBox="0 0 1100 700">
+  <rect width="1100" height="700" fill="white"/>
+  <text x="550" y="30" text-anchor="middle" font-family="Arial" font-size="18" font-weight="bold">Use Case Diagram - Clinic Management System</text>
+  <rect x="420" y="320" width="260" height="60" rx="8" fill="#e8f4fc" stroke="#333"/>
+  <text x="550" y="355" text-anchor="middle" font-family="Arial" font-size="14">Clinic Management System</text>
+  <rect x="40" y="80" width="180" height="520" rx="6" fill="#f5f5f5" stroke="#666"/>
+  <text x="130" y="105" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">Patient</text>
+  <text x="55" y="140" font-family="Arial" font-size="11">Register / Login</text>
+  <text x="55" y="165" font-family="Arial" font-size="11">Update Profile</text>
+  <text x="55" y="190" font-family="Arial" font-size="11">Medical History</text>
+  <text x="55" y="215" font-family="Arial" font-size="11">Browse Doctors</text>
+  <text x="55" y="240" font-family="Arial" font-size="11">Book Appointment</text>
+  <text x="55" y="265" font-family="Arial" font-size="11">View / Cancel Appt</text>
+  <text x="55" y="290" font-family="Arial" font-size="11">View Prescriptions</text>
+  <text x="55" y="315" font-family="Arial" font-size="11">Make Payment</text>
+  <rect x="880" y="80" width="180" height="200" rx="6" fill="#f5f5f5" stroke="#666"/>
+  <text x="970" y="105" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">Doctor</text>
+  <text x="895" y="140" font-family="Arial" font-size="11">Login / Availability</text>
+  <text x="895" y="165" font-family="Arial" font-size="11">View Appointments</text>
+  <text x="895" y="190" font-family="Arial" font-size="11">Patient Info</text>
+  <text x="895" y="215" font-family="Arial" font-size="11">Prescriptions</text>
+  <text x="895" y="240" font-family="Arial" font-size="11">Complete Appt</text>
+  <rect x="880" y="300" width="180" height="160" rx="6" fill="#f5f5f5" stroke="#666"/>
+  <text x="970" y="325" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">Receptionist</text>
+  <text x="895" y="360" font-family="Arial" font-size="11">Check In Patient</text>
+  <text x="895" y="385" font-family="Arial" font-size="11">Update Status</text>
+  <text x="895" y="410" font-family="Arial" font-size="11">Process Payment</text>
+  <rect x="880" y="480" width="180" height="160" rx="6" fill="#f5f5f5" stroke="#666"/>
+  <text x="970" y="505" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">Admin</text>
+  <text x="895" y="540" font-family="Arial" font-size="11">Register Doctor</text>
+  <text x="895" y="565" font-family="Arial" font-size="11">Assign Clinics</text>
+  <text x="895" y="590" font-family="Arial" font-size="11">View Analytics</text>
+  <line x1="220" y1="350" x2="420" y2="350" stroke="#333" marker-end="url(#arrow)"/>
+  <line x1="680" y1="350" x2="880" y2="180" stroke="#333"/>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#333"/></marker></defs>
+</svg>

@@ -10,3 +10,11 @@ node_modules/
 # Test / build output
 coverage/
 dist/
+
+# ShareX / screenshot tool metadata (not project assets)
+screenshots/ApplicationConfig.json
+screenshots/HotkeysConfig.json
+screenshots/UploadersConfig.json
+screenshots/History.db
+screenshots/Backup/
+screenshots/Logs/

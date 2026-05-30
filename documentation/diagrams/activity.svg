@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="800" viewBox="0 0 900 800">
+  <rect width="900" height="800" fill="white"/>
+  <text x="450" y="30" text-anchor="middle" font-family="Arial" font-size="18" font-weight="bold">Activity Diagram</text>
+  <ellipse cx="450" cy="70" rx="50" ry="25" fill="#fff" stroke="#333"/>
+  <text x="450" y="75" text-anchor="middle" font-family="Arial" font-size="12">Start</text>
+  <rect x="350" y="120" width="200" height="40" rx="20" fill="#e8f4fc" stroke="#333"/>
+  <text x="450" y="145" text-anchor="middle" font-family="Arial" font-size="12">User Login</text>
+  <rect x="100" y="200" width="160" height="40" fill="#f0f0f0" stroke="#333"/>
+  <text x="180" y="225" text-anchor="middle" font-family="Arial" font-size="11">Patient Actions</text>
+  <rect x="370" y="200" width="160" height="40" fill="#f0f0f0" stroke="#333"/>
+  <text x="450" y="225" text-anchor="middle" font-family="Arial" font-size="11">Doctor Actions</text>
+  <rect x="640" y="200" width="160" height="40" fill="#f0f0f0" stroke="#333"/>
+  <text x="720" y="225" text-anchor="middle" font-family="Arial" font-size="11">Staff Actions</text>
+  <rect x="80" y="300" width="200" height="120" fill="#fff" stroke="#333"/>
+  <text x="180" y="325" text-anchor="middle" font-family="Arial" font-size="11">Book / Cancel</text>
+  <text x="180" y="350" text-anchor="middle" font-family="Arial" font-size="11">View History</text>
+  <rect x="350" y="300" width="200" height="120" fill="#fff" stroke="#333"/>
+  <text x="450" y="325" text-anchor="middle" font-family="Arial" font-size="11">Consult / Prescribe</text>
+  <text x="450" y="350" text-anchor="middle" font-family="Arial" font-size="11">Complete Appt</text>
+  <rect x="620" y="300" width="200" height="120" fill="#fff" stroke="#333"/>
+  <text x="720" y="325" text-anchor="middle" font-family="Arial" font-size="11">Check In / Pay</text>
+  <text x="720" y="350" text-anchor="middle" font-family="Arial" font-size="11">Manage Users</text>
+  <ellipse cx="450" cy="500" rx="50" ry="25" fill="#fff" stroke="#333"/>
+  <text x="450" y="505" text-anchor="middle" font-family="Arial" font-size="12">End</text>
+  <line x1="450" y1="95" x2="450" y2="120" stroke="#333"/>
+  <line x1="450" y1="160" x2="180" y2="200" stroke="#333"/>
+  <line x1="450" y1="160" x2="450" y2="200" stroke="#333"/>
+  <line x1="450" y1="160" x2="720" y2="200" stroke="#333"/>
+  <line x1="180" y1="420" x2="450" y2="475" stroke="#333"/>
+  <line x1="450" y1="420" x2="450" y2="475" stroke="#333"/>
+  <line x1="720" y1="420" x2="450" y2="475" stroke="#333"/>
+</svg>
