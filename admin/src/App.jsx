@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react'
+import React, { useContext, useEffect, useMemo } from 'react'
 import Login from './pages/Login'
 import { ToastContainer, toast } from 'react-toastify';
 import { AdminContext } from './context/AdminContext';
@@ -138,9 +138,6 @@ const App = () => {
   const { rToken, receptionistNavSummary } = useContext(ReceptionistContext)
   const { isRtl, t } = useLanguage()
   const location = useLocation()
-  const [adminNavExpanded, setAdminNavExpanded] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
-  )
 
   const doctorNavLinks = useMemo(() => getDoctorNavLinks(t), [t])
   const receptionistNavLinks = useMemo(() => getReceptionistNavLinks(t), [t])
@@ -177,16 +174,14 @@ const App = () => {
       <Navbar />
       
       {/* Sidebar */}
-      <Sidebar adminNavExpanded={adminNavExpanded} onAdminNavExpandedChange={setAdminNavExpanded} />
+      <Sidebar />
       
       {/* Main Content Area - Scrollable */}
       <div
         id='staff-main-scroll'
-        className={`relative z-10 min-w-0 max-w-full mt-[4.5rem] h-[calc(100vh-4.5rem)] overflow-y-auto overflow-x-hidden transition-[margin] duration-200 ease-out ${
+        className={`relative z-10 min-w-0 max-w-full mt-[4.5rem] h-[calc(100vh-4.5rem)] overflow-y-auto overflow-x-hidden ${
           aToken
-            ? adminNavExpanded
-              ? 'ml-64'
-              : 'ml-14'
+            ? 'ml-64'
             : isRtl
               ? 'mr-14 sm:mr-16 md:mr-64'
               : 'ml-14 sm:ml-16 md:ml-64'
