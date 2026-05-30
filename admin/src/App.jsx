@@ -158,10 +158,6 @@ const App = () => {
     toast.dismiss()
   }, [])
 
-  useEffect(() => {
-    setAdminNavExpanded(false)
-  }, [location.pathname])
-
   return aToken || dToken || rToken ? (
     <div className='h-screen overflow-hidden bg-[#F8F9FD]'>
       <LanguagePolicySync policy={activeLanguagePolicy} />
