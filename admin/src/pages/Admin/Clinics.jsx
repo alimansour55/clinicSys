@@ -286,7 +286,7 @@ const Clinics = () => {
             </div>
           </div>
 
-          <div className='h-fit rounded-card border border-line bg-surface xl:sticky xl:top-16'>
+          <div className='h-fit rounded-card border border-line bg-surface xl:sticky xl:top-5'>
             <div className='p-4 sm:p-5 border-b border-line'>
               <h2 className='text-subtitle font-semibold text-ink flex items-center gap-2'>
                 <Users className='w-5 h-5 text-brand' />

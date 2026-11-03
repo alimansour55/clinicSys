@@ -139,7 +139,8 @@ const Users = () => {
     resetUserMfa,
     deleteUserAccount,
     bulkUserStatus,
-    bulkUserMfa
+    bulkUserMfa,
+    bulkResetMfa
   } = useContext(AdminContext)
   const navigate = useNavigate()
   const { t, tc, localizeDigits } = useLanguage()
@@ -419,6 +420,22 @@ const Users = () => {
         <Button size='sm' variant='secondary' onClick={() => runBulk((list) => bulkUserStatus(list, false))} leadingIcon={<UserX aria-hidden='true' className='size-4' />}>{t('Deactivate')}</Button>
         <Button size='sm' variant='secondary' onClick={() => runBulk((list) => bulkUserMfa(list, true))} leadingIcon={<ShieldCheck aria-hidden='true' className='size-4' />}>{t('Require MFA')}</Button>
         <Button size='sm' variant='secondary' onClick={() => runBulk((list) => bulkUserMfa(list, false))} leadingIcon={<ShieldOff aria-hidden='true' className='size-4' />}>{t('Make MFA optional')}</Button>
+        <Button
+          size='sm'
+          variant='secondary'
+          leadingIcon={<RotateCcw aria-hidden='true' className='size-4' />}
+          onClick={() =>
+            setConfirm({
+              title: `${t('Reset MFA')}: ${localizeDigits(selection.count)}`,
+              body: t('Reset MFA confirm body'),
+              confirmLabel: t('Reset MFA'),
+              danger: true,
+              run: () => runBulk(bulkResetMfa)
+            })
+          }
+        >
+          {t('Reset MFA')}
+        </Button>
       </BulkBar>
 
       <div className='rounded-card border border-line bg-surface'>
@@ -481,7 +498,7 @@ const Users = () => {
                         <span className='text-ink-3'>—</span>
                       ) : user.insurance?.enabled ? (
                         <div className='space-y-1'>
-                          <InsuranceStatusBadge insurance={user.insurance} />
+                          <InsuranceStatusBadge insurance={user.insurance} t={t} />
                           <p className='truncate text-caption text-ink-3' title={user.insurance.provider}>
                             {user.insurance.provider || t('Provider not set')}
                           </p>

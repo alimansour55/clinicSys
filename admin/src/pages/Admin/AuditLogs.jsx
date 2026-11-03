@@ -61,7 +61,8 @@ export const actionLabels = (t) => ({
   mfa_disable: t('Two-step verification turned off'),
   doctor_availability_bulk_update: t('Doctor availability updated in bulk'),
   user_status_bulk_update: t('User status updated in bulk'),
-  user_mfa_requirement_bulk_update: t('Two-step verification requirement updated in bulk')
+  user_mfa_requirement_bulk_update: t('Two-step verification requirement updated in bulk'),
+  user_mfa_bulk_reset: t('Two-step verification reset in bulk')
 })
 
 const entityLabels = (t) => ({

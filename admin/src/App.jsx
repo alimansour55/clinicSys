@@ -9,7 +9,7 @@ import StaffMobileNav from './components/StaffMobileNav';
 import StaffOptionsBar from './components/StaffOptionsBar';
 import { getDoctorNavLinks, findActiveDoctorLink } from './config/doctorNav';
 import { getReceptionistNavLinks, findActiveReceptionistLink } from './config/receptionistNav';
-import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import Dashboad from './pages/Admin/Dashboad';
 import AllAppointments from './pages/Admin/AllAppointments';
@@ -49,43 +49,9 @@ import AdminProfile from './pages/Admin/AdminProfile';
 import AdminFinancialAnalytics from './pages/Admin/AdminFinancialAnalytics';
 import AdminMobileNav from './components/admin/AdminMobileNav';
 import CommandPalette from './components/admin/CommandPalette';
-import { getAdminSections, isAdminPathActive } from './config/adminNav';
 import LanguageSettings from './pages/Admin/LanguageSettings';
 import { getPolicyForRole, getStaffLoginLanguagePolicy } from './utils/languageAvailability';
 import { LanguageDomSync, LanguagePolicySync, useLanguage } from './i18n';
-
-/** The pages next to this one in the sidebar's section, as tabs. Everything else is one ctrl+K away. */
-const AdminOptionsBar = () => {
-  const { t } = useLanguage()
-  const { pathname } = useLocation()
-  const sections = useMemo(() => getAdminSections(t), [t])
-  const section = sections.find((item) => item.links.some((link) => isAdminPathActive(pathname, link.path)))
-  if (!section) return null
-
-  return (
-    <div className='sticky top-0 z-30 hidden border-b border-line bg-canvas px-gutter py-2 md:block'>
-      <nav aria-label={section.title} className='mx-auto flex max-w-7xl gap-1 overflow-x-auto'>
-        {section.links.map((link) => {
-          const active = isAdminPathActive(pathname, link.path)
-          const Icon = link.icon
-          return (
-            <NavLink
-              key={link.path}
-              to={link.path}
-              aria-current={active ? 'page' : undefined}
-              className={`flex min-h-9 items-center gap-2 whitespace-nowrap rounded-control px-3 text-body-sm font-medium transition duration-(--duration-fast) ease-standard ${
-                active ? 'bg-primary-soft text-brand' : 'text-ink-2 hover:bg-surface-sunken hover:text-ink'
-              }`}
-            >
-              <Icon aria-hidden='true' className='size-4' />
-              {link.label}
-            </NavLink>
-          )
-        })}
-      </nav>
-    </div>
-  )
-}
 
 const App = () => {
   const { aToken, siteSettings } = useContext(AdminContext)
@@ -135,7 +101,6 @@ const App = () => {
         {aToken && (
           <>
             <AdminMobileNav />
-            <AdminOptionsBar />
             <CommandPalette />
           </>
         )}

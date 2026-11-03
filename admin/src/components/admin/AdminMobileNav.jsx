@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, useLocation } from 'react-router-dom'
 import { LayoutGrid, Menu, Search, X } from 'lucide-react'
 import { useLanguage } from '../../i18n'
@@ -50,7 +51,8 @@ export default function AdminMobileNav() {
         </IconButton>
       </div>
 
-      {open && (
+      {/* In a portal, because the scrolling page is a stacking context below the navbar */}
+      {open && createPortal(
         <div className='fixed inset-0 z-[55] md:hidden' role='dialog' aria-modal='true' aria-label={t('Admin navigation')}>
           <div className='absolute inset-0 bg-(--color-scrim) animate-fade' onClick={() => setOpen(false)} role='presentation' />
           <aside
@@ -92,7 +94,8 @@ export default function AdminMobileNav() {
               ))}
             </nav>
           </aside>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

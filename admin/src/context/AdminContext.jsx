@@ -639,6 +639,7 @@ const AdminContextProvider = (props) => {
     const bulkDoctorAvailability = (doctorIds, available) => postBulk('/api/admin/bulk/doctor-availability', { doctorIds, available })
     const bulkUserStatus = (users, active) => postBulk('/api/admin/bulk/user-status', { users, active })
     const bulkUserMfa = (users, requiredByAdmin) => postBulk('/api/admin/bulk/user-mfa', { users, requiredByAdmin })
+    const bulkResetMfa = (users) => postBulk('/api/admin/bulk/reset-mfa', { users })
     const bulkCancelAppointments = (appointmentIds) => postBulk('/api/admin/bulk/cancel-appointments', { appointmentIds })
 
     /** Suggestion for BilingualField. Resolves to '' when no translator is available. */
@@ -971,7 +972,7 @@ const AdminContextProvider = (props) => {
        deleteAppointmentHistory,
        receptionists, getReceptionists, changeReceptionistStatus, getReceptionistById, updateReceptionistByAdmin,
        translatePreview, getTranslationStatus, retryTranslations,
-       getCommandCenter, searchEverything, bulkDoctorAvailability, bulkUserStatus, bulkUserMfa, bulkCancelAppointments,
+       getCommandCenter, searchEverything, bulkDoctorAvailability, bulkUserStatus, bulkUserMfa, bulkResetMfa, bulkCancelAppointments,
        clinics, allowedClinics, getClinics, createClinic, updateClinic, deleteClinic, assignDoctorsToClinic,
        siteSettings, getSiteSettings, updateHomeHeroSettings, updateHomeBannerSettings, updateHomeServiceCardsSettings, updateFooterSettings, updateBrandingSettings, updateInsuranceProviders, updateSecuritySettings, updateHomeVisitPricingSettings, updateGlobalVisitFeesSettings, updateLanguagePoliciesSettings,
        getDoctorRatings, deleteDoctorRating

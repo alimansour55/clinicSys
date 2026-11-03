@@ -214,6 +214,43 @@ const bulkUserMfa = async (req, res) => {
   }
 }
 
+/**
+ * Clears MFA for many accounts at once, for when secrets may have leaked. Each person sets up their
+ * authenticator again at their next sign-in if MFA is required for them, so nothing is left open.
+ */
+const bulkResetMfa = async (req, res) => {
+  try {
+    const grouped = readUsersByType(req.body.users)
+    const total = grouped.patient.length + grouped.doctor.length + grouped.receptionist.length
+    if (!total) return nothingChosen(res)
+    if (total > BULK_LIMIT) return tooMany(res)
+
+    const resetAt = Date.now()
+    const results = await Promise.all(
+      Object.entries(grouped).map(([type, ids]) =>
+        USER_MODELS[type].updateMany(
+          { _id: { $in: ids } },
+          { $set: { 'mfa.enabled': false, 'mfa.secret': '', 'mfa.configuredAt': 0, 'mfa.resetAt': resetAt } }
+        )
+      )
+    )
+    const updated = results.reduce((sum, result) => sum + result.modifiedCount, 0)
+
+    await logAudit({
+      action: 'user_mfa_bulk_reset',
+      status: 'success',
+      entityType: 'user',
+      metadata: { ...grouped, updated },
+      req
+    })
+
+    res.json({ success: true, updated, message: 'MFA reset for the selected accounts' })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
 /** One at a time, because each can issue a refund. Reports what could not be cancelled and why. */
 const bulkCancelAppointments = async (req, res) => {
   try {
@@ -240,4 +277,4 @@ const bulkCancelAppointments = async (req, res) => {
   }
 }
 
-export { getCommandCenter, globalSearch, bulkDoctorAvailability, bulkUserStatus, bulkUserMfa, bulkCancelAppointments }
+export { getCommandCenter, globalSearch, bulkDoctorAvailability, bulkUserStatus, bulkUserMfa, bulkResetMfa, bulkCancelAppointments }

@@ -38,7 +38,7 @@ const Group = ({ title, children }) => (
 
 export default function CommandPalette() {
   const { searchEverything } = useContext(AdminContext)
-  const { t, tc, language, toggleLanguage } = useLanguage()
+  const { t, tc, language, toggleLanguage, localizeDigits } = useLanguage()
   const { isDark, toggle: toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -168,7 +168,7 @@ export default function CommandPalette() {
         items: (found.appointments || []).map((appointment) => ({
           id: `appointment-${appointment._id}`,
           label: appointment.userData?.name || appointment.reservationNumber,
-          hint: tc(appointment.docData?.i18n?.name) || appointment.docData?.name,
+          hint: [tc(appointment.docData?.i18n?.name) || appointment.docData?.name, localizeDigits(String(appointment.slotDate || '').replaceAll('_', '/'))].filter(Boolean).join(' · '),
           icon: CalendarDays,
           run: go('/all-appointments', { search: appointment.reservationNumber || appointment.userData?.name })
         }))
@@ -180,7 +180,7 @@ export default function CommandPalette() {
       { title: t('Actions'), items: filter(actions) },
       { title: t('Pages'), items: filter(pages) }
     ].filter((group) => group.items.length > 0)
-  }, [query, results, t, tc, navigate, isDark, toggleTheme, language, toggleLanguage])
+  }, [query, results, t, tc, navigate, isDark, toggleTheme, language, toggleLanguage, localizeDigits])
 
   const flat = groups.flatMap((group) => group.items)
 

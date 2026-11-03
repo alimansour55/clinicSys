@@ -88,11 +88,11 @@ const Navbar = () => {
         <button
           type='button'
           onClick={goHomeFromLogo}
-          className='flex shrink-0 cursor-pointer items-center justify-start border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded'
+          className='flex min-w-0 cursor-pointer items-center justify-start rounded border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
           aria-label={logoAltText}
         >
           <img
-            className={logoImgClassName}
+            className={`${logoImgClassName} min-w-0 !shrink`}
             src={headerLogoSrc}
             alt={logoAltText}
           />

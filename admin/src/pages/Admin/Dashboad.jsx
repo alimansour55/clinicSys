@@ -109,9 +109,9 @@ const Pulse = ({ label, measure, format, series, icon: Icon, upIsBad = false }) 
         <p className='text-caption font-medium text-ink-3'>{label}</p>
         <Icon aria-hidden='true' className='size-4 text-ink-3' />
       </div>
-      <p className='mt-1 font-display text-display tabular-nums text-ink'>{format(current)}</p>
-      <div className='mt-1 flex items-end justify-between gap-3'>
-        <p className={`flex items-center gap-1 text-caption font-medium ${toneClass}`}>
+      <p className='mt-1 whitespace-nowrap font-display text-title-lg tabular-nums text-ink'>{format(current)}</p>
+      <div className='mt-2 flex flex-wrap items-end justify-between gap-x-3 gap-y-1'>
+        <p className={`flex items-center gap-1 whitespace-nowrap text-caption font-medium ${toneClass}`}>
           <DeltaIcon aria-hidden='true' className='size-3.5 shrink-0' />
           {isNew ? t('New this week') : flat ? t('Same as last week') : `${localizeDigits(Math.abs(change))}% ${t('vs last week')}`}
           <span className='sr-only'>{`${t('Last week')}: ${format(previous)}`}</span>
@@ -135,7 +135,7 @@ const TodayCard = ({ today, slotDateFormat }) => {
         <div className='border-b border-line p-5 sm:p-6 lg:border-b-0 lg:border-e'>
           <p className='text-caption font-semibold text-brand'>{t('Today')}</p>
           <p className='mt-1 font-display text-display-xl tabular-nums text-ink'>{number(active)}</p>
-          <p className='text-body-sm text-ink-3'>{slotDateFormat(today.date.split('-').reverse().map(Number).join('_'))}</p>
+          <p className='text-body-sm text-ink-3'>{localizeDigits(slotDateFormat(today.date.split('-').reverse().map(Number).join('_')))}</p>
 
           <div
             role='progressbar'
@@ -148,7 +148,7 @@ const TodayCard = ({ today, slotDateFormat }) => {
             <div className='h-full rounded-full bg-primary transition-all duration-(--duration-slow) ease-standard' style={{ width: `${donePercent}%` }} />
           </div>
 
-          <dl className='mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 text-body-sm'>
+          <dl className='mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-body-sm sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2'>
             {[
               [t('Waiting to start'), today.booked],
               [t('Checked in'), today.checkedIn],
@@ -163,7 +163,7 @@ const TodayCard = ({ today, slotDateFormat }) => {
             ))}
             <div className='flex justify-between gap-2'>
               <dt className='text-ink-3'>{t('Collected today')}</dt>
-              <dd className='font-semibold tabular-nums text-ink'>{`${money(today.collectedRevenue)}`}</dd>
+              <dd className='whitespace-nowrap font-semibold tabular-nums text-ink'>{money(today.collectedRevenue)}</dd>
             </div>
           </dl>
           <p className='mt-2 text-caption text-ink-3'>{`${t('Expected from today’s visits')}: ${money(today.expectedRevenue)}`}</p>
@@ -314,7 +314,7 @@ const Dashboard = () => {
       <div className='mx-auto max-w-7xl space-y-5'>
         <header className='flex flex-wrap items-end justify-between gap-3'>
           <div className='min-w-0'>
-            <h1 className='font-display text-display text-ink'>{`${t('Clinic overview')}`}</h1>
+            <h1 className='font-display text-display text-ink'>{t('Clinic overview')}</h1>
             <p className='mt-1 flex flex-wrap items-center gap-x-2 text-body-sm text-ink-3'>
               <span aria-hidden='true' className={`inline-block size-2 rounded-full ${failed ? 'bg-danger' : 'bg-success'}`} />
               {failed ? t('Showing the last figures we could load') : `${t('Updated')} ${when(generatedAt)}`}

@@ -59,17 +59,20 @@ export function DailyBars({ series, field, formatValue = String, label }) {
         <span>{series[0] && shortDate(series[0].date, language)}</span>
         <span>{series.length > 0 && shortDate(series[series.length - 1].date, language)}</span>
       </div>
-      <table className='sr-only'>
-        <caption>{label}</caption>
-        <tbody>
-          {series.map((day) => (
-            <tr key={day.date}>
-              <th scope='row'>{day.date}</th>
-              <td>{formatValue(day[field])}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* A table ignores the 1px width of sr-only, so the wrapper carries it */}
+      <div className='sr-only'>
+        <table>
+          <caption>{label}</caption>
+          <tbody>
+            {series.map((day) => (
+              <tr key={day.date}>
+                <th scope='row'>{day.date}</th>
+                <td>{formatValue(day[field])}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   )
 }
@@ -128,17 +131,19 @@ export function BusyHeatmap({ cells, label }) {
           </div>
         </div>
       </div>
-      <table className='sr-only'>
-        <caption>{label}</caption>
-        <tbody>
-          {cells.map((cell) => (
-            <tr key={`${cell.weekday}-${cell.hour}`}>
-              <th scope='row'>{`${weekdayName(cell.weekday, language)} ${hourName(cell.hour, language)}`}</th>
-              <td>{cell.count}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className='sr-only'>
+        <table>
+          <caption>{label}</caption>
+          <tbody>
+            {cells.map((cell) => (
+              <tr key={`${cell.weekday}-${cell.hour}`}>
+                <th scope='row'>{`${weekdayName(cell.weekday, language)} ${hourName(cell.hour, language)}`}</th>
+                <td>{cell.count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   )
 }

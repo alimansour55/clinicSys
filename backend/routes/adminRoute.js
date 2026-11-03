@@ -10,7 +10,7 @@ import { getAdminSiteSettings, updateBrandingLogo, updateFooterSettings, updateH
 import { deleteRating, getAllDoctorRatings, getDoctorRatings } from '../controllers/ratingController.js'
 
 import { getTranslationStatus, postRetryTranslations, postTranslatePreview } from '../controllers/bilingualController.js'
-import { bulkCancelAppointments, bulkDoctorAvailability, bulkUserMfa, bulkUserStatus, getCommandCenter, globalSearch } from '../controllers/adminCommandController.js'
+import { bulkCancelAppointments, bulkDoctorAvailability, bulkResetMfa, bulkUserMfa, bulkUserStatus, getCommandCenter, globalSearch } from '../controllers/adminCommandController.js'
 
 const adminRouter = express.Router()
 
@@ -91,6 +91,7 @@ adminRouter.get('/search', authAdmin, authorizePermission('view all profiles'), 
 adminRouter.post('/bulk/doctor-availability', authAdmin, authorizePermission('manage doctors'), bulkDoctorAvailability)
 adminRouter.post('/bulk/user-status', authAdmin, authorizePermission('manage users'), bulkUserStatus)
 adminRouter.post('/bulk/user-mfa', authAdmin, authorizePermission('manage users'), bulkUserMfa)
+adminRouter.post('/bulk/reset-mfa', authAdmin, authorizePermission('manage users'), bulkResetMfa)
 adminRouter.post('/bulk/cancel-appointments', authAdmin, authorizePermission('manage appointments'), bulkCancelAppointments)
 adminRouter.get('/financial-analytics', authAdmin, authorizePermission('manage payments'), adminFinancialAnalytics)
 

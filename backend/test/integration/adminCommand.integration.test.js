@@ -54,6 +54,7 @@ describe('admin endpoints enforce admin access', () => {
     ['post', '/api/admin/bulk/doctor-availability'],
     ['post', '/api/admin/bulk/user-status'],
     ['post', '/api/admin/bulk/user-mfa'],
+    ['post', '/api/admin/bulk/reset-mfa'],
     ['post', '/api/admin/bulk/cancel-appointments'],
     ['post', '/api/admin/add-doctor'],
     ['post', '/api/admin/site-settings/footer'],
@@ -409,6 +410,21 @@ describe('bulk actions', () => {
     const mfa = await api().post('/api/admin/bulk/user-mfa').set(headers).send({ users, requiredByAdmin: true })
     expect(mfa.body.updated).toBe(2)
     expect((await userModel.findById(testIds.patientId).lean()).mfa.requiredByAdmin).toBe(true)
+  })
+
+  it('resets MFA across roles so each account sets it up again', async () => {
+    await doctorModel.updateOne({ _id: testIds.doctorId }, { $set: { 'mfa.enabled': true, 'mfa.secret': 'LEAKED' } })
+    await userModel.updateOne({ _id: testIds.patientId }, { $set: { 'mfa.enabled': true, 'mfa.secret': 'LEAKED2' } })
+    const headers = authHeader.admin(await loginAdmin())
+    const res = await api()
+      .post('/api/admin/bulk/reset-mfa')
+      .set(headers)
+      .send({ users: [{ profileType: 'doctor', profileId: testIds.doctorId }, { profileType: 'patient', profileId: testIds.patientId }] })
+    expect(res.body).toMatchObject({ success: true, updated: 2 })
+    const doctor = await doctorModel.findById(testIds.doctorId).select('+mfa.secret').lean()
+    expect(doctor.mfa).toMatchObject({ enabled: false, secret: '' })
+    expect(doctor.mfa.resetAt).toBeGreaterThan(0)
+    expect(JSON.stringify(res.body)).not.toContain('LEAKED')
   })
 
   it('cancels what it can, frees the slot and reports the rest', async () => {

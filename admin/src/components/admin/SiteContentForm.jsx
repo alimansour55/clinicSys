@@ -80,7 +80,7 @@ export const ColorField = ({ label, value, onChange }) => (
 export const LivePreview = ({ description, language, onLanguage, children, footer }) => {
   const { t } = useLanguage()
   return (
-    <aside className='h-fit overflow-hidden rounded-card border border-line bg-surface shadow-e1 xl:sticky xl:top-16'>
+    <aside className='h-fit overflow-hidden rounded-card border border-line bg-surface shadow-e1 xl:sticky xl:top-5'>
       <div className='flex flex-wrap items-center justify-between gap-3 border-b border-line p-4'>
         <div className='min-w-0'>
           <h2 className='flex items-center gap-2 text-subtitle font-semibold text-ink'>
