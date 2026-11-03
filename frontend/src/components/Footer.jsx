@@ -7,6 +7,7 @@ import { resolveClinicSectionLabel } from '../utils/chatbotOpeningSuggestions'
 import BrandLogo from './BrandLogo'
 import { DEFAULT_FOOTER_COPYRIGHT } from '../utils/publicSiteDefaults'
 import { siteText } from './discovery/siteCopy'
+import { fill } from './discovery/format'
 
 /** Calm ALL-CAPS Latin CMS labels (e.g. "ALL DOCTORS" → "All doctors") without touching other scripts. */
 const humanizeNavLabel = (label) => {
@@ -16,12 +17,13 @@ const humanizeNavLabel = (label) => {
 }
 
 const Footer = () => {
-  const { token, t, tc, language, siteSettings, doctors, placeTranslationOverrides } = useContext(AppContext)
+  const { token, t, tc, language, siteSettings, doctors, placeTranslationOverrides, localizeDigits } = useContext(AppContext)
   const footer = siteSettings?.footer || {}
   const description = siteText(footer.description)
   const phoneNumber = footer.phoneNumber || '+20 101 881 1142'
   const email = footer.email || 'contact@clinivo.com'
-  const copyrightText = footer.copyrightText || DEFAULT_FOOTER_COPYRIGHT
+  // Stored defaults (any year) get a translated line; text an admin wrote is kept as is
+  const customCopyright = footer.copyrightText && footer.copyrightText !== DEFAULT_FOOTER_COPYRIGHT && !/^copyright\s*(\d{4})?\s*©\s*clinivo\s*-\s*all rights reserved\.?$/i.test(footer.copyrightText.trim()) ? footer.copyrightText : ''
 
   const siteLinks = [
     { label: footer.homeLabel || 'Home', path: '/', show: footer.showHomeLink !== false },
@@ -107,7 +109,7 @@ const Footer = () => {
           </div>
         </div>
 
-        <p className='mt-12 border-t border-line pt-6 text-center text-caption text-ink-3'>{t(copyrightText)}</p>
+        <p className='mt-12 border-t border-line pt-6 text-center text-caption text-ink-3'>{customCopyright ? t(customCopyright) : fill(t('© {{year}} Clinivo. All rights reserved.'), { year: localizeDigits(String(new Date().getFullYear())) })}</p>
       </div>
     </footer>
   )

@@ -41,7 +41,7 @@ export default function DoctorCard({ row, mode = '', now, priority = false, head
           height={360}
           loading={priority ? 'eager' : 'lazy'}
           decoding='async'
-          fetchpriority={priority ? 'high' : undefined}
+          fetchPriority={priority ? 'high' : undefined}
           className='size-full object-cover object-top transition duration-(--duration-slow) ease-standard group-hover:scale-[1.03]'
         />
         <RatingBadge summary={doctor.ratingSummary} className='absolute start-2.5 top-2.5' />

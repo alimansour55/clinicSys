@@ -63,7 +63,7 @@ const Header = ({ catalog }) => {
             {customTitle ? t(customTitle) : (
               <>
                 {t('The right doctor,')}{' '}
-                <em className='text-brand'>{t('and their next free time.')}</em>
+                <em className='text-brand rtl:not-italic'>{t('and their next free time.')}</em>
               </>
             )}
           </h1>
@@ -105,7 +105,7 @@ const Header = ({ catalog }) => {
               src={optimizedImage(hero.heroImage, 900)}
               alt=''
               className='mb-[-3rem] ms-auto w-4/5 rounded-card object-cover shadow-e2 lg:mb-[-4rem]'
-              fetchpriority='high'
+              fetchPriority='high'
             />
           )}
           <NextOpeningsBoard rows={rows} stats={stats} now={now} loading={loading} />

@@ -167,5 +167,6 @@ export default {
     'Change or cancel a booking': 'تعديل أو إلغاء حجز',
     'Open your appointments.': 'افتح مواعيدك.',
     'Sign in to see your appointments.': 'سجّل الدخول لترى مواعيدك.',
+    '© {{year}} Clinivo. All rights reserved.': '© {{year}} كلينيفو. جميع الحقوق محفوظة.',
   },
 }
