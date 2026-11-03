@@ -121,7 +121,7 @@ const Dashboard = () => {
 
 
           <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5'>
-            <button type='button' onClick={() => navigate('/patients')} className='text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500'>
+            <button type='button' onClick={() => navigate('/patients')} className='text-start rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500'>
               <StatTile icon={<UserRound className='w-5 h-5' />} label={t('Total Patients')} value={dashData?.patients || 0} accent='bg-blue-50 text-blue-700' />
             </button>
             <StatTile icon={<Stethoscope className='w-5 h-5' />} label={t('Total Doctors')} value={dashData?.doctors || 0} accent='bg-indigo-50 text-indigo-700' />

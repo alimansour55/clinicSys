@@ -246,7 +246,7 @@ const AdminProfile = () => {
                 </span>
               )}
               {isEdit && (
-                <label className='absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-primary shadow-md ring-2 ring-slate-900/20'>
+                <label className='absolute -bottom-1 -end-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-primary shadow-md ring-2 ring-slate-900/20'>
                   <Camera className='h-4 w-4' />
                   <input type='file' accept='image/*' className='hidden' onChange={onPickPhoto} />
                 </label>
@@ -377,7 +377,7 @@ const AdminProfile = () => {
             <label className='block text-sm font-medium text-gray-700 sm:col-span-2'>
               Mobile number
               <div className='mt-1 flex overflow-hidden rounded-xl border border-gray-200 bg-white focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20'>
-                <span className='flex shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-600'>
+                <span className='flex shrink-0 items-center border-e border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-600'>
                   {EGYPT_DIAL_CODE}
                 </span>
                 <input
@@ -427,7 +427,7 @@ const AdminProfile = () => {
               {mfaStatus?.enabled ? 'Enabled' : 'Not enabled'}
             </span>
             {mfaStatus?.required && (
-              <span className='ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800'>
+              <span className='ms-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800'>
                 Required by policy
               </span>
             )}
@@ -488,7 +488,7 @@ const AdminProfile = () => {
                   <button
                     type='button'
                     onClick={disableMfa}
-                    className='rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50'
+                    className='rounded-xl border border-eed-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50'
                   >
                     Disable MFA
                   </button>

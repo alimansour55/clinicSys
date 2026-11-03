@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useMemo, useState } from "react";
 import axios from 'axios'
 import { toast } from "react-toastify";
 import { useLanguage } from "../i18n";
@@ -10,6 +10,7 @@ import {
   writeCachedPublicDoctors,
 } from "../utils/publicCatalogCache";
 import { displayPersonName as displayPersonNameAr } from '../utils/personNameArabic.js'
+import { storedClinicLabels } from '../utils/bilingualContent.js'
 import { collectPlaceStringsNeedingTranslate } from '../utils/placeTranslations.js'
 import { collectDoctorAboutTextsNeedingTranslate } from '../utils/doctorAboutTranslate.js'
 import { resolveBackendUrl } from '../utils/resolveBackendUrl.js'
@@ -33,6 +34,7 @@ const AppContextProvider = (props) => {
   const [appointments, setAppointments] = useState([])
   const [siteSettings, setSiteSettings] = useState(() => readCachedPublicSiteSettings())
   const [placeTranslationOverrides, setPlaceTranslationOverrides] = useState({})
+  const storedLabels = useMemo(() => storedClinicLabels(clinics), [clinics])
   const [textTranslationOverrides, setTextTranslationOverrides] = useState({})
 
   const clearAuthSession = () => {
@@ -501,7 +503,7 @@ const AppContextProvider = (props) => {
     language,
     t,
     tc,
-    placeTranslationOverrides,
+    placeTranslationOverrides: { ...placeTranslationOverrides, ...storedLabels },
     textTranslationOverrides,
     localizeDigits,
     displayPersonName: (name) => displayPersonNameAr(name, language),

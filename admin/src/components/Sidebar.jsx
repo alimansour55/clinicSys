@@ -37,20 +37,15 @@ const Sidebar = () => {
   }
 
   const adminNavInactiveClass =
-    'flex w-full items-center gap-3 rounded-lg py-2.5 px-3 text-left transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-950'
+    'flex w-full items-center gap-3 rounded-lg py-2.5 px-3 text-start transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-950'
   const adminNavActiveClass =
-    'flex w-full items-center gap-3 rounded-lg bg-primary py-2.5 px-3 text-left text-white shadow-sm transition-colors'
+    'flex w-full items-center gap-3 rounded-lg bg-primary py-2.5 px-3 text-start text-white shadow-sm transition-colors'
 
   const staffRowInactiveClass =
-    'flex w-full cursor-pointer items-center justify-center gap-2 py-3 text-left text-[#515151] transition-colors hover:bg-gray-50 md:justify-start md:gap-3 md:py-3.5 md:px-6'
-  const staffRowActiveClass = `${staffRowInactiveClass} bg-[#F2F3FF] border-r-4 border-primary`
+    'flex w-full cursor-pointer items-center justify-center gap-2 py-3 text-start text-[#515151] transition-colors hover:bg-gray-50 md:justify-start md:gap-3 md:py-3.5 md:px-6'
+  const staffRowActiveClass = `${staffRowInactiveClass} bg-[#F2F3FF] border-e-4 border-primary`
 
-  /** Admin sidebar stays on the left in every language; staff (doctor/receptionist) keeps RTL flip. */
-  const sidebarPosition = aToken
-    ? 'left-0 border-r'
-    : isRtl
-      ? 'right-0 border-l'
-      : 'left-0 border-r'
+  const sidebarPosition = 'start-0 border-e'
   const adminWidthClass = 'w-64'
   const staffWidthClass = 'w-14 sm:w-16 md:w-64'
 
@@ -83,7 +78,7 @@ const Sidebar = () => {
                       <button
                         type='button'
                         onClick={() => toggleSection(section.title)}
-                        className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left transition ${
+                        className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-start transition ${
                           activeSection
                             ? 'bg-[#F2F3FF] text-primary'
                             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-950'
@@ -96,7 +91,7 @@ const Sidebar = () => {
                         <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${openSection ? 'rotate-180' : ''}`} />
                       </button>
                       {openSection && (
-                        <ul className='ml-5 space-y-1 border-l border-gray-100 pl-2'>
+                        <ul className='ms-5 space-y-1 border-s border-gray-100 ps-2'>
                           {section.links.map((link) => (
                             <li key={link.path}>
                               <StaffNavButton
@@ -124,38 +119,38 @@ const Sidebar = () => {
           <ul className='mt-5 overflow-y-auto text-[#515151]'>
             <li>
               <StaffNavButton to='/doctor-dashboard' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
-                <img className='w-4 sm:w-5 md:w-6 shrink-0' src={assets.home_icon} alt='Dashboard' />
-                <p className='hidden md:block text-sm lg:text-base'>Dashboard</p>
+                <img className='w-4 sm:w-5 md:w-6 shrink-0' src={assets.home_icon} alt={t('Dashboard')} />
+                <p className='hidden md:block text-sm lg:text-base'>{t('Dashboard')}</p>
               </StaffNavButton>
             </li>
             <li>
               <StaffNavButton to='/doctor-appointments' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
-                <img className='w-4 sm:w-5 md:w-6 shrink-0' src={assets.appointment_icon} alt='Appointments' />
-                <p className='hidden md:block text-sm lg:text-base'>Appointments</p>
+                <img className='w-4 sm:w-5 md:w-6 shrink-0' src={assets.appointment_icon} alt={t('Appointments')} />
+                <p className='hidden md:block text-sm lg:text-base'>{t('Appointments')}</p>
               </StaffNavButton>
             </li>
             <li>
               <StaffNavButton to='/patient-history' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
                 <ClipboardList className='w-5 sm:w-5 md:w-6 shrink-0 text-gray-800' />
-                <p className='hidden md:block text-sm lg:text-base'>Patient History</p>
+                <p className='hidden md:block text-sm lg:text-base'>{t('Patient History')}</p>
               </StaffNavButton>
             </li>
             <li>
               <StaffNavButton to='/doctor-availability' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
                 <CalendarClock className='w-5 sm:w-5 md:w-6 shrink-0 text-gray-800' />
-                <p className='hidden md:block text-sm lg:text-base'>Availability</p>
+                <p className='hidden md:block text-sm lg:text-base'>{t('Availability')}</p>
               </StaffNavButton>
             </li>
             <li>
               <StaffNavButton to='/doctor-financial-analysis' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
                 <BarChart3 className='w-5 sm:w-5 md:w-6 shrink-0 text-gray-800' />
-                <p className='hidden md:block text-sm lg:text-base'>Financial Analysis</p>
+                <p className='hidden md:block text-sm lg:text-base'>{t('Financial Analysis')}</p>
               </StaffNavButton>
             </li>
             <li>
               <StaffNavButton to='/doctor-profile' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
-                <img className='w-4 sm:w-5 md:w-6 shrink-0' src={assets.people_icon} alt='Profile' />
-                <p className='hidden md:block text-sm lg:text-base'>Profile</p>
+                <img className='w-4 sm:w-5 md:w-6 shrink-0' src={assets.people_icon} alt={t('Profile')} />
+                <p className='hidden md:block text-sm lg:text-base'>{t('Profile')}</p>
               </StaffNavButton>
             </li>
           </ul>
@@ -165,38 +160,38 @@ const Sidebar = () => {
           <ul className='mt-5 overflow-y-auto text-[#515151]'>
             <li>
               <StaffNavButton to='/receptionist-dashboard' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
-                <img className='w-4 sm:w-5 md:w-6 shrink-0' src={assets.home_icon} alt='Dashboard' />
-                <p className='hidden md:block text-sm lg:text-base'>Dashboard</p>
+                <img className='w-4 sm:w-5 md:w-6 shrink-0' src={assets.home_icon} alt={t('Dashboard')} />
+                <p className='hidden md:block text-sm lg:text-base'>{t('Dashboard')}</p>
               </StaffNavButton>
             </li>
             <li>
               <StaffNavButton to='/receptionist-appointments' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
                 <ClipboardList className='w-5 sm:w-5 md:w-6 shrink-0 text-gray-800' />
-                <p className='hidden md:block text-sm lg:text-base'>Appointments</p>
+                <p className='hidden md:block text-sm lg:text-base'>{t('Appointments')}</p>
               </StaffNavButton>
             </li>
             <li>
               <StaffNavButton to='/receptionist-book-appointment' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
                 <CalendarPlus className='w-5 sm:w-5 md:w-6 shrink-0 text-gray-800' />
-                <p className='hidden md:block text-sm lg:text-base'>Book Appointment</p>
+                <p className='hidden md:block text-sm lg:text-base'>{t('Book Appointment')}</p>
               </StaffNavButton>
             </li>
             <li>
               <StaffNavButton to='/receptionist-patients' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
                 <UserRound className='w-5 sm:w-5 md:w-6 shrink-0 text-gray-800' />
-                <p className='hidden md:block text-sm lg:text-base'>All Patients</p>
+                <p className='hidden md:block text-sm lg:text-base'>{t('All Patients')}</p>
               </StaffNavButton>
             </li>
             <li>
               <StaffNavButton to='/receptionist-clinics' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
                 <Stethoscope className='w-5 sm:w-5 md:w-6 shrink-0 text-gray-800' />
-                <p className='hidden md:block text-sm lg:text-base'>Clinics</p>
+                <p className='hidden md:block text-sm lg:text-base'>{t('Clinics')}</p>
               </StaffNavButton>
             </li>
             <li>
               <StaffNavButton to='/receptionist-profile' inactiveClassName={staffRowInactiveClass} activeClassName={staffRowActiveClass}>
-                <img className='w-4 sm:w-5 md:w-6 shrink-0' src={assets.people_icon} alt='My profile' />
-                <p className='hidden md:block text-sm lg:text-base'>My Profile</p>
+                <img className='w-4 sm:w-5 md:w-6 shrink-0' src={assets.people_icon} alt={t('My profile')} />
+                <p className='hidden md:block text-sm lg:text-base'>{t('My Profile')}</p>
               </StaffNavButton>
             </li>
           </ul>

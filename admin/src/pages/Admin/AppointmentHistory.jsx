@@ -80,7 +80,7 @@ const AppointmentHistory = () => {
               onClick={handleBack}
               className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition text-sm sm:text-base font-medium flex-shrink-0"
             >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ArrowLeft className="rtl:-scale-x-100 w-4 h-4 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline">Back to History</span>
               <span className="sm:hidden">Back</span>
             </button>
@@ -222,7 +222,7 @@ const AppointmentHistory = () => {
             <div className="space-y-5 sm:space-y-6">
               
               {/* Diagnosis */}
-              <div className="border-l-4 border-blue-600 pl-4">
+              <div className="border-s-4 border-blue-600 ps-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Stethoscope className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   <label className="text-sm sm:text-base font-semibold text-gray-700">Diagnosis</label>
@@ -234,7 +234,7 @@ const AppointmentHistory = () => {
 
               {/* Symptoms */}
               {selectedAppointment.symptoms && (
-                <div className="border-l-4 border-orange-500 pl-4">
+                <div className="border-s-4 border-orange-500 ps-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Thermometer className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
                     <label className="text-sm sm:text-base font-semibold text-gray-700">Symptoms</label>
@@ -247,7 +247,7 @@ const AppointmentHistory = () => {
 
               {/* Medicines */}
               {(selectedAppointment.medicationItems?.length || selectedAppointment.medicines) && (
-                <div className="border-l-4 border-green-600 pl-4">
+                <div className="border-s-4 border-green-600 ps-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Pill className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                     <label className="text-sm sm:text-base font-semibold text-gray-700">Prescribed Medicines</label>
@@ -257,11 +257,11 @@ const AppointmentHistory = () => {
                       <table className="w-full text-sm border border-green-100 rounded-lg overflow-hidden">
                         <thead className="bg-green-50 text-gray-700">
                           <tr>
-                            <th className="text-left p-2">Medicine</th>
-                            <th className="text-left p-2">Dosage</th>
-                            <th className="text-left p-2">Frequency</th>
-                            <th className="text-left p-2">Duration</th>
-                            <th className="text-left p-2">Instructions</th>
+                            <th className="text-start p-2">Medicine</th>
+                            <th className="text-start p-2">Dosage</th>
+                            <th className="text-start p-2">Frequency</th>
+                            <th className="text-start p-2">Duration</th>
+                            <th className="text-start p-2">Instructions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -287,7 +287,7 @@ const AppointmentHistory = () => {
 
               {/* Instructions */}
               {selectedAppointment.instructions && (
-                <div className="border-l-4 border-purple-600 pl-4">
+                <div className="border-s-4 border-purple-600 ps-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Clipboard className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                     <label className="text-sm sm:text-base font-semibold text-gray-700">Patient Instructions</label>
@@ -300,12 +300,12 @@ const AppointmentHistory = () => {
 
               {/* Lab Tests */}
               {selectedAppointment.labTests && (
-                <div className="border-l-4 border-red-500 pl-4">
+                <div className="border-s-4 border-eed-500 ps-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
                     <label className="text-sm sm:text-base font-semibold text-gray-700">Lab Tests</label>
                   </div>
-                  <p className="p-2 sm:p-3 bg-red-50 rounded-lg border border-red-200 text-sm sm:text-base text-gray-800">
+                  <p className="p-2 sm:p-3 bg-red-50 rounded-lg border border-eed-200 text-sm sm:text-base text-gray-800">
                     {selectedAppointment.labTests}
                   </p>
                 </div>
@@ -313,7 +313,7 @@ const AppointmentHistory = () => {
 
               {/* Next Visit */}
               {selectedAppointment.nextVisit && (
-                <div className="border-l-4 border-yellow-500 pl-4">
+                <div className="border-s-4 border-yellow-500 ps-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
                     <label className="text-sm sm:text-base font-semibold text-gray-700">Follow-up Visit</label>
@@ -326,7 +326,7 @@ const AppointmentHistory = () => {
 
               {/* Documentation */}
               {selectedAppointment.documentation && (
-                <div className="border-l-4 border-indigo-600 pl-4">
+                <div className="border-s-4 border-indigo-600 ps-4">
                   <div className="flex items-center gap-2 mb-2">
                     <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
                     <label className="text-sm sm:text-base font-semibold text-gray-700">Documentation</label>
@@ -397,24 +397,24 @@ const AppointmentHistory = () => {
             <FileText className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 text-blue-600" />
             Appointment History
           </h1>
-          <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-1 ml-6 sm:ml-9">View and manage completed appointments</p>
+          <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-1 ms-6 sm:ms-9">View and manage completed appointments</p>
         </div>
 
         {/* Search Bar Only */}
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
           <div className="relative">
-            <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
+            <Search className="absolute start-3 sm:start-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by Patient ID or reservation..."
-              className="w-full pl-10 sm:pl-12 pr-10 sm:pr-12 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full ps-10 sm:ps-12 pe-10 sm:pe-12 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute end-3 sm:end-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>

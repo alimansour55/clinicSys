@@ -236,10 +236,10 @@ const Login = () => {
               {t('Full Name *')}
             </label>
             <div className='relative' data-input-field>
-              <User size={16} className='field-icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
+              <User size={16} className='field-icon absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
               <input
                 id='signup-name'
-                className='w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
+                className='w-full ps-10 pe-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
                 type='text'
                 onChange={(e) => setName(e.target.value)}
                 value={name}
@@ -256,10 +256,10 @@ const Login = () => {
             {state === 'Sign Up' ? t('Email *') : t('Email or Phone')}
           </label>
           <div className='relative' data-input-field>
-            <Mail size={16} className='field-icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
+            <Mail size={16} className='field-icon absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
             <input
               id='login-email'
-              className='w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
+              className='w-full ps-10 pe-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
               type={state === 'Sign Up' ? 'email' : 'text'}
               onChange={(e) => {
                 setEmail(e.target.value)
@@ -338,7 +338,7 @@ const Login = () => {
                 role='checkbox'
                 aria-checked={insuranceEnabled}
                 onClick={() => setInsuranceEnabled((value) => !value)}
-                className='flex w-full min-h-[44px] items-center gap-3 rounded-lg py-2 text-left text-sm font-semibold text-gray-800 transition active:bg-gray-100'
+                className='flex w-full min-h-[44px] items-center gap-3 rounded-lg py-2 text-start text-sm font-semibold text-gray-800 transition active:bg-gray-100'
               >
                 <span
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition ${
@@ -393,7 +393,7 @@ const Login = () => {
                       <button
                         type='button'
                         onClick={() => insuranceCardInputRef.current?.click()}
-                        className='flex min-h-[44px] w-full items-center gap-2 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-600 transition hover:border-primary active:bg-gray-50'
+                        className='flex min-h-[44px] w-full items-center gap-2 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2 text-start text-sm text-gray-600 transition hover:border-primary active:bg-gray-50'
                       >
                         <FileUp className='h-4 w-4 shrink-0' />
                         <span className='truncate'>{insuranceCardPhoto ? insuranceCardPhoto.name : t('Attach file')}</span>
@@ -422,10 +422,10 @@ const Login = () => {
             {t('Password')}
           </label>
           <div className='relative' data-input-field>
-            <Lock size={16} className='field-icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
+            <Lock size={16} className='field-icon absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]' />
             <input
               id='login-password'
-              className='w-full pl-10 pr-10 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
+              className='w-full ps-10 pe-10 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
               type={showPassword ? 'text' : 'password'}
               onChange={(e) => setPassword(e.target.value)}
               value={password}
@@ -437,7 +437,7 @@ const Login = () => {
             <button
               type='button'
               onClick={() => setShowPassword(!showPassword)}
-              className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors'
+              className='absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors'
             >
               {showPassword ? <EyeOff size={18} className='sm:w-5 sm:h-5' /> : <Eye size={18} className='sm:w-5 sm:h-5' />}
             </button>
@@ -448,7 +448,7 @@ const Login = () => {
             <button
               type='button'
               onClick={() => navigate('/email-verify')}
-              className='mt-2 block w-full text-right text-xs sm:text-sm text-primary underline hover:text-primary/80'
+              className='mt-2 block w-full text-end text-xs sm:text-sm text-primary underline hover:text-primary/80'
             >
               {t('Forgot Password?')}
             </button>

@@ -108,7 +108,7 @@ const Navbar = () => {
           </div>
         </nav>
 
-        <div className='ml-auto flex shrink-0 items-center gap-2 sm:gap-3'>
+        <div className='ms-auto flex shrink-0 items-center gap-2 sm:gap-3'>
           {token && userData ? (
             <>
               <div className='hidden items-center gap-2 md:flex md:gap-3'>
@@ -122,9 +122,7 @@ const Navbar = () => {
                   <span className='sm:hidden'>{t('APPOINTMENTS')}</span>
                 </button>
 
-                <div className='rounded-full border border-teal-100 bg-white p-1 shadow-sm'>
-                  <LanguageToggle compact />
-                </div>
+                <LanguageToggle compact />
 
                 <ThemeToggle />
 
@@ -133,7 +131,7 @@ const Navbar = () => {
                 <div className='group relative'>
                   <button
                     type='button'
-                    className='flex max-w-[12rem] items-center gap-2 rounded-full border border-teal-100 bg-white px-2 py-1.5 text-left shadow-sm transition hover:border-primary/40 hover:bg-teal-50'
+                    className='flex max-w-[12rem] items-center gap-2 rounded-full border border-teal-100 bg-white px-2 py-1.5 text-start shadow-sm transition hover:border-primary/40 hover:bg-teal-50'
                   >
                     <img
                       className='h-9 w-9 shrink-0 rounded-full border-2 border-teal-100 object-cover'
@@ -149,14 +147,14 @@ const Navbar = () => {
                     <ChevronDown className='h-4 w-4 shrink-0 text-gray-500' />
                   </button>
 
-                  <div className='absolute right-0 top-full z-50 hidden pt-2 group-hover:block'>
+                  <div className='absolute end-0 top-full z-50 hidden pt-2 group-hover:block'>
                     <div className='w-64 rounded-xl border border-teal-100 bg-white p-2 text-gray-700 shadow-xl'>
                       {accountLinks.map(({ to, label, icon: Icon }) => (
                         <button
                           key={to}
                           type='button'
                           onClick={() => navigate(to)}
-                          className='flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-teal-50 hover:text-primary'
+                          className='flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start text-sm transition hover:bg-teal-50 hover:text-primary'
                         >
                           <Icon className='h-4 w-4 shrink-0' />
                           {t(label)}
@@ -176,7 +174,7 @@ const Navbar = () => {
                       <button
                         type='button'
                         onClick={logout}
-                        className='flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50'
+                        className='flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start text-sm text-red-600 transition hover:bg-red-50'
                       >
                         <LogOut className='h-4 w-4' />
                         {t('Logout')}
@@ -187,18 +185,14 @@ const Navbar = () => {
               </div>
 
               <div className='flex items-center gap-1.5 md:hidden'>
-                <div className='rounded-full border border-teal-100 bg-white p-0.5 shadow-sm'>
-                  <LanguageToggle compact />
-                </div>
+                <LanguageToggle compact />
                 <ThemeToggle />
                 <PatientNotificationBell />
               </div>
             </>
           ) : (
             <div className='hidden items-center gap-2 md:flex md:gap-3'>
-              <div className='rounded-full border border-teal-100 bg-white p-1 shadow-sm'>
-                <LanguageToggle compact />
-              </div>
+              <LanguageToggle compact />
               <ThemeToggle />
               <button
                 type='button'
@@ -238,10 +232,10 @@ const Navbar = () => {
             role='presentation'
           />
 
-          <aside className='absolute top-0 right-0 bottom-0 flex h-full w-[min(100vw-1.25rem,22rem)] max-w-sm flex-col overflow-hidden bg-white shadow-2xl'>
+          <aside className='absolute top-0 end-0 bottom-0 flex h-full w-[min(100vw-1.25rem,22rem)] max-w-sm flex-col overflow-hidden bg-white shadow-2xl'>
             <div className='border-b border-teal-100 bg-gradient-to-br from-teal-50 via-white to-blue-50 px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))]'>
               <div className='flex items-center justify-between gap-3'>
-                <button type='button' onClick={() => closeAndNavigate('/')} className='min-w-0 text-left'>
+                <button type='button' onClick={() => closeAndNavigate('/')} className='min-w-0 text-start'>
                   <BrandLogo siteSettings={siteSettings} imgClassName={patientDrawerLogoClassName} />
                 </button>
                 <button
@@ -282,7 +276,7 @@ const Navbar = () => {
                         <Icon className='h-4 w-4 shrink-0' />
                         {t(label)}
                       </span>
-                      <ChevronRight className='h-4 w-4 shrink-0 opacity-60' />
+                      <ChevronRight className='rtl:-scale-x-100 h-4 w-4 shrink-0 opacity-60' />
                     </NavLink>
                   </li>
                 ))}
@@ -298,7 +292,7 @@ const Navbar = () => {
                           <CalendarDays className='h-4 w-4 shrink-0' />
                           {t('My Appointments')}
                         </span>
-                        <ChevronRight className='h-4 w-4 shrink-0 opacity-60' />
+                        <ChevronRight className='rtl:-scale-x-100 h-4 w-4 shrink-0 opacity-60' />
                       </NavLink>
                     </li>
                     {accountLinks.map(({ to, label, icon: Icon }) => (
@@ -308,7 +302,7 @@ const Navbar = () => {
                             <Icon className='h-4 w-4 shrink-0' />
                             {t(label)}
                           </span>
-                          <ChevronRight className='h-4 w-4 shrink-0 opacity-60' />
+                          <ChevronRight className='rtl:-scale-x-100 h-4 w-4 shrink-0 opacity-60' />
                         </NavLink>
                       </li>
                     ))}
@@ -353,7 +347,7 @@ const Navbar = () => {
                     setShowMenu(false)
                     logout()
                   }}
-                  className='mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3.5 text-sm font-semibold text-red-600 transition active:bg-red-100'
+                  className='mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-eed-200 bg-red-50 py-3.5 text-sm font-semibold text-red-600 transition active:bg-red-100'
                 >
                   <LogOut className='h-4 w-4' />
                   {t('Logout')}

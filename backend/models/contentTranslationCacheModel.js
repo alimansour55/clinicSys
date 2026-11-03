@@ -6,7 +6,7 @@ const contentTranslationCacheSchema = new mongoose.Schema(
     cacheKey: { type: String, required: true, unique: true, index: true, maxlength: 80 },
     targetLang: { type: String, required: true, enum: ['ar', 'en'], index: true },
     translated: { type: String, required: true, maxlength: 32000 },
-    source: { type: String, enum: ['google', 'libre'], default: 'libre' }
+    source: { type: String, enum: ['google', 'libre', 'openai'], default: 'libre' }
   },
   { timestamps: true }
 )

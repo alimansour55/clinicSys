@@ -104,7 +104,7 @@ const AuditLogs = () => {
               <ShieldCheck className='w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-blue-600' />
               Audit Logs
             </h1>
-            <p className='text-xs sm:text-sm md:text-base text-gray-600 mt-1 ml-7 sm:ml-9'>Review security, payment, profile, and medical-record activity</p>
+            <p className='text-xs sm:text-sm md:text-base text-gray-600 mt-1 ms-7 sm:ms-9'>Review security, payment, profile, and medical-record activity</p>
           </div>
 
           <button

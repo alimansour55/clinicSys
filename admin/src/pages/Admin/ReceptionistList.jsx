@@ -95,18 +95,18 @@ const ReceptionistList = () => {
         <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-2xl">
             <div className="relative sm:col-span-2 lg:col-span-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search name, email, phone…"
-                className="w-full rounded-xl border border-gray-200 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-gray-200 py-2.5 ps-10 pe-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   aria-label="Clear search"
                 >
                   <X className="h-4 w-4" />
@@ -117,27 +117,27 @@ const ReceptionistList = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 ps-3 pe-10 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
                 <option value="all">All statuses</option>
                 <option value="active">Active only</option>
                 <option value="inactive">Inactive only</option>
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             </div>
           </div>
-          <p className="text-center text-sm font-medium text-gray-600 lg:text-right">
+          <p className="text-center text-sm font-medium text-gray-600 lg:text-end">
             Showing <span className="font-bold text-gray-900">{filtered.length}</span> of {receptionists.length}
           </p>
         </div>
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="hidden grid-cols-[minmax(0,2.2fr)_minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)] gap-2 border-b border-gray-100 bg-gray-50/90 px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-gray-500 lg:grid">
+          <div className="hidden grid-cols-[minmax(0,2.2fr)_minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)] gap-2 border-b border-gray-100 bg-gray-50/90 px-5 py-3 text-start text-xs font-bold uppercase tracking-wide text-gray-500 lg:grid">
             <span>Staff</span>
             <span>Email</span>
             <span>Phone</span>
             <span>Status</span>
-            <span className="text-right pr-2">Actions</span>
+            <span className="text-end pe-2">Actions</span>
           </div>
 
           {loading ? (

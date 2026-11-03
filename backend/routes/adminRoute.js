@@ -9,6 +9,8 @@ import { assignDoctorsToClinic, createClinic, deleteClinic, getClinics, updateCl
 import { getPublicSiteSettings, updateBrandingLogo, updateFooterSettings, updateHomeBannerSettings, updateHomeHeroSettings, updateHomeServiceCardsSettings, updateGlobalVisitFeesSettings, updateHomeVisitPricingSettings, updateInsuranceProviders, updateLanguagePoliciesSettings, updateSecuritySettings } from '../controllers/siteSettingController.js'
 import { deleteRating, getAllDoctorRatings, getDoctorRatings } from '../controllers/ratingController.js'
 
+import { getTranslationStatus, postRetryTranslations, postTranslatePreview } from '../controllers/bilingualController.js'
+
 const adminRouter = express.Router()
 
 const optionalReceptionistImage = (req, res, next) => {
@@ -59,6 +61,9 @@ adminRouter.get('/appointment-history', authAdmin, authorizePermission('manage m
 adminRouter.post('/delete-appointment-history', authAdmin, authorizePermission('manage medical history'), deleteAppointmentHistory)  
 adminRouter.post('/delete-profile', authAdmin, authorizePermission('delete profiles'), deleteProfile)
 adminRouter.get('/audit-logs', authAdmin, authorizePermission('view audit logs'), getAuditLogs)
+adminRouter.post('/translate-preview', authAdmin, postTranslatePreview)
+adminRouter.get('/translations/status', authAdmin, getTranslationStatus)
+adminRouter.post('/translations/retry', authAdmin, postRetryTranslations)
 adminRouter.get('/clinics', authAdmin, authorizePermission('manage clinics'), getClinics)
 adminRouter.post('/create-clinic', authAdmin, authorizePermission('manage clinics'), createClinic)
 adminRouter.post('/update-clinic', authAdmin, authorizePermission('manage clinics'), updateClinic)

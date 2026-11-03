@@ -61,7 +61,7 @@ const LogoSettings = () => {
             <Sparkles className='w-6 h-6 text-primary' />
             Site logo
           </h1>
-          <p className='mt-2 text-sm text-gray-600 ml-8'>
+          <p className='mt-2 text-sm text-gray-600 ms-8'>
             Upload your logo for the patient website, staff portal header, and sign-in screen. Size on the site is fixed for a consistent layout. Use <strong>Save logo</strong> after choosing a file.
           </p>
         </div>
@@ -93,7 +93,7 @@ const LogoSettings = () => {
                 type='file'
                 accept='image/png,image/jpeg,image/webp,image/svg+xml'
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className='block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary/90'
+                className='block w-full text-sm text-gray-600 file:me-4 file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary/90'
               />
               <p className='mt-2 text-xs text-gray-500'>PNG, JPG, WebP, or SVG. Prefer a horizontal mark with clear margins.</p>
             </div>

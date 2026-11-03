@@ -2,6 +2,9 @@ import React, { useContext, useEffect, useMemo, useState } from 'react'
 import { AdminContext } from '../../context/AdminContext'
 import { useLanguage } from '../../i18n'
 import { Building2, Check, Edit2, Plus, Save, Search, Trash2, Users, X } from 'lucide-react'
+import BilingualField from '../../components/BilingualField'
+import { Badge, Button } from '../../components/ui'
+import { bilingualFromRecord, bilingualIsEmpty, bilingualPayload, emptyBilingual } from '../../utils/bilingualValue'
 
 const Clinics = () => {
   const {
@@ -14,10 +17,11 @@ const Clinics = () => {
     createClinic,
     updateClinic,
     deleteClinic,
-    assignDoctorsToClinic
+    assignDoctorsToClinic,
+    translatePreview
   } = useContext(AdminContext)
 
-  const { t } = useLanguage()
+  const { t, tc } = useLanguage()
 
   const fillT = (key, vars = {}) => {
     let s = String(t(key))
@@ -33,11 +37,11 @@ const Clinics = () => {
   }
 
   const [selectedClinicId, setSelectedClinicId] = useState('')
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
+  const [name, setName] = useState(emptyBilingual)
+  const [description, setDescription] = useState(emptyBilingual)
   const [editingId, setEditingId] = useState('')
-  const [editName, setEditName] = useState('')
-  const [editDescription, setEditDescription] = useState('')
+  const [editName, setEditName] = useState(emptyBilingual)
+  const [editDescription, setEditDescription] = useState(emptyBilingual)
   const [search, setSearch] = useState('')
   const [selectedDoctors, setSelectedDoctors] = useState([])
 
@@ -58,8 +62,8 @@ const Clinics = () => {
   const usedClinicNames = useMemo(() => clinics.map((clinic) => clinic.name), [clinics])
 
   const suggestedNames = useMemo(
-    () => allowedClinics.filter((clinicName) => !usedClinicNames.includes(clinicName) || clinicName === editName),
-    [allowedClinics, usedClinicNames, editName]
+    () => allowedClinics.filter((clinicName) => !usedClinicNames.includes(clinicName) || clinicName === editName.en),
+    [allowedClinics, usedClinicNames, editName.en]
   )
 
   const filteredDoctors = useMemo(() => {
@@ -74,8 +78,8 @@ const Clinics = () => {
   }, [doctors, search])
 
   const resetCreateForm = () => {
-    setName('')
-    setDescription('')
+    setName(emptyBilingual())
+    setDescription(emptyBilingual())
   }
 
   const handleSelectClinic = (clinic) => {
@@ -85,24 +89,25 @@ const Clinics = () => {
 
   const handleCreate = async (event) => {
     event.preventDefault()
-    await createClinic({ name, description })
+    if (bilingualIsEmpty(name)) return
+    await createClinic({ nameI18n: bilingualPayload(name), descriptionI18n: bilingualPayload(description) })
     resetCreateForm()
   }
 
   const startEdit = (clinic) => {
     setEditingId(clinic._id)
-    setEditName(clinic.name)
-    setEditDescription(clinic.description || '')
+    setEditName(bilingualFromRecord(clinic, 'name'))
+    setEditDescription(bilingualFromRecord(clinic, 'description'))
   }
 
   const cancelEdit = () => {
     setEditingId('')
-    setEditName('')
-    setEditDescription('')
+    setEditName(emptyBilingual())
+    setEditDescription(emptyBilingual())
   }
 
   const handleUpdate = async (clinicId) => {
-    await updateClinic({ clinicId, name: editName, description: editDescription })
+    await updateClinic({ clinicId, nameI18n: bilingualPayload(editName), descriptionI18n: bilingualPayload(editDescription) })
     cancelEdit()
   }
 
@@ -127,7 +132,7 @@ const Clinics = () => {
             <Building2 className='w-6 h-6 text-indigo-600' />
             {t('Clinic Management')}
           </h1>
-          <p className='mt-2 text-sm text-gray-600 ml-8'>
+          <p className='mt-2 text-sm text-gray-600 ms-8'>
             {t('Manage default and custom clinics, then assign doctors to each clinic')}
           </p>
         </div>
@@ -140,13 +145,14 @@ const Clinics = () => {
                 {t('Add Clinic')}
               </h2>
 
-              <div className='grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_auto] gap-3'>
-                <input
+              <div className='space-y-4'>
+                <BilingualField
+                  label={t('Clinic name')}
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white'
+                  onChange={setName}
+                  translate={translatePreview}
+                  kind='label'
                   list='clinic-name-suggestions'
-                  placeholder={t('Select or type clinic')}
                   required
                 />
                 <datalist id='clinic-name-suggestions'>
@@ -156,16 +162,17 @@ const Clinics = () => {
                     </option>
                   ))}
                 </datalist>
-                <input
+                <BilingualField
+                  label={t('Optional description')}
                   value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500'
-                  placeholder={t('Optional description')}
+                  onChange={setDescription}
+                  translate={translatePreview}
                 />
-                <button className='inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition'>
-                  <Plus className='w-4 h-4' />
-                  {t('Add')}
-                </button>
+                <div className='flex justify-end'>
+                  <Button type='submit' leadingIcon={<Plus aria-hidden='true' className='size-4' />}>
+                    {t('Add')}
+                  </Button>
+                </div>
               </div>
 
               {suggestedNames.length === 0 && (
@@ -192,13 +199,14 @@ const Clinics = () => {
                   return (
                     <div key={clinic._id} className='p-4 sm:p-5 hover:bg-gray-50 transition'>
                       {isEditing ? (
-                        <div className='grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)_auto] gap-3'>
-                          <input
+                        <div className='space-y-4'>
+                          <BilingualField
+                            label={t('Clinic name')}
                             value={editName}
-                            onChange={(event) => setEditName(event.target.value)}
-                            className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white'
+                            onChange={setEditName}
+                            translate={translatePreview}
+                            kind='label'
                             list='clinic-edit-name-suggestions'
-                            placeholder={t('Clinic name')}
                           />
                           <datalist id='clinic-edit-name-suggestions'>
                             {suggestedNames.map((clinicName) => (
@@ -207,28 +215,22 @@ const Clinics = () => {
                               </option>
                             ))}
                           </datalist>
-                          <input
+                          <BilingualField
+                            label={t('Optional description')}
                             value={editDescription}
-                            onChange={(event) => setEditDescription(event.target.value)}
-                            className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500'
-                            placeholder={t('Optional description')}
+                            onChange={setEditDescription}
+                            translate={translatePreview}
                           />
-                          <div className='flex gap-2'>
-                            <button
-                              type='button'
+                          <div className='flex justify-end gap-2'>
+                            <Button variant='secondary' onClick={cancelEdit} leadingIcon={<X aria-hidden='true' className='size-4' />}>
+                              {t('Cancel')}
+                            </Button>
+                            <Button
                               onClick={() => handleUpdate(clinic._id)}
-                              className='inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-2.5 text-sm font-semibold transition'
+                              leadingIcon={<Save aria-hidden='true' className='size-4' />}
                             >
-                              <Save className='w-4 h-4' />
                               {t('Save')}
-                            </button>
-                            <button
-                              type='button'
-                              onClick={cancelEdit}
-                              className='inline-flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-3 py-2.5 transition'
-                            >
-                              <X className='w-4 h-4' />
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       ) : (
@@ -236,16 +238,19 @@ const Clinics = () => {
                           <button
                             type='button'
                             onClick={() => handleSelectClinic(clinic)}
-                            className={`text-left flex-1 rounded-lg p-3 transition ${selectedClinicId === clinic._id ? 'bg-indigo-50 ring-1 ring-indigo-200' : 'bg-white'}`}
+                            className={`text-start flex-1 rounded-lg p-3 transition ${selectedClinicId === clinic._id ? 'bg-indigo-50 ring-1 ring-indigo-200' : 'bg-white'}`}
                           >
                             <div className='flex items-center gap-2'>
-                              <h3 className='font-semibold text-gray-900'>{t(clinic.name)}</h3>
+                              <h3 className='font-semibold text-gray-900'>{tc(clinic.i18n?.name) || t(clinic.name)}</h3>
+                              {(clinic.i18n?.name?.status === 'pending' || clinic.i18n?.description?.status === 'pending') && (
+                                <Badge tone='warning'>{t('Translation pending')}</Badge>
+                              )}
                               <span className='text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full'>
                                 {formatDoctorCount((clinic.doctors || []).length)}
                               </span>
                             </div>
                             <p className='text-sm text-gray-500 mt-1'>
-                              {clinic.description || t('No description added')}
+                              {tc(clinic.i18n?.description) || clinic.description || t('No description added')}
                             </p>
                           </button>
 
@@ -283,23 +288,23 @@ const Clinics = () => {
                 {t('Assign Doctors')}
               </h2>
               <p className='text-sm text-gray-500 mt-1'>
-                {selectedClinic ? t(selectedClinic.name) : t('Select a clinic to manage assignments')}
+                {selectedClinic ? tc(selectedClinic.i18n?.name) || t(selectedClinic.name) : t('Select a clinic to manage assignments')}
               </p>
             </div>
 
             <div className='p-4 sm:p-5'>
               <div className='relative mb-4'>
-                <Search className='w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2' />
+                <Search className='w-4 h-4 text-gray-400 absolute start-3 top-1/2 -translate-y-1/2' />
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   disabled={!selectedClinic}
-                  className='w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100'
+                  className='w-full border border-gray-300 rounded-lg ps-9 pe-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100'
                   placeholder={t('Search doctors')}
                 />
               </div>
 
-              <div className='max-h-[52vh] overflow-y-auto space-y-2 pr-1'>
+              <div className='max-h-[52vh] overflow-y-auto space-y-2 pe-1'>
                 {!selectedClinic ? (
                   <div className='text-sm text-gray-500 bg-gray-50 rounded-lg p-4'>{t('Choose a clinic from the list.')}</div>
                 ) : filteredDoctors.length === 0 ? (

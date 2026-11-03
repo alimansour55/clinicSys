@@ -130,7 +130,7 @@ const AddDoctor = () => {
             to="/doctor-list"
             className="inline-flex w-fit items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition hover:bg-gray-50"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="rtl:-scale-x-100 h-4 w-4" />
             {t('Back to doctors')}
           </Link>
         </div>
@@ -140,7 +140,7 @@ const AddDoctor = () => {
             <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-primary" />
             {t('Add Doctor')}
           </h1>
-          <p className="mt-1 sm:mt-2 text-xs sm:text-sm lg:text-base text-gray-600 ml-7 sm:ml-8 lg:ml-9">
+          <p className="mt-1 sm:mt-2 text-xs sm:text-sm lg:text-base text-gray-600 ms-7 sm:ms-8 lg:ms-9">
             Fill in the information below to add a new doctor to the directory
           </p>
         </div>
@@ -172,7 +172,7 @@ const AddDoctor = () => {
                   </div>
                 </label>
                 <input onChange={(e) => setDocImg(e.target.files[0])} type="file" id="doc-img" hidden accept="image/*"/>
-                <div className="text-center sm:text-left">
+                <div className="text-center sm:text-start">
                   <p className="text-sm sm:text-base font-semibold text-gray-800 mb-1">Upload doctor picture</p>
                   <p className="text-xs text-gray-500">JPG, PNG or JPEG</p>
                   <p className="text-xs text-gray-500">Maximum size: 2MB</p>
@@ -232,12 +232,12 @@ const AddDoctor = () => {
                     <input 
                       onChange={(e) => setPassword(e.target.value)} 
                       value={password} 
-                      className="w-full border-2 border-gray-200 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-700 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all outline-none pr-10"  
+                      className="w-full border-2 border-gray-200 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-700 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all outline-none pe-10"  
                       placeholder="Enter password" 
                       required
                       type={showPassword ? "text" : "password"} 
                     />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors">
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors">
                       {showPassword ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
                     </button>
                   </div>
@@ -269,7 +269,7 @@ const AddDoctor = () => {
                     Examination fee (optional)
                   </label>
                   <div className="flex overflow-hidden rounded-lg border-2 border-gray-200 bg-white focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-                    <span className="flex shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-600 sm:text-base">
+                    <span className="flex shrink-0 items-center border-e border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-600 sm:text-base">
                       {currency} 
                     </span>
                     <input 
@@ -412,7 +412,7 @@ const AddDoctor = () => {
                       placeholder="e.g., Mohandseen, Nasr City"
                     />
                     {locations.length > 1 && (
-                      <button type="button" onClick={() => removeLocation(index)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 text-red-600 hover:bg-red-50">
+                      <button type="button" onClick={() => removeLocation(index)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-eed-200 text-red-600 hover:bg-red-50">
                         <X className="w-4 h-4" />
                       </button>
                     )}

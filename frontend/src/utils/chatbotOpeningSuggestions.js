@@ -6,10 +6,14 @@ import {
   DEFAULT_CLINIC_SECTION_NAMES,
   clinicSectionNorm as norm
 } from './clinicSectionLabels'
+import { storedLabelKey } from './bilingualContent.js'
 
 export { DEFAULT_CLINIC_SECTION_NAMES, CLINIC_SECTION_LABELS, isKnownClinicSectionName } from './clinicSectionLabels'
 
 export const resolveClinicSectionLabel = (name, language = 'en', t = (k) => k, tc = (k) => k, placeTranslationOverrides) => {
+  const stored = placeTranslationOverrides?.[storedLabelKey(name, language)]
+  if (stored) return stored
+
   const key = norm(name)
   const mapped = CLINIC_SECTION_LABELS[key]
   if (mapped) return language === 'ar' ? mapped.ar : mapped.en

@@ -361,7 +361,7 @@ const DoctorAppointments = () => {
             onClick={handleCancel}
             className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition text-sm sm:text-base mb-6"
           >
-            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            <ArrowLeft className="rtl:-scale-x-100 w-4 h-4 sm:w-5 sm:h-5" />
             <span className="font-medium">Back to Appointments</span>
           </button>
 
@@ -433,12 +433,12 @@ const DoctorAppointments = () => {
             {/* Vertical Form Layout */}
             <div className="space-y-6 sm:space-y-8">
               {/* Diagnosis */}
-              <div className="border-l-4 border-primary pl-4">
+              <div className="border-s-4 border-primary ps-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Stethoscope className="w-5 h-5 text-primary" />
                   <label className="block text-gray-700 font-semibold text-sm sm:text-base">
                     Diagnosis
-                    <span className="text-red-500 ml-1">*</span>
+                    <span className="text-red-500 ms-1">*</span>
                   </label>
                 </div>
                 <input
@@ -454,12 +454,12 @@ const DoctorAppointments = () => {
               </div>
 
               {/* Symptoms */}
-              <div className="border-l-4 border-blue-500 pl-4">
+              <div className="border-s-4 border-blue-500 ps-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Thermometer className="w-5 h-5 text-blue-500" />
                   <label className="block text-gray-700 font-semibold text-sm sm:text-base">
                     Symptoms
-                    <span className="text-red-500 ml-1">*</span>
+                    <span className="text-red-500 ms-1">*</span>
                   </label>
                 </div>
                 <textarea
@@ -474,13 +474,13 @@ const DoctorAppointments = () => {
               </div>
 
               {/* Medicines */}
-              <div className="border-l-4 border-green-500 pl-4">
+              <div className="border-s-4 border-green-500 ps-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Pill className="w-5 h-5 text-green-500" />
                   <div className="flex-1 flex items-center justify-between gap-3">
                     <label className="block text-gray-700 font-semibold text-sm sm:text-base">
                       Prescribed Medicines
-                      <span className="text-red-500 ml-1">*</span>
+                      <span className="text-red-500 ms-1">*</span>
                     </label>
                     <button type="button" onClick={addMedicationItem} className="px-3 py-1.5 text-xs sm:text-sm rounded-lg bg-green-50 text-green-700 border border-green-200 hover:bg-green-100">
                       Add medicine
@@ -498,7 +498,7 @@ const DoctorAppointments = () => {
                       </div>
                       <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
                         <input value={item.instructions} onChange={(e) => updateMedicationItem(index, "instructions", e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Medicine instructions" />
-                        <button type="button" onClick={() => removeMedicationItem(index)} disabled={medicationItems.length === 1} className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm disabled:opacity-40">
+                        <button type="button" onClick={() => removeMedicationItem(index)} disabled={medicationItems.length === 1} className="px-3 py-2 rounded-lg border border-eed-200 text-red-600 text-sm disabled:opacity-40">
                           Remove
                         </button>
                       </div>
@@ -508,12 +508,12 @@ const DoctorAppointments = () => {
               </div>
 
               {/* Instructions */}
-              <div className="border-l-4 border-purple-500 pl-4">
+              <div className="border-s-4 border-purple-500 ps-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Clipboard className="w-5 h-5 text-purple-500" />
                   <label className="block text-gray-700 font-semibold text-sm sm:text-base">
                     Patient Instructions
-                    <span className="text-red-500 ml-1">*</span>
+                    <span className="text-red-500 ms-1">*</span>
                   </label>
                 </div>
                 <textarea
@@ -528,12 +528,12 @@ const DoctorAppointments = () => {
               </div>
 
               {/* Next Visit */}
-              <div className="border-l-4 border-yellow-500 pl-4">
+              <div className="border-s-4 border-yellow-500 ps-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Calendar className="w-5 h-5 text-yellow-500" />
                   <label className="block text-gray-700 font-semibold text-sm sm:text-base">
                     Follow-up Appointment
-                    <span className="text-red-500 ml-1">*</span>
+                    <span className="text-red-500 ms-1">*</span>
                   </label>
                 </div>
                 <input
@@ -549,7 +549,7 @@ const DoctorAppointments = () => {
               </div>
 
               {/* Lab Tests */}
-              <div className="border-l-4 border-red-500 pl-4">
+              <div className="border-s-4 border-eed-500 ps-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Activity className="w-5 h-5 text-red-500" />
                   <label className="block text-gray-700 font-semibold text-sm sm:text-base">
@@ -568,12 +568,12 @@ const DoctorAppointments = () => {
               </div>
 
               {/* Documentation */}
-              <div className="border-l-4 border-indigo-500 pl-4">
+              <div className="border-s-4 border-indigo-500 ps-4">
                 <div className="flex items-center gap-3 mb-3">
                   <FileText className="w-5 h-5 text-indigo-500" />
                   <label className="block text-gray-700 font-semibold text-sm sm:text-base">
                     Documentation
-                    <span className="text-red-500 ml-1">*</span>
+                    <span className="text-red-500 ms-1">*</span>
                   </label>
                 </div>
                 <textarea
@@ -618,7 +618,7 @@ const DoctorAppointments = () => {
               </div>
 
               <div className="mt-4 sm:mt-6 flex items-center justify-center text-xs sm:text-sm text-gray-500">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-blue-100 flex items-center justify-center mr-2">
+                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-blue-100 flex items-center justify-center me-2">
                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-500"></div>
                 </div>
                 Fields marked with <span className="text-red-500 mx-1">*</span>{" "}
@@ -684,19 +684,19 @@ const DoctorAppointments = () => {
         {/* Search + sort */}
         <div className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 sm:left-4" />
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 sm:start-4" />
             <input
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search name, patient ID, reservation, or phone…"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-10 text-sm font-medium text-slate-900 outline-none ring-slate-200 transition focus:bg-white focus:ring-2 focus:ring-blue-500 sm:pl-12 sm:pr-12 sm:text-base"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 ps-10 pe-10 text-sm font-medium text-slate-900 outline-none ring-slate-200 transition focus:bg-white focus:ring-2 focus:ring-blue-500 sm:ps-12 sm:pe-12 sm:text-base"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 sm:right-4"
+                className="absolute end-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 sm:end-4"
                 aria-label="Clear search"
               >
                 <X className="h-5 w-5" />
@@ -878,7 +878,7 @@ const DoctorAppointments = () => {
             <p className="mt-1 text-2xl font-black text-emerald-950">{stats.completed}</p>
             <p className="mt-1 text-xs text-emerald-800/80">Closed visits</p>
           </div>
-          <div className="rounded-2xl border border-rose-200/70 bg-rose-50/90 p-4 shadow-sm">
+          <div className="rounded-2xl border border-eose-200/70 bg-rose-50/90 p-4 shadow-sm">
             <p className="text-[11px] font-bold uppercase tracking-wide text-rose-800">Cancelled</p>
             <p className="mt-1 text-2xl font-black text-rose-950">{stats.cancelled}</p>
             <p className="mt-1 text-xs text-rose-800/80">Did not occur</p>
@@ -1051,7 +1051,7 @@ const DoctorAppointments = () => {
                         <button
                           type="button"
                           onClick={() => requestCancel(item)}
-                          className="flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                          className="flex items-center gap-1 rounded-lg border border-eed-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
                         >
                           <Ban className="h-3.5 w-3.5" />
                           Cancel
@@ -1133,7 +1133,7 @@ const DoctorAppointments = () => {
                       <button
                         type="button"
                         onClick={() => requestCancel(item)}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-eed-200 bg-red-50 text-red-700 transition hover:bg-red-100"
                         title="Cancel appointment"
                         aria-label="Cancel appointment"
                       >
@@ -1171,7 +1171,7 @@ const DoctorAppointments = () => {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="rtl:-scale-x-100 h-4 w-4" />
                 Prev
               </button>
               <button
@@ -1181,7 +1181,7 @@ const DoctorAppointments = () => {
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="rtl:-scale-x-100 h-4 w-4" />
               </button>
             </div>
           </div>

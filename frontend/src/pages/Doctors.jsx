@@ -236,7 +236,7 @@ const Doctors = () => {
   ]
 
   const filterChipClass = (active) =>
-    `rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition ${
+    `rounded-xl border px-3 py-2.5 text-start text-sm font-medium transition ${
       active
         ? 'border-primary bg-primary text-white shadow-sm'
         : 'border-gray-200 bg-gray-50 text-gray-700 active:bg-teal-50'
@@ -367,7 +367,7 @@ const Doctors = () => {
         onClick={() => {
           navigate(`/appointment/${item._id}${consultationMode ? `?consultation=${consultationMode}` : ''}`)
         }}
-        className={`group w-full overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition ${
+        className={`group w-full overflow-hidden rounded-xl border border-gray-200 bg-white text-start shadow-sm transition ${
           isMobile ? 'min-h-[320px]' : 'min-h-[386px]'
         } ${
           isDoctorComingSoon(item)
@@ -378,8 +378,8 @@ const Doctors = () => {
       >
         <div className={`relative overflow-hidden rounded-lg bg-blue-50 ${isMobile ? 'mx-2 mt-2 h-[110px]' : 'mx-3 mt-3 h-[146px]'}`}>
           <img className='h-full w-full object-cover transition duration-300 group-hover:scale-105' src={item.image} alt={displayPersonName(item.name)} />
-          <RatingBadge summary={item.ratingSummary} className='absolute left-2 top-2' />
-          <PromoOfferBadge doctor={item} formatMoney={formatMoney} className='absolute bottom-2 left-2' />
+          <RatingBadge summary={item.ratingSummary} className='absolute start-2 top-2' />
+          <PromoOfferBadge doctor={item} formatMoney={formatMoney} className='absolute bottom-2 start-2' />
         </div>
 
         <div className={isMobile ? 'px-2 py-2' : 'px-3 py-2.5'}>
@@ -425,7 +425,7 @@ const Doctors = () => {
                     <MapPin className='h-3.5 w-3.5 shrink-0 text-blue-500' />
                     <span className='truncate'>{formatLocationLine(location, language, t, placeTranslationOverrides)}</span>
                   </p>
-                  <p className='ml-5 mt-0.5 text-[11px] font-medium text-blue-700'>{getWeeklyAvailabilityLabel(item, location)}</p>
+                  <p className='ms-5 mt-0.5 text-[11px] font-medium text-blue-700'>{getWeeklyAvailabilityLabel(item, location)}</p>
                 </div>
               ))}
               {getDoctorLocations(item).length === 0 && (
@@ -492,14 +492,14 @@ const Doctors = () => {
 
       <div className='mb-5 grid gap-3 lg:grid-cols-[1fr_auto]'>
         <div className='relative' data-input-field>
-          <Search className='field-icon absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
+          <Search className='field-icon absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
           <input
             id='doctors-search'
             type='search'
             enterKeyHint='search'
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            className='h-12 w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-11 text-base shadow-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10'
+            className='h-12 w-full rounded-xl border border-gray-200 bg-white py-3 ps-11 pe-11 text-base shadow-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10'
             placeholder={t('Search doctors, specialities, clinics, or locations')}
             autoComplete='off'
           />
@@ -507,7 +507,7 @@ const Doctors = () => {
             <button
               type='button'
               onClick={() => setSearchTerm('')}
-              className='absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700'
+              className='absolute end-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700'
               aria-label={t('Clear search')}
             >
               <X className='h-4 w-4' />
@@ -590,7 +590,7 @@ const Doctors = () => {
               {t('Reset filters')}
             </button>
           </div>
-          <div className='max-h-[calc(100vh-11rem)] overflow-y-auto pr-1'>{renderFilterPanel()}</div>
+          <div className='max-h-[calc(100vh-11rem)] overflow-y-auto pe-1'>{renderFilterPanel()}</div>
         </aside>
 
         <main ref={doctorsListRef} className='min-w-0 flex-1 scroll-mt-24'>

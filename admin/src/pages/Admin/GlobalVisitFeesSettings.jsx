@@ -62,14 +62,14 @@ const GlobalVisitFeesSettings = () => {
           <div>
             <label className='mb-2 block text-sm font-semibold text-gray-700'>{t('Examination fee (Kashf)')}</label>
             <div className='flex rounded-lg border border-gray-300 bg-white focus-within:ring-2 focus-within:ring-primary'>
-              <span className='flex items-center rounded-l-lg border-r border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500'>{currency}</span>
+              <span className='flex items-center rounded-s-lg border-e border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500'>{currency}</span>
               <input
                 type='number'
                 min={0}
                 step={1}
                 value={form.examinationFee}
                 onChange={(e) => setForm((prev) => ({ ...prev, examinationFee: e.target.value }))}
-                className='min-w-0 flex-1 rounded-r-lg px-3 py-2.5 text-sm outline-none'
+                className='min-w-0 flex-1 rounded-e-lg px-3 py-2.5 text-sm outline-none'
                 required={form.enabled}
               />
             </div>
@@ -79,14 +79,14 @@ const GlobalVisitFeesSettings = () => {
           <div>
             <label className='mb-2 block text-sm font-semibold text-gray-700'>{t('Follow-up consultation fee (Istishara)')}</label>
             <div className='flex rounded-lg border border-gray-300 bg-white focus-within:ring-2 focus-within:ring-primary'>
-              <span className='flex items-center rounded-l-lg border-r border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500'>{currency}</span>
+              <span className='flex items-center rounded-s-lg border-e border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500'>{currency}</span>
               <input
                 type='number'
                 min={0}
                 step={1}
                 value={form.consultationFee}
                 onChange={(e) => setForm((prev) => ({ ...prev, consultationFee: e.target.value }))}
-                className='min-w-0 flex-1 rounded-r-lg px-3 py-2.5 text-sm outline-none'
+                className='min-w-0 flex-1 rounded-e-lg px-3 py-2.5 text-sm outline-none'
                 required={form.enabled}
               />
             </div>

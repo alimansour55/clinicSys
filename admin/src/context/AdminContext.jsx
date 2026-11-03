@@ -615,6 +615,22 @@ const AdminContextProvider = (props) => {
       }
     }
 
+    /** Suggestion for BilingualField. Resolves to '' when no translator is available. */
+    const translatePreview = async (text, target, kind) => {
+      const { data } = await axios.post(backendUrl + '/api/admin/translate-preview', { text, target, kind }, { headers: adminHeaders })
+      return data.success ? data.translated : ''
+    }
+
+    const getTranslationStatus = async () => {
+      const { data } = await axios.get(backendUrl + '/api/admin/translations/status', { headers: adminHeaders })
+      return data.success ? data : null
+    }
+
+    const retryTranslations = async () => {
+      const { data } = await axios.post(backendUrl + '/api/admin/translations/retry', {}, { headers: adminHeaders })
+      return data.success ? data : null
+    }
+
     const createClinic = async (clinicData) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/create-clinic', clinicData, { headers: adminHeaders })
@@ -924,6 +940,7 @@ const AdminContextProvider = (props) => {
        membersHistory, setmembersHistory, getAppointmentsHistory,
        deleteAppointmentHistory,
        receptionists, getReceptionists, changeReceptionistStatus, getReceptionistById, updateReceptionistByAdmin,
+       translatePreview, getTranslationStatus, retryTranslations,
        clinics, allowedClinics, getClinics, createClinic, updateClinic, deleteClinic, assignDoctorsToClinic,
        siteSettings, getSiteSettings, updateHomeHeroSettings, updateHomeBannerSettings, updateHomeServiceCardsSettings, updateFooterSettings, updateBrandingSettings, updateInsuranceProviders, updateSecuritySettings, updateHomeVisitPricingSettings, updateGlobalVisitFeesSettings, updateLanguagePoliciesSettings,
        getDoctorRatings, deleteDoctorRating

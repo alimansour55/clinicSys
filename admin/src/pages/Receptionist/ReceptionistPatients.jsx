@@ -234,7 +234,7 @@ function AddPatientModal({ open, onClose, createReceptionistPatient, onCreated, 
                 </div>
                 <div className="sm:col-span-2">
                   <label className="mb-1 block text-xs font-semibold text-gray-500">Medical card photo</label>
-                  <input type="file" accept="image/*" onChange={(e) => setInsuranceCard(e.target.files?.[0] || null)} className="w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white" />
+                  <input type="file" accept="image/*" onChange={(e) => setInsuranceCard(e.target.files?.[0] || null)} className="w-full text-sm file:me-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white" />
                 </div>
               </div>
             )}
@@ -474,7 +474,7 @@ const ReceptionistPatients = () => {
               }}
               className="inline-flex w-fit items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="rtl:-scale-x-100 h-4 w-4" />
               {t("Back to registry")}
             </button>
             {isAdmin && patient && (
@@ -723,8 +723,8 @@ const ReceptionistPatients = () => {
       <div className="mx-auto max-w-7xl">
         <div className="overflow-hidden rounded-2xl border border-slate-700/20 bg-gradient-to-br from-slate-900 via-slate-800 to-primary shadow-xl">
           <div className="relative px-5 py-8 sm:px-8 sm:py-10">
-            <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+            <div className="pointer-events-none absolute -end-20 -top-20 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -start-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
             <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div className="max-w-2xl">
                 <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/90 ring-1 ring-white/20">
@@ -792,15 +792,15 @@ const ReceptionistPatients = () => {
         <div dir="ltr" className="mt-6 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-5xl lg:grid-cols-2 xl:grid-cols-4">
             <div className="relative sm:col-span-2 xl:col-span-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t("Search name, ID, email, phone…")}
-                className="w-full rounded-xl border border-gray-200 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-gray-200 py-2.5 ps-10 pe-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
               {searchQuery && (
-                <button type="button" onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label={t("Clear search")}>
+                <button type="button" onClick={() => setSearchQuery("")} className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label={t("Clear search")}>
                   <X className="h-4 w-4" />
                 </button>
               )}
@@ -809,25 +809,25 @@ const ReceptionistPatients = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 ps-3 pe-10 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
                 <option value="all">{t("All statuses")}</option>
                 <option value="active">{t("Active only")}</option>
                 <option value="inactive">{t("Inactive only")}</option>
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             </div>
             <div className="relative">
               <select
                 value={insuranceFilter}
                 onChange={(e) => setInsuranceFilter(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 ps-3 pe-10 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
                 <option value="all">{t("All patients")}</option>
                 <option value="with">{t("With insurance")}</option>
                 <option value="without">{t("Without insurance")}</option>
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             </div>
             <div className="relative sm:col-span-2 xl:col-span-1">
               <select
@@ -837,7 +837,7 @@ const ReceptionistPatients = () => {
                   setSortBy(by);
                   setSortDir(dir);
                 }}
-                className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 ps-3 pe-10 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
                 <option value="name:asc">{t("Name A → Z")}</option>
                 <option value="name:desc">{t("Name Z → A")}</option>
@@ -846,10 +846,10 @@ const ReceptionistPatients = () => {
                 <option value="appointments:desc">{t("Most appointments")}</option>
                 <option value="appointments:asc">{t("Fewest appointments")}</option>
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             </div>
           </div>
-          <p className="text-center text-sm font-medium text-gray-600 lg:text-right">
+          <p className="text-center text-sm font-medium text-gray-600 lg:text-end">
             {t("Showing")}{" "}
             <span className="font-bold text-gray-900">{localizeDigits(sortedPatients.length)}</span>{" "}
             {t("of")}{" "}
@@ -858,14 +858,14 @@ const ReceptionistPatients = () => {
         </div>
 
         <div dir="ltr" className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,0.7fr)_minmax(0,0.75fr)_minmax(0,1fr)_minmax(0,1.15fr)] gap-3 border-b border-gray-100 bg-gray-50/90 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-gray-500 xl:grid">
+          <div className="hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,0.7fr)_minmax(0,0.75fr)_minmax(0,1fr)_minmax(0,1.15fr)] gap-3 border-b border-gray-100 bg-gray-50/90 px-4 py-3 text-start text-xs font-bold uppercase tracking-wide text-gray-500 xl:grid">
             <span>{t("Patient")}</span>
             <span>{t("Contact")}</span>
             <span>{t("Patient ID")}</span>
             <span>{t("Visits")}</span>
             <span>{t("Status")}</span>
             <span>{t("Joined")}</span>
-            <span className="text-right">{t("Actions")}</span>
+            <span className="text-end">{t("Actions")}</span>
           </div>
 
           {loading ? (

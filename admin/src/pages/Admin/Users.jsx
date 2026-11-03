@@ -96,7 +96,7 @@ const UserRowActionsMenu = ({
       {isOpen && (
         <div
           role='menu'
-          className='absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-gray-200 bg-white py-1 shadow-lg'
+          className='absolute end-0 top-full z-50 mt-1 w-56 rounded-xl border border-gray-200 bg-white py-1 shadow-lg'
         >
           <button
             type='button'
@@ -105,7 +105,7 @@ const UserRowActionsMenu = ({
               close()
               onEdit()
             }}
-            className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
+            className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
           >
             <Edit3 className='w-4 h-4 text-blue-600' />
             {t('Edit profile')}
@@ -117,7 +117,7 @@ const UserRowActionsMenu = ({
               close()
               onResetPassword()
             }}
-            className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
+            className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
           >
             <KeyRound className='w-4 h-4 text-amber-600' />
             {t('Reset password')}
@@ -130,7 +130,7 @@ const UserRowActionsMenu = ({
                 close()
                 onOpenPatientInsurance()
               }}
-              className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
+              className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
             >
               <HeartHandshake className='w-4 h-4 text-teal-600' />
               {t('Patient & insurance')}
@@ -144,7 +144,7 @@ const UserRowActionsMenu = ({
                 close()
                 onOpenDoctorProfile()
               }}
-              className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
+              className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
             >
               <Stethoscope className='w-4 h-4 text-indigo-600' />
               {t('Doctor profile')}
@@ -158,7 +158,7 @@ const UserRowActionsMenu = ({
                 close()
                 onOpenReceptionistProfile()
               }}
-              className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
+              className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
             >
               <ExternalLink className='w-4 h-4 text-emerald-600' />
               {t('Full profile')}
@@ -172,7 +172,7 @@ const UserRowActionsMenu = ({
               close()
               onToggleMfaRequirement()
             }}
-            className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
+            className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
           >
             <ShieldCheck className='w-4 h-4 text-purple-600' />
             {user.mfa?.requiredByAdmin ? t('Make MFA optional') : t('Require MFA')}
@@ -184,7 +184,7 @@ const UserRowActionsMenu = ({
               close()
               onResetMfa()
             }}
-            className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50'
+            className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
           >
             <RotateCcw className='w-4 h-4 text-gray-600' />
             {t('Reset MFA')}
@@ -197,7 +197,7 @@ const UserRowActionsMenu = ({
               close()
               onDelete()
             }}
-            className='flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50'
+            className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-red-700 hover:bg-red-50'
           >
             <Trash2 className='w-4 h-4' />
             {t('Delete account')}
@@ -464,17 +464,17 @@ const Users = () => {
                   {addMenuOpen && (
                     <div
                       role='menu'
-                      className='absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg'
+                      className='absolute end-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg'
                     >
-                      <button type='button' role='menuitem' onClick={openCreatePatient} className='flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-50'>
+                      <button type='button' role='menuitem' onClick={openCreatePatient} className='flex w-full items-center gap-2 px-4 py-2.5 text-start text-sm font-medium text-gray-800 hover:bg-gray-50'>
                         <UserRound className='h-4 w-4 text-blue-600' />
                         {t('Add patient')}
                       </button>
-                      <button type='button' role='menuitem' onClick={goAddDoctor} className='flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-50'>
+                      <button type='button' role='menuitem' onClick={goAddDoctor} className='flex w-full items-center gap-2 px-4 py-2.5 text-start text-sm font-medium text-gray-800 hover:bg-gray-50'>
                         <Stethoscope className='h-4 w-4 text-indigo-600' />
                         {t('Add doctor')}
                       </button>
-                      <button type='button' role='menuitem' onClick={goAddReceptionist} className='flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-50'>
+                      <button type='button' role='menuitem' onClick={goAddReceptionist} className='flex w-full items-center gap-2 px-4 py-2.5 text-start text-sm font-medium text-gray-800 hover:bg-gray-50'>
                         <UserCog className='h-4 w-4 text-emerald-600' />
                         {t('Add receptionist')}
                       </button>
@@ -518,7 +518,7 @@ const Users = () => {
                     key={label}
                     type='button'
                     onClick={() => navigate(path)}
-                    className='rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left backdrop-blur-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40'
+                    className='rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-start backdrop-blur-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40'
                   >
                     {card}
                   </button>
@@ -531,15 +531,15 @@ const Users = () => {
         <div dir='ltr' className='mt-6 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end lg:justify-between'>
           <div className='grid w-full gap-3 sm:grid-cols-2 lg:max-w-4xl lg:grid-cols-3'>
             <div className='relative sm:col-span-2 lg:col-span-1'>
-              <Search className='pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
+              <Search className='pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
               <input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={t('Search name, email, phone, ID, speciality…')}
-                className='w-full rounded-xl border border-gray-200 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                className='w-full rounded-xl border border-gray-200 py-2.5 ps-10 pe-10 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
               />
               {searchQuery && (
-                <button type='button' onClick={() => setSearchQuery('')} className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600' aria-label={t('Clear search')}>
+                <button type='button' onClick={() => setSearchQuery('')} className='absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600' aria-label={t('Clear search')}>
                   <X className='h-4 w-4' />
                 </button>
               )}
@@ -548,29 +548,29 @@ const Users = () => {
               <select
                 value={roleFilter}
                 onChange={(event) => setRoleFilter(event.target.value)}
-                className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 ps-3 pe-10 text-sm font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
               >
                 <option value='all'>{t('All roles')}</option>
                 <option value='patient'>{t('Patients only')}</option>
                 <option value='doctor'>{t('Doctors only')}</option>
                 <option value='receptionist'>{t('Receptionists only')}</option>
               </select>
-              <ChevronDown className='pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
+              <ChevronDown className='pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
             </div>
             <div className='relative'>
               <select
                 value={insuranceFilter}
                 onChange={(event) => setInsuranceFilter(event.target.value)}
-                className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 ps-3 pe-10 text-sm font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
               >
                 <option value='all'>{t('Insurance: all')}</option>
                 <option value='with'>{t('With insurance')}</option>
                 <option value='without'>{t('Without insurance')}</option>
               </select>
-              <ChevronDown className='pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
+              <ChevronDown className='pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
             </div>
           </div>
-          <p className='text-center text-sm font-medium text-gray-600 lg:text-right'>
+          <p className='text-center text-sm font-medium text-gray-600 lg:text-end'>
             {t('Showing')}{' '}
             <span className='font-bold text-gray-900'>{localizeDigits(filteredUsers.length)}</span>{' '}
             {t('of')}{' '}
@@ -586,7 +586,7 @@ const Users = () => {
             <p>{t('Identifier')}</p>
             <p>{t('Insurance')}</p>
             <p>{t('Status')}</p>
-            <p className='text-right pr-1'>{t('Actions')}</p>
+            <p className='text-end pe-1'>{t('Actions')}</p>
           </div>
 
           {loading ? (

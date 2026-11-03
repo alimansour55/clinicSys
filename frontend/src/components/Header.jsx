@@ -41,7 +41,7 @@ const Header = () => {
               className='flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3 text-sm font-semibold text-gray-600 shadow-md transition hover:scale-105'
             >
               {t(bookButtonText)}
-              <img className='h-3 w-3' src={assets.arrow_icon} alt='' />
+              <img className='h-3 w-3 rtl:-scale-x-100' src={assets.arrow_icon} alt='' />
             </button>
           )}
           {token && showAppointmentsButton && (

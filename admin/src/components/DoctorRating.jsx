@@ -43,7 +43,7 @@ export const RatingsList = ({ ratings = [], canDelete = false, onDelete }) => {
               <p className='mt-1 text-xs text-gray-500'>{rating.patientName || 'Patient'} - {formatRatingDate(rating.createdAt)}</p>
             </div>
             {canDelete && (
-              <button type='button' onClick={() => onDelete?.(rating._id)} className='rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50'>Delete</button>
+              <button type='button' onClick={() => onDelete?.(rating._id)} className='rounded-lg border border-eed-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50'>Delete</button>
             )}
           </div>
           {rating.comment && <p className='mt-3 whitespace-pre-line rounded-lg bg-yellow-50 p-3 text-sm leading-relaxed text-gray-700'>{rating.comment}</p>}

@@ -42,7 +42,7 @@ return (
                 navigate(`/appointment/${item._id}`)
                 scrollTo(0, 0)
               }}
-              className={`w-full border border-blue-200 rounded-xl overflow-hidden text-left transition-all duration-500 ${
+              className={`w-full border border-blue-200 rounded-xl overflow-hidden text-start transition-all duration-500 ${
                 isDoctorComingSoon(item) ? 'cursor-default opacity-95' : 'cursor-pointer hover:translate-y-[-10px]'
               }`}
               key={index}
@@ -50,8 +50,8 @@ return (
                 
               <div className='relative'>
                 <img className='bg-blue-50 w-full h-40 sm:h-56 object-cover' src={item.image} alt="" />
-                <RatingBadge summary={item.ratingSummary} className='absolute left-2 top-2' />
-                <PromoOfferBadge doctor={item} formatMoney={formatMoney} className='absolute bottom-2 left-2' />
+                <RatingBadge summary={item.ratingSummary} className='absolute start-2 top-2' />
+                <PromoOfferBadge doctor={item} formatMoney={formatMoney} className='absolute bottom-2 start-2' />
               </div>
                
                

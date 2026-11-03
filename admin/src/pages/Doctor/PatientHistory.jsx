@@ -388,7 +388,7 @@ const PatientHistory = () => {
           onClick={handleBack}
           className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition text-sm sm:text-base font-medium flex-shrink-0"
         >
-        <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+        <ArrowLeft className="rtl:-scale-x-100 w-4 h-4 sm:w-5 sm:h-5" />
           <span className="hidden sm:inline">Back to History</span>
           <span className="sm:hidden">Back</span>
         </button>
@@ -406,7 +406,7 @@ const PatientHistory = () => {
 
         {/* Cannot Edit Warning */}
           {cannotEditMsg && (
-            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 text-red-700 rounded-lg sm:rounded-xl border border-red-200">
+            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 text-red-700 rounded-lg sm:rounded-xl border border-eed-200">
               <div className="flex items-start gap-2 sm:gap-3">
                 <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
@@ -595,14 +595,14 @@ const PatientHistory = () => {
               <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
                 <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                 Medical Details
-                {isEditing && <span className="text-blue-600 text-sm sm:text-base ml-2">(Editing Mode)</span>}
+                {isEditing && <span className="text-blue-600 text-sm sm:text-base ms-2">(Editing Mode)</span>}
               </h3>
             </div>
             
             <div className="space-y-5 sm:space-y-6">
               
               {/* Diagnosis */}
-              <div className="border-l-4 border-blue-600 pl-4">
+              <div className="border-s-4 border-blue-600 ps-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Stethoscope className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   <label className="text-sm sm:text-base font-semibold text-gray-700">Diagnosis</label>
@@ -623,7 +623,7 @@ const PatientHistory = () => {
               </div>
 
               {/* Symptoms */}
-              <div className="border-l-4 border-orange-500 pl-4">
+              <div className="border-s-4 border-orange-500 ps-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Thermometer className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
                   <label className="text-sm sm:text-base font-semibold text-gray-700">Symptoms</label>
@@ -644,7 +644,7 @@ const PatientHistory = () => {
               </div>
 
               {/* Medicines */}
-              <div className="border-l-4 border-green-600 pl-4">
+              <div className="border-s-4 border-green-600 ps-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Pill className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                   <label className="text-sm sm:text-base font-semibold text-gray-700">Prescribed Medicines</label>
@@ -662,7 +662,7 @@ const PatientHistory = () => {
                         </div>
                         <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
                           <input value={item.instructions} onChange={(e) => handleMedicationChange(index, 'instructions', e.target.value)} className="border rounded-lg px-3 py-2 text-sm" placeholder="Instructions" />
-                          <button type="button" onClick={() => removeMedicationItem(index)} disabled={(editData.medicationItems || []).length === 1} className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm disabled:opacity-40">Remove</button>
+                          <button type="button" onClick={() => removeMedicationItem(index)} disabled={(editData.medicationItems || []).length === 1} className="px-3 py-2 rounded-lg border border-eed-200 text-red-600 text-sm disabled:opacity-40">Remove</button>
                         </div>
                       </div>
                     ))}
@@ -673,11 +673,11 @@ const PatientHistory = () => {
                       <table className="w-full text-sm border border-green-100 rounded-lg overflow-hidden">
                         <thead className="bg-green-50 text-gray-700">
                           <tr>
-                            <th className="text-left p-2">Medicine</th>
-                            <th className="text-left p-2">Dosage</th>
-                            <th className="text-left p-2">Frequency</th>
-                            <th className="text-left p-2">Duration</th>
-                            <th className="text-left p-2">Instructions</th>
+                            <th className="text-start p-2">Medicine</th>
+                            <th className="text-start p-2">Dosage</th>
+                            <th className="text-start p-2">Frequency</th>
+                            <th className="text-start p-2">Duration</th>
+                            <th className="text-start p-2">Instructions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -702,7 +702,7 @@ const PatientHistory = () => {
               </div>
 
               {/* Instructions */}
-              <div className="border-l-4 border-purple-600 pl-4">
+              <div className="border-s-4 border-purple-600 ps-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Clipboard className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                   <label className="text-sm sm:text-base font-semibold text-gray-700">Patient Instructions</label>
@@ -723,7 +723,7 @@ const PatientHistory = () => {
               </div>
 
               {/* Lab Tests */}
-              <div className="border-l-4 border-red-500 pl-4">
+              <div className="border-s-4 border-eed-500 ps-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
                   <label className="text-sm sm:text-base font-semibold text-gray-700">Lab Tests</label>
@@ -737,14 +737,14 @@ const PatientHistory = () => {
                     placeholder="Recommended tests"
                   />
                 ) : (
-                  <p className="p-2 sm:p-3 bg-red-50 rounded-lg border border-red-200 text-sm sm:text-base text-gray-800">
+                  <p className="p-2 sm:p-3 bg-red-50 rounded-lg border border-eed-200 text-sm sm:text-base text-gray-800">
                     {selectedPatient.labTests || 'Not specified'}
                   </p>
                 )}
               </div>
 
               {/* Next Visit */}
-              <div className="border-l-4 border-yellow-500 pl-4">
+              <div className="border-s-4 border-yellow-500 ps-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
                   <label className="text-sm sm:text-base font-semibold text-gray-700">Follow-up Visit</label>
@@ -765,7 +765,7 @@ const PatientHistory = () => {
               </div>
 
               {/* Documentation */}
-              <div className="border-l-4 border-indigo-600 pl-4">
+              <div className="border-s-4 border-indigo-600 ps-4">
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
                   <label className="text-sm sm:text-base font-semibold text-gray-700">Documentation</label>
@@ -882,19 +882,19 @@ const PatientHistory = () => {
 
         <div className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 sm:left-4" />
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 sm:start-4" />
             <input
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search name, ID, phone, diagnosis, symptoms…"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-10 text-sm font-medium text-slate-900 outline-none ring-slate-200 transition focus:bg-white focus:ring-2 focus:ring-blue-500 sm:pl-12 sm:pr-12 sm:text-base"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 ps-10 pe-10 text-sm font-medium text-slate-900 outline-none ring-slate-200 transition focus:bg-white focus:ring-2 focus:ring-blue-500 sm:ps-12 sm:pe-12 sm:text-base"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 sm:right-4"
+                className="absolute end-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 sm:end-4"
                 aria-label="Clear search"
               >
                 <X className="h-5 w-5" />
@@ -1213,7 +1213,7 @@ const PatientHistory = () => {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="rtl:-scale-x-100 h-4 w-4" />
                 Prev
               </button>
               <button
@@ -1223,7 +1223,7 @@ const PatientHistory = () => {
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="rtl:-scale-x-100 h-4 w-4" />
               </button>
             </div>
           </div>

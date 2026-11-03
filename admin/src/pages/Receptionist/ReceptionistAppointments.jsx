@@ -366,26 +366,26 @@ const ReceptionistAppointments = () => {
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
             <div className="relative xl:col-span-2">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white ps-10 pe-10 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
                 placeholder={t("Search patient, ID, phone, doctor, ref…")}
               />
               {searchQuery && (
-                <button type="button" onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <button type="button" onClick={() => setSearchQuery("")} className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   <X className="h-5 w-5" />
                 </button>
               )}
             </div>
 
             <div className="relative">
-              <SlidersHorizontal className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <SlidersHorizontal className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white ps-9 pe-3 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
               >
                 <option value="dateAsc">{t("Sort: soonest first")}</option>
                 <option value="dateDesc">{t("Sort: latest first")}</option>
@@ -467,7 +467,7 @@ const ReceptionistAppointments = () => {
                   <button
                     type="button"
                     onClick={() => toggleExpanded(item._id)}
-                    className="flex w-full items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-3 text-left transition hover:bg-slate-100/80 sm:gap-4 sm:px-5"
+                    className="flex w-full items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-3 text-start transition hover:bg-slate-100/80 sm:gap-4 sm:px-5"
                   >
                     <img src={item.userData?.image} alt="" className="h-11 w-11 shrink-0 rounded-full bg-indigo-50 object-cover ring-2 ring-white" />
                     <div className="min-w-0 flex-1">
@@ -489,7 +489,7 @@ const ReceptionistAppointments = () => {
                         {item.paymentStatus === "Paid" ? t("Paid") : t("Not Paid")}
                       </span>
                     </div>
-                    <div className="hidden text-right sm:block">
+                    <div className="hidden text-end sm:block">
                       <p className="text-xs font-semibold uppercase text-slate-400">{t("Due")}</p>
                       <p className="text-sm font-bold text-slate-900">
                         {currency}

@@ -89,10 +89,10 @@ const HomeVisitPricingSettings = () => {
                 step={1}
                 value={form.percentageValue}
                 onChange={(e) => setForm((prev) => ({ ...prev, percentageValue: e.target.value }))}
-                className='min-w-0 flex-1 rounded-l-lg px-3 py-2.5 text-sm outline-none'
+                className='min-w-0 flex-1 rounded-s-lg px-3 py-2.5 text-sm outline-none'
                 required
               />
-              <span className='flex items-center rounded-r-lg border-l border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500'>%</span>
+              <span className='flex items-center rounded-e-lg border-s border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500'>%</span>
             </div>
             <p className='mt-2 text-xs text-gray-500'>
               {t('Example')}: {t('If doctor fee is')} {currency}500 → {t('home visit adds')} {currency}
@@ -104,14 +104,14 @@ const HomeVisitPricingSettings = () => {
           <div>
             <label className='mb-2 block text-sm font-semibold text-gray-700'>{t('Fixed home visit amount')}</label>
             <div className='flex rounded-lg border border-gray-300 bg-white focus-within:ring-2 focus-within:ring-primary'>
-              <span className='flex items-center rounded-l-lg border-r border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500'>{currency}</span>
+              <span className='flex items-center rounded-s-lg border-e border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500'>{currency}</span>
               <input
                 type='number'
                 min={0}
                 step={1}
                 value={form.fixedAmount}
                 onChange={(e) => setForm((prev) => ({ ...prev, fixedAmount: e.target.value }))}
-                className='min-w-0 flex-1 rounded-r-lg px-3 py-2.5 text-sm outline-none'
+                className='min-w-0 flex-1 rounded-e-lg px-3 py-2.5 text-sm outline-none'
                 required
               />
             </div>

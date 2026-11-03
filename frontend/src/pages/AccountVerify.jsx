@@ -133,7 +133,7 @@ const AccountVerify = () => {
             <Mail className='h-4 w-4 text-primary' />
             Email code
             {status.emailVerified && (
-              <span className='ml-auto rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700'>Verified</span>
+              <span className='ms-auto rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700'>Verified</span>
             )}
           </div>
           <p className='mb-3 text-xs text-gray-500'>Sent to {status.email}</p>

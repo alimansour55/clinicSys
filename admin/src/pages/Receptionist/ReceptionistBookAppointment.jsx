@@ -577,22 +577,22 @@ const ReceptionistBookAppointment = () => {
                   </button>
                 </div>
                 <div className="relative mb-3">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Search className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                   <input
                     value={patientSearch}
                     onChange={(e) => setPatientSearch(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/80 pl-10 pr-3 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/80 ps-10 pe-3 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
                     placeholder={t("Search name, patient ID, phone, or email")}
                   />
                 </div>
-                <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+                <div className="max-h-80 space-y-2 overflow-y-auto pe-1">
                   {filteredPatients.length > 0 ? (
                     filteredPatients.map((patient) => (
                       <button
                         key={patient._id}
                         type="button"
                         onClick={() => setPatientId(patient._id)}
-                        className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
+                        className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start transition ${
                           patientId === patient._id ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
                         }`}
                       >
@@ -629,21 +629,21 @@ const ReceptionistBookAppointment = () => {
                   <h2 className="mt-1 text-lg font-bold text-slate-900">{t("Choose doctor")}</h2>
                 </div>
                 <div className="relative mb-3">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Search className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                   <input
                     value={doctorSearch}
                     onChange={(e) => setDoctorSearch(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/80 pl-10 pr-3 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/80 ps-10 pe-3 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
                     placeholder={t("Search doctor or speciality")}
                   />
                 </div>
-                <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                <div className="max-h-56 space-y-2 overflow-y-auto pe-1">
                   {filteredDoctors.map((doctor) => (
                     <button
                       key={doctor._id}
                       type="button"
                       onClick={() => handleDoctorChange(doctor._id)}
-                      className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
+                      className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start transition ${
                         docId === doctor._id ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
                       }`}
                     >
@@ -665,7 +665,7 @@ const ReceptionistBookAppointment = () => {
                     <div className="flex min-w-0 items-start gap-3">
                       <div className="relative shrink-0">
                         <img src={selectedDoctor.image} alt="" className="h-14 w-14 rounded-full object-cover ring-2 ring-slate-100" />
-                        <RatingBadge summary={selectedDoctor.ratingSummary || ratingsData.summary} className="absolute -left-1 -top-1" />
+                        <RatingBadge summary={selectedDoctor.ratingSummary || ratingsData.summary} className="absolute -start-1 -top-1" />
                       </div>
                       <div className="min-w-0 flex-1 overflow-hidden">
                         <p className="break-words font-semibold text-slate-900">{selectedDoctor.name}</p>
@@ -705,7 +705,7 @@ const ReceptionistBookAppointment = () => {
                                 setSlotTime("");
                                 setSlotBranch("");
                               }}
-                              className={`flex min-w-0 items-center gap-2 overflow-hidden rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition ${
+                              className={`flex min-w-0 items-center gap-2 overflow-hidden rounded-xl border px-3 py-2.5 text-start text-xs font-semibold transition ${
                                 disabled
                                   ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300"
                                   : activeAppointmentType === option.value
@@ -743,7 +743,7 @@ const ReceptionistBookAppointment = () => {
                                   placeholder={t("e.g. Mohandseen")}
                                 />
                                 {locationDrafts.length > 1 && (
-                                  <button type="button" onClick={() => setLocationDrafts((prev) => prev.filter((_, i) => i !== index))} className="rounded-lg border border-rose-200 p-2 text-rose-600">
+                                  <button type="button" onClick={() => setLocationDrafts((prev) => prev.filter((_, i) => i !== index))} className="rounded-lg border border-eose-200 p-2 text-rose-600">
                                     <X className="h-4 w-4" />
                                   </button>
                                 )}
@@ -775,7 +775,7 @@ const ReceptionistBookAppointment = () => {
                                     setSlotTime("");
                                     setSlotBranch("");
                                   }}
-                                  className={`max-w-full min-w-0 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
+                                  className={`max-w-full min-w-0 rounded-xl border px-3 py-2 text-start text-xs font-semibold transition ${
                                     selectedClinicLocation === location ? "border-primary bg-white text-primary shadow-sm" : "border-sky-200 bg-white/80 text-slate-700 hover:border-primary/40"
                                   }`}
                                 >
@@ -992,13 +992,13 @@ const ReceptionistBookAppointment = () => {
               <button
                 type="button"
                 onClick={() => setShowAdminTools((v) => !v)}
-                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-slate-50"
+                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-start transition hover:bg-slate-50"
               >
                 <span className="flex items-center gap-2 font-bold text-slate-900">
                   <Sparkles className="h-5 w-5 text-amber-500" />
                   {t("Patient & insurance admin")}
                 </span>
-                <ChevronRight className={`h-5 w-5 text-slate-400 transition ${showAdminTools ? "rotate-90" : ""}`} />
+                <ChevronRight className={`rtl:-scale-x-100 h-5 w-5 text-slate-400 transition ${showAdminTools ? "rotate-90" : ""}`} />
               </button>
               {showAdminTools && (
                 <div className="space-y-6 border-t border-slate-100 px-5 pb-6 pt-4">

@@ -24,7 +24,7 @@ const Banner = () => {
       className='mx-3 my-10 flex min-h-[280px] scroll-mt-28 rounded-lg px-6 sm:mx-10 sm:min-h-[300px] sm:px-10 md:my-20 md:min-h-[340px] md:px-14 lg:min-h-[380px] lg:px-12'
       style={{ backgroundColor }}
     >
-      <div className='flex min-h-0 flex-1 flex-col justify-center py-8 sm:py-10 md:py-14 lg:py-16 lg:pl-5'>
+      <div className='flex min-h-0 flex-1 flex-col justify-center py-8 sm:py-10 md:py-14 lg:py-16 lg:ps-5'>
         <div className='flex min-h-[7.5rem] flex-col justify-center sm:min-h-[8.5rem] md:min-h-[10rem] lg:min-h-[12rem]'>
           <div className='text-xl font-semibold leading-[1.15] text-white sm:text-2xl md:text-3xl lg:text-5xl'>
             {titleLines.map((line, index) => (
@@ -71,7 +71,7 @@ const Banner = () => {
       {showImage && (
         <div className='relative flex w-[50%] min-h-[200px] shrink-0 items-end justify-end sm:w-[45%] sm:min-h-[220px] md:w-1/2 md:min-h-[260px] lg:w-[370px] lg:min-h-[300px]'>
           <img
-            className='absolute bottom-0 right-0 h-auto max-h-[240px] w-full max-w-[110px] object-contain sm:max-h-[260px] sm:max-w-[200px] md:max-h-[300px] md:max-w-md'
+            className='absolute bottom-0 end-0 h-auto max-h-[240px] w-full max-w-[110px] object-contain sm:max-h-[260px] sm:max-w-[200px] md:max-h-[300px] md:max-w-md'
             src={bannerImage}
             alt=''
           />

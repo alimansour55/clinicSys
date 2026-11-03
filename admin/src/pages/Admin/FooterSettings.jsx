@@ -97,7 +97,7 @@ const FooterSettings = () => {
             <Building2 className='w-6 h-6 text-primary' />
             Footer Settings
           </h1>
-          <p className='mt-2 text-sm text-gray-600 ml-8'>
+          <p className='mt-2 text-sm text-gray-600 ms-8'>
             Control the company information, footer links, phone, email, and copyright shown on the patient website.
           </p>
         </div>

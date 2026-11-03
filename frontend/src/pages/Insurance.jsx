@@ -122,7 +122,7 @@ const Insurance = () => {
             role='checkbox'
             aria-checked={insurance.enabled}
             onClick={() => setInsurance((prev) => ({ ...prev, enabled: !prev.enabled }))}
-            className='flex w-full min-h-[44px] items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-left transition active:bg-gray-100'
+            className='flex w-full min-h-[44px] items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-start transition active:bg-gray-100'
           >
             <span>
               <span className='block text-sm font-semibold text-gray-800'>Add Insurance</span>
@@ -177,7 +177,7 @@ const Insurance = () => {
                 <button
                   type='button'
                   onClick={() => cardFileInputRef.current?.click()}
-                  className='flex min-h-[44px] w-full items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2.5 text-left text-sm text-gray-600 transition hover:border-primary active:bg-gray-50'
+                  className='flex min-h-[44px] w-full items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2.5 text-start text-sm text-gray-600 transition hover:border-primary active:bg-gray-50'
                 >
                   <FileUp className='h-4 w-4 shrink-0' />
                   <span className='truncate'>{cardFile ? cardFile.name : insurance.medicalCardPhoto ? 'Replace attached card' : 'Attach file'}</span>
