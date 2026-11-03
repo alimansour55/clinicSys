@@ -5,6 +5,8 @@ export default {
     'nav.doctors': 'Doctors',
     'nav.about': 'About',
     'nav.contact': 'Contact',
+    'Contact us heading': 'Contact us',
+    'Menu welcome guest': 'Sign in to see your appointments and medical record.',
   },
   ar: {
     'nav.home': 'الرئيسية',
