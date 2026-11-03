@@ -110,4 +110,4 @@ const buildMfaSetupPayload = ({ secret, accountName }) => ({
   otpauthUrl: buildOtpAuthUrl({ secret, accountName })
 })
 
-export { buildMfaSetupPayload, generateMfaSecret, generateRecoveryCodes, hashRecoveryCode, matchTotpStep, verifyTotpCode }
+export { buildMfaSetupPayload, generateMfaSecret, generateRecoveryCodes, generateTotpCode, hashRecoveryCode, matchTotpStep, verifyTotpCode }
