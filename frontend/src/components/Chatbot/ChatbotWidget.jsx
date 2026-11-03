@@ -1,18 +1,21 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CalendarClock, X, Send, Loader2 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { toast } from 'react-toastify'
+import { CalendarClock, Mic, MicOff, Send, X } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import { AppContext } from '../../context/AppContext'
-import { useLanguage, translateString } from '../../i18n'
+import { translateString, useLanguage } from '../../i18n'
+import { Button, IconButton, notify } from '../ui'
+import { localizeWesternDigits } from '../../utils/arabicNumerals'
+import { displayPersonName } from '../../utils/personNameArabic'
 import { formatLocationLine } from '../../utils/placeTranslations'
 import { isValidEgyptPhone, normalizeEgyptPhone } from '../../utils/egyptPhone'
+import { formatMoney as formatMoneyAmount } from '../../utils/arabicMedicalUi'
 import {
-  isDoctorComingSoon,
+  hasDoctorPublishedSchedule,
   isDoctorBookableForPatients,
-  isTeleconsultationType,
-  usesClinicWeeklySchedule,
-  hasDoctorPublishedSchedule
+  isDoctorComingSoon,
+  isTeleconsultationType
 } from '../../utils/doctorBooking'
 import { doctorBelongsToClinicSection } from '../../utils/doctorClinicPlaces'
 import { doctorOffersHomeVisit, getDoctorHomeVisitAreas } from '../../utils/homeVisitAreas'
@@ -21,13 +24,9 @@ import {
   filterDoctorsBySpecialty,
   getDoctorLocations,
   getDoctorPrimaryLocation,
-  getDoctorSpecialty,
-  SPECIALTY_IDS
+  getDoctorSpecialty
 } from '../../utils/chatbotSpecialty'
-import {
-  findDoctorsByNameQuery,
-  shouldUseDoctorNameSearch
-} from '../../utils/chatbotDoctorMatch'
+import { findDoctorsByNameQuery, shouldUseDoctorNameSearch } from '../../utils/chatbotDoctorMatch'
 import {
   CHATBOT_APPOINTMENT_TYPES,
   CHATBOT_VISIT_FEE_TYPES,
@@ -35,17 +34,14 @@ import {
   getDoctorAppointmentTypeOptions,
   probeDoctorBranchesForType
 } from '../../utils/chatbotBookingHelpers'
-import axios from 'axios'
-import { bookChatbotAppointment } from '../../utils/chatbotApi'
+import { bookChatbotAppointment, fetchChatbotSlots, sendChatbotMessage } from '../../utils/chatbotApi'
 import { useMediaQuery } from '../../utils/useMediaQuery'
 import {
   buildClinicSectionSuggestions,
-  buildFallbackOpeningSuggestions
+  buildFallbackOpeningSuggestions,
+  resolveClinicSectionLabel
 } from '../../utils/chatbotOpeningSuggestions'
-import {
-  buildEmptySpecialtyGuidance,
-  specialtyToClinicName
-} from '../../utils/chatbotEmptySpecialty'
+import { buildEmptySpecialtyGuidance, specialtyToClinicName } from '../../utils/chatbotEmptySpecialty'
 import {
   captureChatSnapshot,
   canGoBack as navCanGoBack,
@@ -54,18 +50,58 @@ import {
   getChangeSelectionStep
 } from '../../utils/chatbotNavigation'
 import { CHAT_STEPS } from '../../utils/chatbotSteps'
-import { messageText } from '../../utils/chatbotMessages'
-import { formatMoney as formatMoneyAmount } from '../../utils/arabicMedicalUi'
-import { resolveClinicSectionLabel } from '../../utils/chatbotOpeningSuggestions'
+import {
+  AppointmentTicket,
+  EmergencyCard,
+  JourneyRibbon,
+  RevealText,
+  SuccessActions,
+  ThinkingBubble,
+  UnderstoodChips
+} from './AssistantParts'
 import DoctorChatCard from './DoctorChatCard'
+import HomeAddressForm from './HomeAddressForm'
+import {
+  buildCalendarFile,
+  downloadCalendarFile,
+  fillTemplate,
+  formatDayLabel,
+  formatLongDay,
+  formatSlotTime,
+  journeyStage
+} from './assistantFormat'
+import { isLocalRedFlag } from './localSafety'
+import { useSpeechInput } from './useSpeechInput'
+import './assistant.css'
 
-const TypingIndicator = () => (
-  <div className="flex items-center gap-1 px-3 py-2">
-    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:0ms]" />
-    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:150ms]" />
-    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:300ms]" />
-  </div>
-)
+const STEP_NEEDS_LOGIN = 'needs_login'
+const SESSION_KEY = 'clinivoAssistantSession'
+const MAX_TURNS_SENT = 8
+const MIN_THINKING_MS = 450
+const EMERGENCY_NUMBER = '123'
+
+const EXAMPLES = ['assistant.example.tooth', 'assistant.example.child', 'assistant.example.skin']
+
+const readSession = () => {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+const writeSession = (value) => {
+  try {
+    if (value) sessionStorage.setItem(SESSION_KEY, JSON.stringify(value))
+    else sessionStorage.removeItem(SESSION_KEY)
+  } catch {
+    /* Private windows can refuse storage. The chat still works, it just will not survive a reload. */
+  }
+}
+
+const greetingKey = (hour) =>
+  hour < 12 ? 'assistant.greetMorning' : hour < 17 ? 'assistant.greetDay' : 'assistant.greetEvening'
 
 const ChatbotWidget = () => {
   const {
@@ -76,91 +112,126 @@ const ChatbotWidget = () => {
     clinics,
     getDoctorsData,
     getClinicsData,
-    displayPersonName,
     placeTranslationOverrides,
-    currencySymbol,
-    formatMoney,
     siteSettings
   } = useContext(AppContext)
   const isLaptopUp = useMediaQuery('(min-width: 1024px)')
-  const { language: siteLanguage, t, tc, localizeDigits } = useLanguage()
+  const { language: siteLanguage, tc } = useLanguage()
   const navigate = useNavigate()
 
-  const [open, setOpen] = useState(false)
-  const [chatLang, setChatLang] = useState(siteLanguage)
-  const [chatStep, setChatStep] = useState(CHAT_STEPS.WAITING_SYMPTOMS)
-  const [messages, setMessages] = useState([])
+  const [saved] = useState(readSession)
+  const [firstLiveMessageId] = useState(() => (saved?.messages || []).reduce((max, m) => Math.max(max, m.id || 0), 0) + 1)
+
+  const [open, setOpen] = useState(saved?.chatStep === STEP_NEEDS_LOGIN)
+  const [chatLang, setChatLang] = useState(saved?.chatLang || siteLanguage)
+  const [chatStep, setChatStep] = useState(saved?.chatStep || CHAT_STEPS.WAITING_SYMPTOMS)
+  const [messages, setMessages] = useState(saved?.messages || [])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const [booking, setBooking] = useState(false)
-  const [matchedDoctors, setMatchedDoctors] = useState([])
-  const [quickReplies, setQuickReplies] = useState([])
-  const [slotDays, setSlotDays] = useState([])
-  const [clinicLocation, setClinicLocation] = useState('')
-  const [dateOptions, setDateOptions] = useState([])
-  const [timeOptions, setTimeOptions] = useState([])
-  const [locationOptions, setLocationOptions] = useState([])
-  const [appointmentTypeOptions, setAppointmentTypeOptions] = useState([])
-  const [homeVisitAreaOptions, setHomeVisitAreaOptions] = useState([])
-  const [canBookConsultation, setCanBookConsultation] = useState(false)
-  const [selectedClinicSection, setSelectedClinicSection] = useState(null)
-  const [navRevision, setNavRevision] = useState(0)
-
-  const [bookingData, setBookingData] = useState(emptyBookingData())
+  const [matchedDoctors, setMatchedDoctors] = useState(saved?.matchedDoctors || [])
+  const [slotHints, setSlotHints] = useState(saved?.slotHints || {})
+  const [quickReplies, setQuickReplies] = useState(saved?.quickReplies || [])
+  const [slotDays, setSlotDays] = useState(saved?.slotDays || [])
+  const [dateOptions, setDateOptions] = useState(saved?.dateOptions || [])
+  const [timeOptions, setTimeOptions] = useState(saved?.timeOptions || [])
+  const [locationOptions, setLocationOptions] = useState(saved?.locationOptions || [])
+  const [appointmentTypeOptions, setAppointmentTypeOptions] = useState(saved?.appointmentTypeOptions || [])
+  const [canBookConsultation, setCanBookConsultation] = useState(Boolean(saved?.canBookConsultation))
+  const [selectedClinicSection, setSelectedClinicSection] = useState(saved?.selectedClinicSection || null)
+  const [bookingData, setBookingData] = useState(saved?.bookingData || emptyBookingData())
+  const [emergencyHold, setEmergencyHold] = useState(false)
+  const [ticket, setTicket] = useState(null)
+  const [voiceNotice, setVoiceNotice] = useState('')
+  const [rebookDoctorId, setRebookDoctorId] = useState('')
+  const [navDepth, setNavDepth] = useState(0)
 
   const listRef = useRef(null)
-  const booted = useRef(false)
+  const inputRef = useRef(null)
   const navStackRef = useRef([])
-  const skipHistoryRef = useRef(false)
+  const nextMessageId = useRef(firstLiveMessageId)
+  const hadToken = useRef(Boolean(token))
+  const bookingLock = useRef(false)
+  const conversationStart = useRef(0)
 
   const isRtl = chatLang === 'ar'
-  const L = useCallback(
-    (en, ar) => (isRtl ? ar : en),
-    [isRtl]
-  )
-  const tLang = useCallback((key, lang) => translateString(key, lang), [])
 
-  const pushBot = (en, ar) => {
-    setMessages((prev) => [
-      ...prev,
-      ar === undefined ? { role: 'assistant', content: en } : { role: 'assistant', en, ar }
-    ])
+  /* The chat can differ from the site's language: it answers in whichever language was just written. */
+  const t = useCallback((key) => translateString(key, chatLang), [chatLang])
+
+  const scrollToEnd = useCallback(() => {
+    const list = listRef.current
+    if (list?.scrollTo) list.scrollTo({ top: list.scrollHeight })
+  }, [])
+
+  const addMessage = (message) => {
+    const id = nextMessageId.current
+    nextMessageId.current += 1
+    setMessages((prev) => [...prev, { id, ...message }])
   }
 
-  const pushUser = (en, ar) => {
-    setMessages((prev) => [
-      ...prev,
-      ar === undefined ? { role: 'user', content: en } : { role: 'user', en, ar }
-    ])
-  }
+  /** A bot line from the area file. Stored as a key, so it follows the language toggle. */
+  const say = (key, vars, extra = {}) => addMessage({ role: 'assistant', key, vars, ...extra })
 
-  const withTyping = async (fn) => {
+  /** A bot line from the server: both languages from the rules, or one from the model. */
+  const sayFromServer = (res, extra = {}) =>
+    addMessage({
+      role: 'assistant',
+      ...(res.replyI18n ? { i18n: res.replyI18n } : { content: res.reply }),
+      ...extra
+    })
+
+  const pushUser = (content, extra = {}) => addMessage({ role: 'user', content, ...extra })
+  const pushUserKey = (key, vars) => addMessage({ role: 'user', key, vars })
+
+  const withThinking = async (work) => {
     setTyping(true)
-    await new Promise((r) => setTimeout(r, 350))
+    const startedAt = Date.now()
     try {
-      await fn()
+      await work()
     } finally {
+      const remaining = MIN_THINKING_MS - (Date.now() - startedAt)
+      if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining))
       setTyping(false)
     }
   }
 
-  const translateLoc = (loc, lang = chatLang) =>
-    formatLocationLine(loc, lang === 'ar' ? 'ar' : 'en', t, placeTranslationOverrides)
+  const translateLoc = useCallback(
+    (loc, lang = chatLang) =>
+      formatLocationLine(loc, lang === 'ar' ? 'ar' : 'en', (key) => translateString(key, lang), placeTranslationOverrides),
+    [chatLang, placeTranslationOverrides]
+  )
 
-  const formatDoctorFee = (doctor) => {
-    const amount = Number(doctor?.fees)
-    if (!Number.isFinite(amount) || amount <= 0) return ''
-    return formatMoney(amount)
+  const sectionLabel = useCallback(
+    (name) => resolveClinicSectionLabel(name, chatLang, t, tc, placeTranslationOverrides),
+    [chatLang, t, tc, placeTranslationOverrides]
+  )
+
+  const personName = useCallback((name) => displayPersonName(name, chatLang), [chatLang])
+
+  const resolveVars = (vars = {}) =>
+    Object.fromEntries(
+      Object.entries(vars).map(([name, value]) => {
+        if (value?.person !== undefined) return [name, personName(value.person)]
+        if (value?.place !== undefined) return [name, translateLoc(value.place)]
+        if (value?.section !== undefined) return [name, sectionLabel(value.section)]
+        if (value?.key !== undefined) return [name, t(value.key)]
+        if (value?.day !== undefined) return [name, formatDayLabel(value.day, chatLang, t)]
+        if (value?.time !== undefined) return [name, formatSlotTime(value.time, chatLang, t)]
+        return [name, value]
+      })
+    )
+
+  const messageBody = (message) => {
+    if (message.i18n) return message.i18n[chatLang] || message.i18n.en
+    if (message.key) return localizeWesternDigits(fillTemplate(t(message.key), resolveVars(message.vars)), chatLang)
+    return message.content ?? ''
   }
 
-  const formatDoctorLocationsLine = (doctor) => {
-    const locs = getDoctorLocations(doctor)
-    if (!locs.length) {
-      const fallback = getDoctorPrimaryLocation(doctor)
-      return fallback ? translateLoc(fallback) : t('Clinic location')
-    }
-    return locs.map((loc) => translateLoc(loc)).join(' · ')
-  }
+  const slotLabel = useCallback(
+    (slot) => `${formatDayLabel(slot.slotDate, chatLang, t)} · ${formatSlotTime(slot.time, chatLang, t)}`,
+    [chatLang, t]
+  )
 
   const clinicSectionSuggestions = useMemo(
     () =>
@@ -175,440 +246,229 @@ const ChatbotWidget = () => {
     [doctors, clinics, t, tc, chatLang, placeTranslationOverrides]
   )
 
-  const fallbackQuickReplies = () =>
-    clinicSectionSuggestions.length
-      ? clinicSectionSuggestions
-      : buildFallbackOpeningSuggestions(chatLang)
+  const openingSections = clinicSectionSuggestions.length
+    ? clinicSectionSuggestions
+    : buildFallbackOpeningSuggestions(chatLang)
 
-  const audienceQuickReplies = () => [
-    { id: 'adult', label: L('Adult', 'شخص بالغ'), specialty: SPECIALTY_IDS.GENERAL },
-    { id: 'child', label: L('Child', 'طفل'), specialty: SPECIALTY_IDS.PEDIATRICIANS }
-  ]
+  const quickReplyLabel = (reply) => {
+    if (reply.kind === 'clinic' && reply.clinicName) return sectionLabel(reply.clinicName)
+    if (reply.i18n) return reply.i18n[chatLang] || reply.i18n.en
+    return reply.label || ''
+  }
 
   useEffect(() => {
     if (!open) return
-    if (booted.current) return
-    booted.current = true
-    setChatLang(siteLanguage)
-    setMessages([
-      {
-        role: 'assistant',
-        en: 'Hi 👋 Choose a clinic section below, or describe your symptoms to book.',
-        ar: 'أهلاً 👋 اختار قسم العيادة من الأسفل، أو اكتب أعراضك للحجز.'
-      }
-    ])
-    setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
-    setQuickReplies(buildFallbackOpeningSuggestions(siteLanguage))
+    if (!messages.length) {
+      const name = String(userData?.name || '').trim().split(/\s+/)[0]
+      say(name ? 'assistant.welcomeBack' : 'assistant.welcome', {
+        greeting: { key: greetingKey(new Date().getHours()) },
+        ...(name ? { name: { person: name } } : {})
+      })
+    }
     getDoctorsData?.()
     getClinicsData?.()
-  }, [open, siteLanguage])
+    // Only on opening. Names and doctors refresh on their own afterwards.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   useEffect(() => {
-    if (!open || !booted.current) return
     setChatLang(siteLanguage)
-  }, [open, siteLanguage])
+  }, [siteLanguage])
 
+  /* Remembers the doctor a returning patient last saw, for a one-tap rebooking. */
   useEffect(() => {
-    if (!open || !booted.current || !slotDays.length) return
-    setDateOptions(
-      slotDays.map((d) => ({
-        slotDate: d.slotDate,
-        date: d.date,
-        label: new Date(d.date).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric'
-        })
-      }))
-    )
-  }, [chatLang, open, slotDays, isRtl])
+    if (!open || !token || rebookDoctorId) return undefined
+    let cancelled = false
+    axios
+      .get(`${backendUrl}/api/user/appointments`, { headers: { token } })
+      .then(({ data }) => {
+        if (cancelled || !data?.success) return
+        const latest = (data.appointments || [])
+          .filter((item) => item.appointmentStatus !== 'Cancelled' && item.docId)
+          .sort((a, b) => Number(b.date || 0) - Number(a.date || 0))[0]
+        if (latest) setRebookDoctorId(String(latest.docId))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [open, token, backendUrl, rebookDoctorId])
 
+  const rebookDoctor = useMemo(() => {
+    if (!rebookDoctorId) return null
+    const doctor = (doctors || []).find((d) => String(d._id) === rebookDoctorId)
+    return doctor && isDoctorBookableForPatients(doctor) && !isDoctorComingSoon(doctor) ? doctor : null
+  }, [doctors, rebookDoctorId])
+
+  /* Keep the conversation across a login redirect or a reload, but only for this tab and not once booked. */
   useEffect(() => {
-    if (!open || !booted.current) return
-    setQuickReplies((prev) =>
-      prev.map((q) =>
-        q.kind === 'clinic' && q.clinicName
-          ? {
-              ...q,
-              label: resolveClinicSectionLabel(
-                q.clinicName,
-                chatLang,
-                t,
-                tc,
-                placeTranslationOverrides
-              )
-            }
-          : q
-      )
-    )
-  }, [chatLang, open, t, tc, placeTranslationOverrides])
+    if (!messages.length || chatStep === CHAT_STEPS.SUCCESS) {
+      writeSession(null)
+      return
+    }
+    writeSession({
+      chatLang,
+      chatStep,
+      messages,
+      matchedDoctors,
+      slotHints,
+      quickReplies,
+      slotDays,
+      dateOptions,
+      timeOptions,
+      locationOptions,
+      appointmentTypeOptions,
+      canBookConsultation,
+      selectedClinicSection,
+      bookingData
+    })
+  }, [
+    chatLang,
+    chatStep,
+    messages,
+    matchedDoctors,
+    slotHints,
+    quickReplies,
+    slotDays,
+    dateOptions,
+    timeOptions,
+    locationOptions,
+    appointmentTypeOptions,
+    canBookConsultation,
+    selectedClinicSection,
+    bookingData
+  ])
 
-  useEffect(() => {
-    if (!open || chatStep !== CHAT_STEPS.WAITING_SYMPTOMS) return
-    if (matchedDoctors.length > 0 || typing || booking) return
-    const next = clinicSectionSuggestions.length
-      ? clinicSectionSuggestions
-      : buildFallbackOpeningSuggestions(chatLang)
-    setQuickReplies(next)
-  }, [open, chatStep, clinicSectionSuggestions, matchedDoctors.length, typing, booking, chatLang])
-
-  const getSnapshot = () =>
-    captureChatSnapshot({
+  const getSnapshot = () => ({
+    ...captureChatSnapshot({
       chatStep,
       bookingData,
       matchedDoctors,
       quickReplies,
       slotDays,
-      clinicLocation,
       dateOptions,
       timeOptions,
       locationOptions,
       appointmentTypeOptions,
-      homeVisitAreaOptions,
       canBookConsultation,
       selectedClinicSection
-    })
+    }),
+    slotHints
+  })
 
   const pushHistory = () => {
-    if (skipHistoryRef.current) return
     navStackRef.current.push(getSnapshot())
-    setNavRevision((n) => n + 1)
+    setNavDepth(navStackRef.current.length)
   }
 
   const restoreSnapshot = (snap) => {
-    skipHistoryRef.current = true
     setChatStep(snap.chatStep)
     setBookingData(snap.bookingData)
     setMatchedDoctors(snap.matchedDoctors || [])
+    setSlotHints(snap.slotHints || {})
     setQuickReplies(snap.quickReplies || [])
     setSlotDays(snap.slotDays || [])
-    setClinicLocation(snap.clinicLocation || '')
     setDateOptions(snap.dateOptions || [])
     setTimeOptions(snap.timeOptions || [])
     setLocationOptions(snap.locationOptions || [])
     setAppointmentTypeOptions(snap.appointmentTypeOptions || [])
-    setHomeVisitAreaOptions(snap.homeVisitAreaOptions || [])
     setCanBookConsultation(Boolean(snap.canBookConsultation))
     setSelectedClinicSection(snap.selectedClinicSection || null)
-    skipHistoryRef.current = false
-    setNavRevision((n) => n + 1)
+    setNavDepth(navStackRef.current.length)
   }
 
-  const clearBookingFlow = (keepProfile = true) => {
+  const clearChoices = () => {
     setMatchedDoctors([])
+    setSlotHints({})
+    setQuickReplies([])
     setSlotDays([])
-    setClinicLocation('')
     setDateOptions([])
     setTimeOptions([])
     setLocationOptions([])
     setAppointmentTypeOptions([])
-    setHomeVisitAreaOptions([])
     setCanBookConsultation(false)
-    setSelectedClinicSection(null)
-    setBookingData((b) => ({
-      ...emptyBookingData(),
-      patientName: keepProfile ? b.patientName : '',
-      phone: keepProfile ? b.phone : ''
-    }))
   }
 
-  const resetToClinicSections = (botEn, botAr) => {
+  const resetFlow = () => {
+    conversationStart.current = nextMessageId.current
     navStackRef.current = []
-    setNavRevision((n) => n + 1)
-    clearBookingFlow(true)
+    setNavDepth(0)
+    clearChoices()
+    setSelectedClinicSection(null)
+    setBookingData(emptyBookingData())
+    setTicket(null)
+    setEmergencyHold(false)
     setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
-    setQuickReplies(fallbackQuickReplies())
-    if (botEn) pushBot(botEn, botAr)
   }
+
+  /* Logging out ends the conversation: the next person at this computer must not see it. */
+  useEffect(() => {
+    if (hadToken.current && !token) {
+      resetFlow()
+      setMessages([])
+      writeSession(null)
+      setRebookDoctorId('')
+    }
+    hadToken.current = Boolean(token)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   const handleStartOver = () => {
-    pushUser('Start Over', 'البدء من جديد')
-    resetToClinicSections(
-      'Starting fresh. Choose a clinic section or describe your symptoms.',
-      'بدأنا من جديد. اختار قسم العيادة أو اكتب أعراضك.'
-    )
+    pushUserKey('assistant.startOver')
+    resetFlow()
+    say('assistant.startedOver')
   }
 
   const handleGoBack = () => {
     const prev = navStackRef.current.pop()
     if (!prev) return
-    setNavRevision((n) => n + 1)
-    pushUser('⬅ Back', '⬅ الرجوع')
+    pushUserKey('assistant.back')
     restoreSnapshot(prev)
-    pushBot(
-      'Back to the previous step. You can adjust your choice.',
-      'رجعنا للخطوة السابقة. تقدر تعدّل اختيارك.'
-    )
+    say('assistant.backDone')
   }
-
-  const reShowDoctorList = async () => {
-    if (selectedClinicSection) {
-      await showDoctorsForClinic(
-        selectedClinicSection.name,
-        selectedClinicSection.id,
-        selectedClinicSection.label,
-        { skipHistory: true }
-      )
-      return
-    }
-    if (bookingData.detectedSpecialty) {
-      await showDoctorsForSpecialty(bookingData.detectedSpecialty, bookingData.symptoms, {
-        skipHistory: true
-      })
-      return
-    }
-    resetToClinicSections(
-      'Choose a clinic section:',
-      'اختار قسم العيادة:'
-    )
-  }
-
-  const rebuildAppointmentTypeStep = () => {
-    const doctor = bookingData.selectedDoctor
-    if (!doctor) {
-      resetToClinicSections()
-      return
-    }
-    const options = getDoctorAppointmentTypeOptions(doctor)
-    setDateOptions([])
-    setTimeOptions([])
-    setLocationOptions([])
-    setHomeVisitAreaOptions([])
-    setAppointmentTypeOptions(options)
-    setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
-    pushBot(
-      `How would you like to visit ${displayPersonName(doctor.name)}?`,
-      `إزاي تحب الزيارة مع ${displayPersonName(doctor.name)}؟`
-    )
-  }
-
-  const rebuildDateStep = () => {
-    applySlotDays(slotDays)
-    setTimeOptions([])
-    setBookingData((b) => ({ ...b, time: '', slotDate: '', date: null }))
-    setChatStep(CHAT_STEPS.WAITING_DATE)
-    pushBot('Pick a date:', 'اختار التاريخ:')
-  }
-
-  const rebuildTimeStep = () => {
-    const day = slotDays.find((d) => d.slotDate === bookingData.slotDate)
-    const times = day?.slots || []
-    setDateOptions([])
-    setTimeOptions(times)
-    setBookingData((b) => ({ ...b, time: '' }))
-    setChatStep(CHAT_STEPS.WAITING_TIME)
-    pushBot('Please choose a time:', 'اختار الوقت المناسب:')
-  }
-
-  const handleChangeSelection = async () => {
-    pushUser('Change Selection', 'تغيير الاختيار')
-    const target = getChangeSelectionStep(chatStep)
-
-    await withTyping(async () => {
-      if (target === CHAT_STEPS.SHOWING_DOCTORS) {
-        await reShowDoctorList()
-        return
-      }
-
-      if (target === CHAT_STEPS.WAITING_SYMPTOMS) {
-        resetToClinicSections(
-          'Choose a clinic section:',
-          'اختار قسم العيادة:'
-        )
-        return
-      }
-
-      if (target === CHAT_STEPS.WAITING_APPOINTMENT_TYPE) {
-        rebuildAppointmentTypeStep()
-        return
-      }
-
-      if (target === CHAT_STEPS.WAITING_DATE) {
-        rebuildDateStep()
-        return
-      }
-
-      if (target === CHAT_STEPS.WAITING_TIME) {
-        rebuildTimeStep()
-      }
-    })
-  }
-
-  const showNavBar = canShowNavControls(chatStep)
-  const backEnabled = navCanGoBack(chatStep, navStackRef.current.length)
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-    if (!open || !isLaptopUp) {
-      document.body.classList.remove('chatbot-open')
-      return
-    }
-    document.body.classList.add('chatbot-open')
-    return () => document.body.classList.remove('chatbot-open')
-  }, [open, isLaptopUp])
-
-  useEffect(() => {
-    if (userData?.name) {
-      setBookingData((b) => ({ ...b, patientName: userData.name }))
-    }
-    if (userData?.phone) {
-      setBookingData((b) => ({ ...b, phone: userData.phone }))
-    }
-  }, [userData])
-
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [
-    messages,
-    typing,
-    matchedDoctors,
-    quickReplies,
-    dateOptions,
-    timeOptions,
-    locationOptions,
-    appointmentTypeOptions,
-    homeVisitAreaOptions,
-    chatStep
-  ])
 
   const resolveDoctorsList = async () => {
     if (doctors?.length) return doctors
     try {
-      await getDoctorsData?.()
-      if (doctors?.length) return doctors
-      const { data } = await axios.get(`${backendUrl}/api/doctor/list`, {
-        params: { _t: Date.now() }
-      })
+      const { data } = await axios.get(`${backendUrl}/api/doctor/list`, { params: { _t: Date.now() } })
       if (data?.success && Array.isArray(data.doctors)) return data.doctors
     } catch {
-      /* handled below */
+      /* The caller says so in the chat. */
     }
     return []
   }
 
-  const showNoDoctorsGuidance = (emptyClinicName, emptyClinicId = null, messageOverride = '') => {
-    const overrideEn =
-      typeof messageOverride === 'object' && messageOverride !== null
-        ? messageOverride.en
-        : messageOverride
-    const overrideAr =
-      typeof messageOverride === 'object' && messageOverride !== null
-        ? messageOverride.ar
-        : messageOverride
-    const base = {
+  const offerAlternatives = (emptyClinicName, emptyClinicId = null, messageKey, messageVars) => {
+    const guidance = buildEmptySpecialtyGuidance({
       doctors,
       clinics,
       emptyClinicName,
       emptyClinicId,
       t,
       tc,
-      placeTranslationOverrides
-    }
-    const guidanceEn = buildEmptySpecialtyGuidance({ ...base, language: 'en', messageOverride: overrideEn })
-    const guidanceAr = buildEmptySpecialtyGuidance({ ...base, language: 'ar', messageOverride: overrideAr })
-    const guidance = chatLang === 'ar' ? guidanceAr : guidanceEn
-
+      language: chatLang,
+      placeTranslationOverrides,
+      messageOverride: ' '
+    })
     setMatchedDoctors([])
-    setChatStep(CHAT_STEPS.SUGGESTING_ALTERNATIVES)
-
-    if (guidance.suggestions.length) {
-      setQuickReplies(guidance.suggestions)
-      pushBot(guidanceEn.message, guidanceAr.message)
-      return
-    }
-
-    pushBot(
-      `${guidanceEn.message}\n\nPlease try again later or contact the clinic.`,
-      `${guidanceAr.message}\n\nحاول مرة أخرى لاحقاً أو تواصل مع العيادة.`
-    )
-    setQuickReplies(fallbackQuickReplies())
-    setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
+    setQuickReplies(guidance.suggestions)
+    setChatStep(guidance.suggestions.length ? CHAT_STEPS.SUGGESTING_ALTERNATIVES : CHAT_STEPS.WAITING_SYMPTOMS)
+    if (messageKey) say(messageKey, messageVars)
+    if (!guidance.suggestions.length) say('assistant.noDoctorsAnywhere')
   }
 
-  const showDoctorsForSpecialty = async (specialty, symptomsText, options = {}) => {
-    if (!options.skipHistory) pushHistory()
-    const source = await resolveDoctorsList()
-    if (!source.length) {
-      pushBot(
-        'Sorry, I could not load doctors right now. Please try again later.',
-        'آسف، لم أتمكن من تحميل الدكاترة حالياً. حاول مرة أخرى لاحقاً.'
-      )
-      return
-    }
-
-    let list = filterDoctorsBySpecialty(source, specialty)
-
-    if (!list.length) {
-      showNoDoctorsGuidance(specialtyToClinicName(specialty))
-      return
-    }
-
-    setBookingData((b) => ({
-      ...b,
-      symptoms: symptomsText || b.symptoms,
-      detectedSpecialty: specialty
-    }))
+  const showDoctorList = (list, { hints = {}, messageKey, skipHistory = false, extra = {} } = {}) => {
+    if (!skipHistory) pushHistory()
+    clearChoices()
     setMatchedDoctors(list)
-    setQuickReplies([])
+    setSlotHints(hints)
     setChatStep(CHAT_STEPS.SHOWING_DOCTORS)
-    pushBot(
-      'I found doctors that match your case. Please choose one:',
-      'لقيت دكاترة مناسبين لحالتك. اختار دكتور من القائمة:'
-    )
+    if (messageKey) say(messageKey, undefined, extra)
   }
 
-  const showMatchedDoctors = (list, symptomsText = '', options = {}) => {
+  const showDoctorsForClinic = async (clinicName, clinicId, options = {}) => {
     if (!options.skipHistory) pushHistory()
-    setBookingData((b) => ({
-      ...b,
-      symptoms: symptomsText || b.symptoms
-    }))
-    setMatchedDoctors(list)
-    setQuickReplies([])
-    setChatStep(CHAT_STEPS.SHOWING_DOCTORS)
-    const matchedCopy =
-      list.length === 1
-        ? ['Here is the doctor you asked for:', 'ده الدكتور اللي طلبته:']
-        : ['I found these doctors. Please choose one:', 'لقيت الدكاترة دول. اختار واحد:']
-    pushBot(matchedCopy[0], matchedCopy[1])
-  }
-
-  const handleSymptomMessage = async (text) => {
-    const source = await resolveDoctorsList()
-    const byName = findDoctorsByNameQuery(source, text)
-    if (shouldUseDoctorNameSearch(text, byName)) {
-      showMatchedDoctors(byName, text)
-      return
-    }
-
-    const { specialty, needsClarification } = detectSpecialtyFromMessage(text)
-
-    if (needsClarification === 'adult_or_child') {
-      pushHistory()
-      setChatStep(CHAT_STEPS.CLARIFY_AUDIENCE)
-      setQuickReplies(audienceQuickReplies())
-      pushBot(
-        'Is this for an adult or a child?',
-        'هل المشكلة لشخص بالغ أم لطفل؟'
-      )
-      return
-    }
-
-    if (!specialty) {
-      setQuickReplies(fallbackQuickReplies())
-      pushBot(
-        'Can you describe your problem? Or choose a clinic section above.',
-        'ممكن توضح المشكلة؟ أو اختار قسم العيادة من الأقسام بالأعلى.'
-      )
-      return
-    }
-
-    await showDoctorsForSpecialty(specialty, text)
-  }
-
-  const showDoctorsForClinic = async (clinicName, clinicId, label, options = {}) => {
-    if (!options.skipHistory) pushHistory()
-    setSelectedClinicSection({ name: clinicName, id: clinicId, label })
+    setSelectedClinicSection({ name: clinicName, id: clinicId })
     const source = await resolveDoctorsList()
     const list = source.filter(
       (doctor) =>
@@ -618,317 +478,178 @@ const ChatbotWidget = () => {
     )
 
     if (!list.length) {
-      showNoDoctorsGuidance(clinicName, clinicId)
+      offerAlternatives(clinicName, clinicId, 'assistant.noDoctorsInSection', { section: { section: clinicName } })
       return
     }
 
-    setBookingData((b) => ({ ...b, symptoms: label, detectedSpecialty: '' }))
-    showMatchedDoctors(list, label)
-  }
-
-  const showDoctorsForService = async (service, label) => {
-    const source = await resolveDoctorsList()
-    let list = []
-
-    if (service === 'teleconsultation') {
-      list = source.filter(
-        (doctor) =>
-          isDoctorBookableForPatients(doctor) &&
-          !isDoctorComingSoon(doctor) &&
-          hasDoctorPublishedSchedule(doctor) &&
-          (doctor.acceptsVoiceCall !== false || doctor.acceptsVideoCall !== false)
-      )
-    } else if (service === 'home') {
-      list = source.filter(
-        (doctor) =>
-          isDoctorBookableForPatients(doctor) &&
-          !isDoctorComingSoon(doctor) &&
-          doctorOffersHomeVisit(doctor)
-      )
-    }
-
-    if (!list.length) {
-      showNoDoctorsGuidance('', null, {
-        en: 'No doctors are available for this service right now. Here are other options:',
-        ar: 'لا يوجد أطباء متاحين لهذه الخدمة حالياً. إليك خيارات أخرى:'
-      })
-      return
-    }
-
-    setBookingData((b) => ({ ...b, symptoms: label }))
-    showMatchedDoctors(list, label)
-  }
-
-  const handleQuickReply = async (reply) => {
-    if (reply.kind === 'clinic' && reply.clinicName) {
-      pushUser(
-        resolveClinicSectionLabel(reply.clinicName, 'en', t, tc, placeTranslationOverrides),
-        resolveClinicSectionLabel(reply.clinicName, 'ar', t, tc, placeTranslationOverrides)
-      )
-    } else {
-      pushUser(reply.label)
-    }
-    setQuickReplies([])
-
-    await withTyping(async () => {
-      if (reply.kind === 'clinic') {
-        await showDoctorsForClinic(reply.clinicName, reply.clinicId, reply.label)
-        return
-      }
-
-      if (reply.kind === 'doctor') {
-        const source = await resolveDoctorsList()
-        const doc = source.find((d) => String(d._id) === String(reply.doctorId))
-        if (doc) showMatchedDoctors([doc], reply.label)
-        else {
-          pushBot(
-            'Sorry, that doctor is not available right now.',
-            'آسف، الدكتور ده مش متاح حالياً.'
-          )
-          setQuickReplies(fallbackQuickReplies())
-        }
-        return
-      }
-
-      if (reply.kind === 'service') {
-        await showDoctorsForService(reply.service, reply.label)
-        return
-      }
-
-      if (chatStep === CHAT_STEPS.CLARIFY_AUDIENCE) {
-        await showDoctorsForSpecialty(reply.specialty, bookingData.symptoms)
-        return
-      }
-
-      await showDoctorsForSpecialty(reply.specialty, reply.label)
+    setBookingData((b) => ({ ...b, detectedSpecialty: '' }))
+    showDoctorList(list, {
+      skipHistory: true,
+      messageKey: list.length === 1 ? 'assistant.doctorsFoundOne' : 'assistant.doctorsFound'
     })
   }
 
-  const applySlotDays = (days) => {
+  const showDoctorsForService = async (service) => {
+    const source = await resolveDoctorsList()
+    const bookable = source.filter((doctor) => isDoctorBookableForPatients(doctor) && !isDoctorComingSoon(doctor))
+    const list = bookable.filter((doctor) =>
+      service === 'home'
+        ? doctorOffersHomeVisit(doctor)
+        : hasDoctorPublishedSchedule(doctor) && (doctor.acceptsVoiceCall !== false || doctor.acceptsVideoCall !== false)
+    )
+    if (!list.length) {
+      offerAlternatives('', null, 'assistant.noDoctorsForService')
+      return
+    }
+    showDoctorList(list, { messageKey: 'assistant.doctorsFound' })
+  }
+
+  const openDatesFrom = (days) => {
     setSlotDays(days)
-    setDateOptions(
-      days.map((d) => ({
-        slotDate: d.slotDate,
-        date: d.date,
-        label: new Date(d.date).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric'
-        })
-      }))
-    )
+    setDateOptions(days.map((d) => ({ slotDate: d.slotDate, date: d.date })))
   }
 
-  const beginSlotSelection = (doctor, appointmentType, days, branch = '') => {
-    pushHistory()
-    if (branch && !isTeleconsultationType(appointmentType)) setClinicLocation(branch)
-    else if (isTeleconsultationType(appointmentType)) setClinicLocation('')
-    applySlotDays(days)
-    setChatStep(CHAT_STEPS.WAITING_DATE)
-    const typeKey =
-      CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === appointmentType)?.labelKey || 'In clinic'
-    const typeLabelEn = tLang(typeKey, 'en')
-    const typeLabelAr = tLang(typeKey, 'ar')
-    pushBot(
-      `Available times for ${typeLabelEn}. What date works for you?`,
-      `المواعيد المتاحة لـ ${typeLabelAr}. اختار اليوم المناسب:`
-    )
+  const updateBooking = (next) => {
+    setBookingData(next)
+    return next
   }
 
-  const afterAppointmentTypeChosen = async (doctor, appointmentType) => {
-    if (appointmentType === 'Home Visit') {
-      const areas = getDoctorHomeVisitAreas(doctor)
-      if (areas.length > 1) {
-        pushHistory()
-        setHomeVisitAreaOptions(areas)
-        setChatStep(CHAT_STEPS.WAITING_HOME_AREA)
-        pushBot(
-          'Please choose your area for the home visit:',
-          'اختار المنطقة لزيارة المنزل:'
-        )
-        return
-      }
-      if (areas.length === 1) {
-        setBookingData((b) => ({ ...b, homeVisitArea: areas[0] }))
-      }
+  /** After the visit type is known: ask for the address, a branch or a day, whichever comes next. */
+  const continueToScheduling = (next) => {
+    const doctor = next.selectedDoctor
+    const type = next.appointmentType
+
+    if (type === 'Home Visit' && !next.homeVisitAddress?.street) {
+      setChatStep(CHAT_STEPS.WAITING_HOME_AREA)
+      say('assistant.homeAddress')
+      return
     }
 
-    const result = probeDoctorBranchesForType(doctor, appointmentType, 14)
+    if (next.time) {
+      proceedToCheckout(next)
+      return
+    }
+
+    const result = probeDoctorBranchesForType(doctor, type, 14)
 
     if (result.mode === 'empty') {
-      pushBot(
-        'No available slots for this visit type right now. Try another option or doctor.',
-        'مفيش مواعيد متاحة لنوع الزيارة ده حالياً. جرب خيار أو دكتور تاني.'
-      )
       setAppointmentTypeOptions(getDoctorAppointmentTypeOptions(doctor))
       setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
+      say('assistant.noSlotsForType')
       return
     }
 
     if (result.mode === 'pick_branch') {
-      pushHistory()
       setLocationOptions(result.branches)
       setChatStep(CHAT_STEPS.WAITING_LOCATION)
-      pushBot(
-        `${displayPersonName(doctor.name)} works at more than one clinic. Please choose a location:`,
-        `${displayPersonName(doctor.name)} متاح في أكثر من فرع. اختار فرع العيادة:`
-      )
+      say('assistant.chooseBranch', { doctor: { person: doctor.name } })
       return
     }
 
-    beginSlotSelection(doctor, appointmentType, result.days, result.branch || '')
+    updateBooking({ ...next, clinicLocation: result.branch || '' })
+    openDatesFrom(result.days)
+    setChatStep(CHAT_STEPS.WAITING_DATE)
+    say('assistant.pickDate')
   }
 
   const chooseAppointmentType = async (type) => {
-    const doctor = bookingData.selectedDoctor
-    if (!doctor) return
+    if (!bookingData.selectedDoctor) return
     pushHistory()
     const labelKey = CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === type)?.labelKey || type
-    pushUser(tLang(labelKey, 'en'), tLang(labelKey, 'ar'))
+    pushUserKey(labelKey)
     setAppointmentTypeOptions([])
-    setBookingData((b) => ({
-      ...b,
-      appointmentType: type,
-      date: null,
-      slotDate: '',
-      time: ''
-    }))
-    setLocationOptions([])
-    setDateOptions([])
-    setTimeOptions([])
-    if (!usesClinicWeeklySchedule(type) || isTeleconsultationType(type)) setClinicLocation('')
-
-    await withTyping(() => afterAppointmentTypeChosen(doctor, type))
+    const next = updateBooking({ ...bookingData, appointmentType: type, slotDate: '', date: null, time: '', clinicLocation: '' })
+    await withThinking(async () => continueToScheduling(next))
   }
 
-  const chooseHomeArea = async (area) => {
-    pushUser(area)
-    setHomeVisitAreaOptions([])
-    setBookingData((b) => ({ ...b, homeVisitArea: area }))
-    const doctor = bookingData.selectedDoctor
-    if (!doctor) return
-
-    await withTyping(() => {
-      const result = probeDoctorBranchesForType(doctor, 'Home Visit', 14)
-      if (result.mode === 'empty') {
-        pushBot(
-          'No home visit slots available right now.',
-          'مفيش مواعيد زيارة منزلية متاحة حالياً.'
-        )
-        return
-      }
-      beginSlotSelection(doctor, 'Home Visit', result.days, result.branch || '')
-    })
+  const submitHomeAddress = (address) => {
+    pushHistory()
+    pushUser([address.street, address.area].filter(Boolean).join(', '))
+    continueToScheduling(updateBooking({ ...bookingData, homeVisitArea: address.area, homeVisitAddress: address }))
   }
 
-  const chooseLocation = async (branch) => {
-    const doctor = bookingData.selectedDoctor
-    if (!doctor) return
-    setClinicLocation(branch.loc)
-    setLocationOptions([])
+  const chooseLocation = (branch) => {
+    if (!bookingData.selectedDoctor) return
+    pushHistory()
     pushUser(translateLoc(branch.loc))
-    beginSlotSelection(doctor, bookingData.appointmentType, branch.days, branch.loc)
+    setLocationOptions([])
+    updateBooking({ ...bookingData, clinicLocation: branch.loc })
+    openDatesFrom(branch.days)
+    setChatStep(CHAT_STEPS.WAITING_DATE)
+    say('assistant.pickDate')
   }
 
   const chooseDoctor = async (doctor) => {
     if (isDoctorComingSoon(doctor)) return
     pushHistory()
+    pushUser(personName(doctor.name))
+    clearChoices()
+    const next = updateBooking({
+      ...emptyBookingData(),
+      detectedSpecialty: bookingData.detectedSpecialty,
+      selectedDoctor: doctor
+    })
 
-    setBookingData((b) => ({
-      ...b,
-      selectedDoctor: doctor,
-      appointmentType: 'Clinic',
-      visitFeeType: 'examination',
-      homeVisitArea: '',
-      date: null,
-      slotDate: '',
-      time: ''
-    }))
-    setMatchedDoctors([])
-    setLocationOptions([])
-    setDateOptions([])
-    setTimeOptions([])
-    setHomeVisitAreaOptions([])
-    setClinicLocation('')
-
-    await withTyping(async () => {
+    await withThinking(async () => {
       const options = getDoctorAppointmentTypeOptions(doctor)
       if (!options.length) {
-        pushBot(
-          'This doctor has no booking options available right now.',
-          'الدكتور ده مش متاح للحجز حالياً.'
-        )
         setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
+        say('assistant.noVisitOptions')
         return
       }
-
       if (options.length === 1) {
-        setBookingData((b) => ({ ...b, appointmentType: options[0].value }))
-        await afterAppointmentTypeChosen(doctor, options[0].value)
+        continueToScheduling(updateBooking({ ...next, appointmentType: options[0].value }))
         return
       }
-
       setAppointmentTypeOptions(options)
       setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
-      pushBot(
-        `You chose ${displayPersonName(doctor.name)}. How would you like to visit?`,
-        `اخترت ${displayPersonName(doctor.name)}. إزاي تحب الزيارة تكون؟`
-      )
+      say('assistant.howVisit', { doctor: { person: doctor.name } })
     })
+  }
+
+  const showTimesForDay = (day, options = {}) => {
+    const times = day?.slots || []
+    if (!times.length) {
+      say('assistant.noTimesThatDay')
+      return
+    }
+    setBookingData((b) => ({ ...b, slotDate: day.slotDate, date: day.date, time: '' }))
+    setDateOptions([])
+    setTimeOptions(times)
+    setChatStep(CHAT_STEPS.WAITING_TIME)
+    if (!options.silent) say('assistant.pickTime')
   }
 
   const chooseDate = (opt) => {
     pushHistory()
-    const day = slotDays.find((d) => d.slotDate === opt.slotDate)
-    const times = day?.slots || []
-    if (!times.length) {
-      pushBot(
-        'No times on this day. Pick another date.',
-        'مفيش مواعيد في اليوم ده. اختار يوم تاني.'
-      )
-      return
-    }
-
-    setBookingData((b) => ({
-      ...b,
-      slotDate: opt.slotDate,
-      date: opt.date,
-      time: ''
-    }))
-    setDateOptions([])
-    setTimeOptions(times)
-    setChatStep(CHAT_STEPS.WAITING_TIME)
-    pushUser(opt.label)
-    pushBot('Please choose a time:', 'اختار الوقت المناسب:')
+    pushUserKey('{day}', { day: { day: opt.slotDate } })
+    showTimesForDay(slotDays.find((d) => d.slotDate === opt.slotDate))
   }
 
-  const loadVisitFeeStep = async (next) => {
+  /** Moves on towards confirmation, stopping for a login or a missing profile on the way. */
+  const proceedToCheckout = async (next) => {
     if (!token) {
-      pushBot(
-        'Please log in to complete your booking.',
-        'يرجى تسجيل الدخول لإتمام الحجز.'
-      )
-      toast.info(L('Please log in to complete booking', 'يرجى تسجيل الدخول لإتمام الحجز'))
-      navigate('/login')
+      updateBooking(next)
+      setChatStep(STEP_NEEDS_LOGIN)
+      say('assistant.loginNeeded')
       return
     }
 
-    const name = userData?.name || next.patientName || ''
-    const phone = userData?.phone || next.phone || ''
-    if (!name.trim() || !phone.trim()) {
-      pushBot(
-        'Your profile is missing name or phone. Please update your profile first.',
-        'ملفك ناقص الاسم أو رقم الهاتف. حدّث بياناتك من الملف الشخصي أولاً.'
-      )
+    const name = String(userData?.name || '').trim()
+    const phone = String(userData?.phone || '').trim()
+    if (!name || !phone) {
+      updateBooking(next)
+      setChatStep(CHAT_STEPS.FAILED)
+      say('assistant.profileIncomplete', undefined, { link: { to: '/my-profile', key: 'assistant.openProfile' } })
       return
     }
 
-    setBookingData((b) => ({ ...b, ...next, patientName: name, phone }))
+    const withPatient = updateBooking({ ...next, patientName: name, phone, visitFeeType: 'examination' })
 
     let canConsult = false
     try {
       const { data } = await axios.get(
-        `${backendUrl}/api/user/visit-fee-eligibility/${next.selectedDoctor._id}`,
+        `${backendUrl}/api/user/visit-fee-eligibility/${withPatient.selectedDoctor._id}`,
         { headers: { token } }
       )
       canConsult = Boolean(data?.canBookConsultation)
@@ -937,134 +658,192 @@ const ChatbotWidget = () => {
     }
     setCanBookConsultation(canConsult)
 
-    if (!canConsult) {
-      const auto = { ...next, patientName: name, phone, visitFeeType: 'examination' }
-      setBookingData((b) => ({ ...b, ...auto }))
-      goToConfirm(auto, { skipHistory: true })
+    if (canConsult) {
+      setChatStep(CHAT_STEPS.WAITING_VISIT_FEE)
+      say('assistant.pickVisitFee')
       return
     }
-
-    pushHistory()
-    setChatStep(CHAT_STEPS.WAITING_VISIT_FEE)
-    pushBot(
-      'Please choose visit type: examination or follow-up consultation.',
-      'اختار نوع الزيارة: كشف أو استشارة متابعة.'
-    )
+    goToConfirm()
   }
 
   const chooseVisitFeeType = (visitFeeType) => {
-    const labelKey =
-      CHATBOT_VISIT_FEE_TYPES.find((o) => o.value === visitFeeType)?.labelKey || 'Examination (Kashf)'
-    pushUser(tLang(labelKey, 'en'), tLang(labelKey, 'ar'))
-    const next = { ...bookingData, visitFeeType }
-    setBookingData(next)
-    goToConfirm(next)
+    pushHistory()
+    const labelKey = CHATBOT_VISIT_FEE_TYPES.find((o) => o.value === visitFeeType)?.labelKey || visitFeeType
+    pushUserKey(labelKey)
+    setBookingData((b) => ({ ...b, visitFeeType }))
+    goToConfirm()
   }
 
   const chooseTime = (slot) => {
     pushHistory()
-    if (slot.branch) setClinicLocation(slot.branch)
-
-    const next = {
-      ...bookingData,
-      time: slot.time,
-      patientName: userData?.name || bookingData.patientName || '',
-      phone: userData?.phone || bookingData.phone || ''
-    }
-    setBookingData(next)
+    pushUserKey('{time}', { time: { time: slot.time } })
     setTimeOptions([])
-    pushUser(localizeDigits(slot.time))
-    loadVisitFeeStep(next)
-  }
-
-  const goToConfirm = (data = bookingData, options = {}) => {
-    if (!options.skipHistory) pushHistory()
-    setChatStep(CHAT_STEPS.CONFIRMING)
-    const d = data.selectedDoctor
-    const dateOpts = { weekday: 'long', month: 'short', day: 'numeric' }
-    const dateLabelEn = data.date
-      ? new Date(data.date).toLocaleDateString('en-US', dateOpts)
-      : ''
-    const dateLabelAr = data.date
-      ? new Date(data.date).toLocaleDateString('ar-EG', dateOpts)
-      : ''
-    const branchLineEn =
-      usesClinicWeeklySchedule(data.appointmentType) &&
-      !isTeleconsultationType(data.appointmentType) &&
-      clinicLocation
-        ? translateLoc(clinicLocation, 'en')
-        : ''
-    const branchLineAr =
-      usesClinicWeeklySchedule(data.appointmentType) &&
-      !isTeleconsultationType(data.appointmentType) &&
-      clinicLocation
-        ? translateLoc(clinicLocation, 'ar')
-        : ''
-    const appointmentTypeKey =
-      CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === data.appointmentType)?.labelKey ||
-      'In clinic'
-    const visitFeeKey =
-      CHATBOT_VISIT_FEE_TYPES.find((o) => o.value === data.visitFeeType)?.labelKey ||
-      'Examination (Kashf)'
-    const appointmentLabelEn = tLang(appointmentTypeKey, 'en')
-    const appointmentLabelAr = tLang(appointmentTypeKey, 'ar')
-    const visitLabelEn = tLang(visitFeeKey, 'en')
-    const visitLabelAr = tLang(visitFeeKey, 'ar')
-    const specialtyEn = translateString(getDoctorSpecialty(d), 'en')
-    const specialtyAr = translateString(getDoctorSpecialty(d), 'ar')
-    const { total } = computeChatbotTotalPrice({
-      doctor: d,
-      visitFeeType: data.visitFeeType,
-      appointmentType: data.appointmentType,
-      siteSettings
-    })
-    const totalStrEn =
-      total > 0 ? formatMoneyAmount(total, 'en', localizeDigits) : 'Free'
-    const totalStrAr =
-      total > 0 ? formatMoneyAmount(total, 'ar', localizeDigits) : 'مجاني'
-    const homeLineEn =
-      data.appointmentType === 'Home Visit' && data.homeVisitArea
-        ? `\n• Area: ${data.homeVisitArea}`
-        : ''
-    const homeLineAr =
-      data.appointmentType === 'Home Visit' && data.homeVisitArea
-        ? `\n• المنطقة: ${data.homeVisitArea}`
-        : ''
-
-    pushBot(
-      `Booking summary:\n• Patient: ${data.patientName}\n• Phone: ${data.phone}\n• Doctor: ${displayPersonName(d?.name)}\n• Specialty: ${specialtyEn}\n• Visit: ${appointmentLabelEn}\n• Visit type: ${visitLabelEn}${branchLineEn ? `\n• Clinic: ${branchLineEn}` : ''}${homeLineEn}\n• Date: ${dateLabelEn}\n• Time: ${data.time}\n• Total price: ${totalStrEn}\n\nTap Confirm to book.`,
-      `ملخص الحجز:\n• المريض: ${data.patientName}\n• الهاتف: ${localizeDigits(data.phone)}\n• الدكتور: ${displayPersonName(d?.name)}\n• التخصص: ${specialtyAr}\n• الزيارة: ${appointmentLabelAr}\n• نوع الكشف: ${visitLabelAr}${branchLineAr ? `\n• الفرع: ${branchLineAr}` : ''}${homeLineAr}\n• التاريخ: ${dateLabelAr}\n• الوقت: ${localizeDigits(data.time)}\n• الإجمالي: ${totalStrAr}\n\nاضغط تأكيد لإتمام الحجز.`
+    proceedToCheckout(
+      updateBooking({
+        ...bookingData,
+        time: slot.time,
+        ...(slot.branch ? { clinicLocation: slot.branch } : {})
+      })
     )
   }
 
+  /** One tap on a doctor card's time: everything else is already known. */
+  const pickSlot = async (doctor, slot) => {
+    pushHistory()
+    pushUser(`${personName(doctor.name)} · ${slotLabel(slot)}`)
+    clearChoices()
+    const next = updateBooking({
+      ...emptyBookingData(),
+      detectedSpecialty: bookingData.detectedSpecialty,
+      selectedDoctor: doctor,
+      appointmentType: slot.appointmentType || 'Clinic',
+      slotDate: slot.slotDate,
+      date: slot.date,
+      time: slot.time,
+      clinicLocation: slot.clinicLocation || ''
+    })
+    await withThinking(async () => continueToScheduling(next))
+  }
+
+  const goToConfirm = () => {
+    setChatStep(CHAT_STEPS.CONFIRMING)
+    say('assistant.summaryIntro')
+  }
+
+  const ensureSlotDays = (data) => {
+    if (slotDays.length) return slotDays
+    const result = probeDoctorBranchesForType(data.selectedDoctor, data.appointmentType, 14)
+    if (result.mode === 'ready') return result.days
+    const branch = result.branches?.find((b) => b.loc === data.clinicLocation)
+    return branch?.days || []
+  }
+
+  const backToDates = () => {
+    const days = ensureSlotDays(bookingData)
+    setTimeOptions([])
+    setBookingData((b) => ({ ...b, slotDate: '', date: null, time: '' }))
+    openDatesFrom(days)
+    setChatStep(CHAT_STEPS.WAITING_DATE)
+    say('assistant.pickDate')
+  }
+
+  const backToTimes = () => {
+    const days = ensureSlotDays(bookingData)
+    const day = days.find((d) => d.slotDate === bookingData.slotDate)
+    if (!day) {
+      backToDates()
+      return
+    }
+    setSlotDays(days)
+    setBookingData((b) => ({ ...b, time: '' }))
+    setDateOptions([])
+    setTimeOptions(day.slots)
+    setChatStep(CHAT_STEPS.WAITING_TIME)
+    say('assistant.pickTime')
+  }
+
+  const backToDoctors = async () => {
+    setBookingData((b) => ({ ...emptyBookingData(), detectedSpecialty: b.detectedSpecialty }))
+    clearChoices()
+    if (selectedClinicSection) {
+      await showDoctorsForClinic(selectedClinicSection.name, selectedClinicSection.id, { skipHistory: true })
+      return
+    }
+    if (bookingData.detectedSpecialty) {
+      const source = await resolveDoctorsList()
+      const list = filterDoctorsBySpecialty(source, bookingData.detectedSpecialty).filter(
+        (doctor) => isDoctorBookableForPatients(doctor) && !isDoctorComingSoon(doctor)
+      )
+      if (list.length) {
+        showDoctorList(list, { skipHistory: true, messageKey: 'assistant.doctorsFound' })
+        return
+      }
+    }
+    setChatStep(CHAT_STEPS.WAITING_SYMPTOMS)
+    say('assistant.chooseSection')
+  }
+
+  const handleChangeSelection = async () => {
+    pushUserKey('assistant.change')
+    const from = chatStep === STEP_NEEDS_LOGIN ? CHAT_STEPS.CONFIRMING : chatStep
+    const target = getChangeSelectionStep(from)
+
+    await withThinking(async () => {
+      if (target === CHAT_STEPS.SHOWING_DOCTORS) await backToDoctors()
+      else if (target === CHAT_STEPS.WAITING_DATE) backToDates()
+      else if (target === CHAT_STEPS.WAITING_TIME) backToTimes()
+      else if (target === CHAT_STEPS.WAITING_APPOINTMENT_TYPE) {
+        const doctor = bookingData.selectedDoctor
+        if (!doctor) {
+          resetFlow()
+          say('assistant.chooseSection')
+          return
+        }
+        clearChoices()
+        setAppointmentTypeOptions(getDoctorAppointmentTypeOptions(doctor))
+        setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
+        say('assistant.howVisit', { doctor: { person: doctor.name } })
+      } else {
+        resetFlow()
+        say('assistant.chooseSection')
+      }
+    })
+  }
+
+  /* Back from logging in: carry on from where the booking stopped. */
+  useEffect(() => {
+    if (chatStep !== STEP_NEEDS_LOGIN || !token || !userData?.name) return
+    say('assistant.loginBack')
+    continueToScheduling(bookingData)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, userData?.name, chatStep])
+
+  const recoverFromTakenSlot = async () => {
+    getDoctorsData?.()
+    const { selectedDoctor, appointmentType, clinicLocation, slotDate } = bookingData
+    let days = []
+    try {
+      const data = await fetchChatbotSlots(backendUrl, {
+        docId: selectedDoctor._id,
+        clinicLocation,
+        appointmentType
+      })
+      days = data?.days || []
+    } catch {
+      days = []
+    }
+    setSlotDays(days)
+    const sameDay = days.find((d) => d.slotDate === slotDate)
+    setBookingData((b) => ({ ...b, time: '' }))
+    say('assistant.slotTaken')
+    if (sameDay) {
+      setDateOptions([])
+      setTimeOptions(sameDay.slots)
+      setChatStep(CHAT_STEPS.WAITING_TIME)
+    } else {
+      setTimeOptions([])
+      setDateOptions(days.map((d) => ({ slotDate: d.slotDate, date: d.date })))
+      setChatStep(CHAT_STEPS.WAITING_DATE)
+    }
+  }
+
   const submitBooking = async () => {
-    const { selectedDoctor, slotDate, time, patientName, phone, symptoms } = bookingData
-    if (!selectedDoctor || !slotDate || !time) return
+    const { selectedDoctor, slotDate, time, clinicLocation, appointmentType, visitFeeType, homeVisitAddress } = bookingData
+    if (!selectedDoctor || !slotDate || !time || emergencyHold || bookingLock.current) return
 
     if (!token) {
-      toast.info(L('Please log in to complete booking', 'يرجى تسجيل الدخول لإتمام الحجز'))
-      navigate('/login')
+      setChatStep(STEP_NEEDS_LOGIN)
+      say('assistant.loginNeeded')
       return
     }
 
-    const profileName = userData?.name || patientName || ''
-    const profilePhone = userData?.phone || phone || ''
-    if (!profileName.trim() || !profilePhone.trim()) {
-      pushBot(
-        'Please complete your profile (name and phone) first.',
-        'أكمل بيانات ملفك (الاسم والهاتف) أولاً.'
-      )
+    const profilePhone = String(userData?.phone || '').trim()
+    if (profilePhone && !isValidEgyptPhone(normalizeEgyptPhone(profilePhone) || profilePhone)) {
+      say('assistant.phoneInvalid', undefined, { link: { to: '/my-profile', key: 'assistant.openProfile' } })
       return
     }
 
-    if (!isValidEgyptPhone(profilePhone)) {
-      pushBot(
-        'Your profile phone number is not valid.',
-        'رقم الهاتف في ملفك غير صحيح.'
-      )
-      return
-    }
-
+    bookingLock.current = true
     setBooking(true)
     try {
       const data = await bookChatbotAppointment(
@@ -1074,300 +853,729 @@ const ChatbotWidget = () => {
           slotDate,
           slotTime: time,
           clinicLocation,
-          appointmentType: bookingData.appointmentType || 'Clinic',
-          visitFeeType: bookingData.visitFeeType || 'examination',
-          homeVisitAddress:
-            bookingData.appointmentType === 'Home Visit' && bookingData.homeVisitArea
-              ? { area: bookingData.homeVisitArea }
-              : {},
+          appointmentType: appointmentType || 'Clinic',
+          visitFeeType: visitFeeType || 'examination',
+          homeVisitAddress: appointmentType === 'Home Visit' ? homeVisitAddress || {} : {},
           paymentMethod: 'Cash',
-          symptoms,
-          patientName: profileName.trim(),
-          patientPhone: normalizeEgyptPhone(profilePhone) || profilePhone
+          confirmed: true
         },
         token
       )
 
-      if (data.needLogin || data.needRegistration) {
-        toast.info(data.message)
-        navigate('/login')
+      if (data.needLogin) {
+        setChatStep(STEP_NEEDS_LOGIN)
+        say('assistant.loginNeeded')
         return
       }
 
       if (!data.success) {
-        setChatStep(CHAT_STEPS.FAILED)
-        pushBot(
-          'Sorry, the booking was not completed. Please try again.',
-          'آسف، لم يتم تأكيد الحجز. حاول مرة أخرى.'
-        )
+        if (/slot not available|already booked|past time|overlaps|outside doctor/i.test(data.message || '')) {
+          await recoverFromTakenSlot()
+          return
+        }
+        if (/does not accept cash/i.test(data.message || '')) {
+          say('assistant.bookFailedReason', { reason: { key: 'assistant.reason.cash' } }, {
+            link: { to: `/appointment/${selectedDoctor._id}`, key: 'assistant.openDoctorPage' }
+          })
+          return
+        }
+        say('assistant.bookFailed')
         return
       }
 
+      setTicket({ reservationNumber: data.reservationNumber, amount: data.appointment?.amount })
       setChatStep(CHAT_STEPS.SUCCESS)
-      pushBot(
-        `Booking confirmed! Reservation number: ${data.reservationNumber}`,
-        `تم تأكيد الحجز! رقم الحجز: ${localizeDigits(String(data.reservationNumber || ''))}`
-      )
-      toast.success(L('Booking confirmed', 'تم تأكيد الحجز'))
+      navStackRef.current = []
+      setNavDepth(0)
+      say('assistant.success')
+      notify.success(t('assistant.successTitle'))
+      getDoctorsData?.()
     } catch {
-      setChatStep(CHAT_STEPS.FAILED)
-      pushBot(
-        'Sorry, the booking was not completed. Please try again.',
-        'آسف، لم يتم تأكيد الحجز. حاول مرة أخرى.'
-      )
+      say('assistant.bookFailed')
     } finally {
+      bookingLock.current = false
       setBooking(false)
     }
   }
 
-  const handleTextSubmit = async () => {
-    const text = input.trim()
-    if (!text || typing) return
-    setInput('')
-    pushUser(text)
+  const offlineFallback = async (text) => {
+    // The server is out of reach, so the safety check it would have made happens here.
+    if (isLocalRedFlag(text)) {
+      setEmergencyHold(true)
+      addMessage({
+        role: 'assistant',
+        emergency: { category: 'unknown', callNumber: EMERGENCY_NUMBER, crisisNumber: null },
+        key: 'assistant.offlineEmergency'
+      })
+      return
+    }
 
-    await withTyping(async () => {
-      switch (chatStep) {
-        case CHAT_STEPS.WAITING_SYMPTOMS:
-        case CHAT_STEPS.CLARIFY_AUDIENCE:
-          await handleSymptomMessage(text)
-          break
+    const source = await resolveDoctorsList()
+    const byName = findDoctorsByNameQuery(source, text)
+    if (shouldUseDoctorNameSearch(text, byName)) {
+      showDoctorList(byName, { messageKey: byName.length === 1 ? 'assistant.doctorsFoundOne' : 'assistant.doctorsFound' })
+      return
+    }
 
-        case CHAT_STEPS.WAITING_DATE: {
-          const match = dateOptions.find(
-            (d) =>
-              d.label.toLowerCase().includes(text.toLowerCase()) ||
-              text.includes(d.slotDate)
+    const { specialty } = detectSpecialtyFromMessage(text)
+    const list = specialty ? filterDoctorsBySpecialty(source, specialty) : []
+    if (list.length) {
+      setBookingData((b) => ({ ...b, detectedSpecialty: specialty }))
+      showDoctorList(list, { messageKey: 'assistant.doctorsFound' })
+      return
+    }
+    say('assistant.offlineUnclear')
+  }
+
+  const understoodChips = (understood) => {
+    if (!understood) return []
+    const chips = []
+    if (understood.specialty) chips.push(sectionLabel(understood.specialty))
+    if (understood.visitType) {
+      const key = CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === understood.visitType)?.labelKey
+      if (key) chips.push(t(key))
+    }
+    if (understood.day?.slotDate) chips.push(formatDayLabel(understood.day.slotDate, chatLang, t))
+    if (understood.dayPart) chips.push(t(`assistant.dayPart.${understood.dayPart}`))
+    if (understood.preference) chips.push(t(`assistant.preference.${understood.preference}`))
+    if (understood.soonest) chips.push(t('assistant.soonest'))
+    return chips
+  }
+
+  const showServerDoctors = async (res) => {
+    const source = await resolveDoctorsList()
+    const hints = {}
+    const list = res.suggestedDoctors
+      .map((doc) => {
+        const full = source.find((d) => String(d._id) === String(doc.id))
+        if (!full) return null
+        hints[String(doc.id)] = { slots: doc.nextSlots || [], matched: doc.slotsMatchRequest !== false }
+        return full
+      })
+      .filter(Boolean)
+
+    if (!list.length) {
+      sayFromServer(res)
+      say('assistant.cantLoadDoctors')
+      return
+    }
+
+    pushHistory()
+    clearChoices()
+    setSelectedClinicSection(null)
+    setBookingData((b) => ({
+      ...emptyBookingData(),
+      patientName: b.patientName,
+      phone: b.phone,
+      detectedSpecialty: res.suggestedSpecialty || ''
+    }))
+    setMatchedDoctors(list)
+    setSlotHints(hints)
+    setChatStep(CHAT_STEPS.SHOWING_DOCTORS)
+    sayFromServer(res, { understood: res.understood })
+  }
+
+  /** "5:30", "tomorrow", "the evening" while choosing a time. */
+  const applyServerSlots = (res) => {
+    const days = res.slotDays || []
+    if (res.clinicLocation) setBookingData((b) => ({ ...b, clinicLocation: res.clinicLocation }))
+    setSlotDays(days)
+
+    const candidates = res.understood?.timeCandidates
+    const wantedDay = res.understood?.day?.slotDate
+    const searchDays = wantedDay
+      ? days.filter((d) => d.slotDate === wantedDay)
+      : bookingData.slotDate
+        ? days.filter((d) => d.slotDate === bookingData.slotDate)
+        : days
+
+    if (candidates?.length) {
+      for (const day of searchDays) {
+        const slot = day.slots.find((s) => candidates.includes(slotClockMinutes(s.time)))
+        if (slot) {
+          pushHistory()
+          proceedToCheckout(
+            updateBooking({
+              ...bookingData,
+              slotDate: day.slotDate,
+              date: day.date,
+              time: slot.time,
+              clinicLocation: res.clinicLocation || bookingData.clinicLocation || ''
+            })
           )
-          if (match) chooseDate(match)
-          else {
-            pushBot(
-              'Please tap one of the date buttons below.',
-              'من فضلك اختار التاريخ من الأزرار بالأسفل.'
-            )
-          }
-          break
+          setTimeOptions([])
+          setDateOptions([])
+          return
         }
-
-        case CHAT_STEPS.WAITING_LOCATION:
-          pushBot(
-            'Please tap one of the clinic locations below.',
-            'من فضلك اختار فرع العيادة من الأزرار بالأسفل.'
-          )
-          break
-
-        case CHAT_STEPS.WAITING_TIME: {
-          const match = timeOptions.find((s) =>
-            s.time.toLowerCase().includes(text.toLowerCase())
-          )
-          if (match) chooseTime(match)
-          else {
-            pushBot(
-              'Please tap one of the time buttons below.',
-              'من فضلك اختار الوقت من الأزرار بالأسفل.'
-            )
-          }
-          break
-        }
-
-        case CHAT_STEPS.WAITING_VISIT_FEE:
-          pushBot(
-            'Please tap examination or follow-up below.',
-            'من فضلك اختار كشف أو استشارة من الأزرار بالأسفل.'
-          )
-          break
-
-        case CHAT_STEPS.WAITING_APPOINTMENT_TYPE:
-          pushBot(
-            'Please tap how you would like to visit (clinic, home, voice, or video).',
-            'اختار نوع الزيارة من الأزرار (عيادة، منزل، صوت، فيديو).'
-          )
-          break
-
-        case CHAT_STEPS.WAITING_HOME_AREA:
-          pushBot(
-            'Please tap your area below.',
-            'اختار المنطقة من الأزرار بالأسفل.'
-          )
-          break
-
-        default:
-          if (
-            chatStep === CHAT_STEPS.SHOWING_DOCTORS ||
-            chatStep === CHAT_STEPS.WAITING_SYMPTOMS
-          ) {
-            await handleSymptomMessage(text)
-          }
-          break
       }
+    }
+
+    pushHistory()
+    if (wantedDay && res.requestedDayAvailable !== false && days[0]) {
+      showTimesForDay(days[0], { silent: true })
+      sayFromServer(res)
+      return
+    }
+    if (wantedDay && res.requestedDayAvailable === false) say('assistant.dayNotAvailable')
+    else if (!wantedDay) sayFromServer(res)
+    setTimeOptions([])
+    openDatesFrom(days)
+    setChatStep(CHAT_STEPS.WAITING_DATE)
+  }
+
+  const answerAction = async (res) => {
+    const inFlow = Boolean(bookingData.selectedDoctor)
+    switch (res.action) {
+      case 'restart':
+        resetFlow()
+        say('assistant.startedOver')
+        return true
+      case 'decline':
+        resetFlow()
+        sayFromServer(res)
+        return true
+      case 'back':
+        if (navStackRef.current.length) {
+          const prev = navStackRef.current.pop()
+          restoreSnapshot(prev)
+          say('assistant.backDone')
+        } else {
+          say('assistant.notFollowing')
+        }
+        return true
+      case 'change_doctor':
+        pushHistory()
+        await backToDoctors()
+        return true
+      case 'change_time':
+        if (!inFlow) {
+          say('assistant.notFollowing')
+          return true
+        }
+        pushHistory()
+        backToDates()
+        return true
+      case 'open_appointments':
+        sayFromServer(res, { link: { to: '/my-appointments', key: 'assistant.openAppointments' } })
+        return true
+      case 'open_contact':
+        sayFromServer(res, { link: { to: '/contact', key: 'assistant.openContact' } })
+        return true
+      case 'affirm':
+        if (chatStep === CHAT_STEPS.CONFIRMING) {
+          await submitBooking()
+          return true
+        }
+        say('assistant.notFollowing')
+        return true
+      case 'negative':
+        say(chatStep === CHAT_STEPS.CONFIRMING ? 'assistant.notBooked' : 'assistant.notFollowing')
+        return true
+      default:
+        return false
+    }
+  }
+
+  const applyResponse = async (res, text) => {
+    if (res.language) setChatLang(res.language)
+
+    if (res.emergency) {
+      setEmergencyHold(true)
+      addMessage({ role: 'assistant', emergency: res.emergencyInfo, i18n: res.replyI18n })
+      return
+    }
+
+    const wasHeld = emergencyHold
+    setEmergencyHold(false)
+
+    // Never let "yes" typed under an emergency warning complete a booking.
+    if (wasHeld && res.action === 'affirm') {
+      say('assistant.emergency.unsure', { number: EMERGENCY_NUMBER })
+      setEmergencyHold(true)
+      return
+    }
+
+    if (await answerAction(res)) return
+
+    if (res.showDoctorPicker && res.suggestedDoctors?.length) {
+      await showServerDoctors(res)
+      return
+    }
+
+    if (res.noDoctors) {
+      sayFromServer(res, { understood: res.understood })
+      offerAlternatives(specialtyToClinicName(res.suggestedSpecialty))
+      return
+    }
+
+    if (res.showSlotPicker) {
+      applyServerSlots(res)
+      return
+    }
+
+    if (res.needsClinicLocation) {
+      sayFromServer(res)
+      return
+    }
+
+    if (res.followUp?.options?.length) {
+      setQuickReplies(
+        res.followUp.options.map((option) => ({
+          id: option.id,
+          kind: 'say',
+          i18n: { en: option.en, ar: option.ar },
+          text: { en: option.en, ar: option.ar }
+        }))
+      )
+      sayFromServer(res)
+      return
+    }
+
+    const chose = chooseFromTypedText(res, text)
+    if (chose) return
+
+    if (res.intent === 'unclear' || !res.intent) {
+      const source = await resolveDoctorsList()
+      const byName = findDoctorsByNameQuery(source, text)
+      if (shouldUseDoctorNameSearch(text, byName)) {
+        showDoctorList(byName, { messageKey: byName.length === 1 ? 'assistant.doctorsFoundOne' : 'assistant.doctorsFound' })
+        return
+      }
+    }
+
+    sayFromServer(res)
+    if (chatStep === CHAT_STEPS.WAITING_LOCATION) say('assistant.tapBranch')
+    else if (chatStep === CHAT_STEPS.WAITING_APPOINTMENT_TYPE) say('assistant.tapVisitType')
+    else if (chatStep === CHAT_STEPS.WAITING_VISIT_FEE) say('assistant.tapVisitFee')
+    else if (chatStep === CHAT_STEPS.WAITING_HOME_AREA) say('assistant.tapAddress')
+  }
+
+  /** Lets people type an option as well as tap it. */
+  const chooseFromTypedText = (res, text) => {
+    const wanted = res.understood?.visitType
+    if (chatStep === CHAT_STEPS.WAITING_APPOINTMENT_TYPE && wanted) {
+      const match = appointmentTypeOptions.find((o) => o.value === wanted)
+      if (match) {
+        chooseAppointmentType(match.value)
+        return true
+      }
+    }
+    if (chatStep === CHAT_STEPS.WAITING_LOCATION) {
+      const lower = text.trim().toLowerCase()
+      const match = locationOptions.find(
+        (b) => b.loc.toLowerCase().includes(lower) || translateLoc(b.loc).toLowerCase().includes(lower)
+      )
+      if (match && lower.length > 1) {
+        chooseLocation(match)
+        return true
+      }
+    }
+    if (chatStep === CHAT_STEPS.WAITING_VISIT_FEE) {
+      if (/متابع|استشار|follow|consult/i.test(text) && canBookConsultation) {
+        chooseVisitFeeType('consultation')
+        return true
+      }
+      if (/كشف|examin|new|جديد/i.test(text)) {
+        chooseVisitFeeType('examination')
+        return true
+      }
+    }
+    return false
+  }
+
+  const sendText = async (text) => {
+    if (chatStep === CHAT_STEPS.SUCCESS) resetFlow()
+
+    // Only what the person typed since the last fresh start. Tapped options name doctors and dates, and add nothing.
+    const history = messages
+      .filter((m) => m.typed && m.id >= conversationStart.current)
+      .map((m) => ({ role: 'user', content: m.content }))
+    const conversation = [...history, { role: 'user', content: text }].slice(-MAX_TURNS_SENT)
+    pushUser(text, { typed: true })
+
+    await withThinking(async () => {
+      let res = null
+      let rateLimited = false
+      try {
+        res = await sendChatbotMessage(backendUrl, {
+          messages: conversation,
+          language: chatLang,
+          bookingContext: {
+            docId: bookingData.selectedDoctor?._id,
+            clinicLocation: bookingData.clinicLocation,
+            specialty: bookingData.detectedSpecialty || getDoctorSpecialty(bookingData.selectedDoctor),
+            appointmentType: bookingData.appointmentType,
+            step: chatStep
+          }
+        })
+      } catch (error) {
+        rateLimited = error?.response?.status === 429
+      }
+
+      if (res?.success) {
+        await applyResponse(res, text)
+        return
+      }
+      if (rateLimited && !isLocalRedFlag(text)) {
+        say('assistant.tooMany')
+        return
+      }
+      await offlineFallback(text)
     })
   }
 
-  const showConfirmButton = chatStep === CHAT_STEPS.CONFIRMING
+  const handleTextSubmit = () => {
+    const text = input.trim()
+    if (!text || typing || booking) return
+    speech.stop()
+    setVoiceNotice('')
+    setInput('')
+    sendText(text)
+  }
+
+  const handleQuickReply = async (reply) => {
+    if (reply.kind === 'say') {
+      setQuickReplies([])
+      sendText(reply.text?.[chatLang] || reply.text?.en || '')
+      return
+    }
+
+    pushUser(quickReplyLabel(reply))
+    setQuickReplies([])
+
+    await withThinking(async () => {
+      if (reply.kind === 'clinic') {
+        await showDoctorsForClinic(reply.clinicName, reply.clinicId)
+        return
+      }
+      if (reply.kind === 'doctor') {
+        const source = await resolveDoctorsList()
+        const doctor = source.find((d) => String(d._id) === String(reply.doctorId))
+        if (doctor) showDoctorList([doctor], { messageKey: 'assistant.doctorsFoundOne' })
+        else say('assistant.doctorUnavailable')
+        return
+      }
+      if (reply.kind === 'service') await showDoctorsForService(reply.service)
+    })
+  }
+
+  const handleEmergencyContinue = () => {
+    setEmergencyHold(false)
+    say('assistant.emergency.continued', { number: EMERGENCY_NUMBER })
+  }
+
+  const speech = useSpeechInput({
+    language: chatLang,
+    getBaseText: () => inputRef.current?.value || '',
+    onText: (text) => {
+      setVoiceNotice('')
+      setInput(text)
+    },
+    onError: (key) => setVoiceNotice(key)
+  })
+
+  const toggleVoice = () => {
+    if (speech.listening) {
+      speech.stop()
+      return
+    }
+    setVoiceNotice('')
+    speech.start()
+  }
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    if (!open || !isLaptopUp) {
+      document.body.classList.remove('chatbot-open')
+      return undefined
+    }
+    document.body.classList.add('chatbot-open')
+    return () => document.body.classList.remove('chatbot-open')
+  }, [open, isLaptopUp])
+
+  useEffect(() => {
+    if (open && isLaptopUp) inputRef.current?.focus({ preventScroll: true })
+  }, [open, isLaptopUp])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
+
+  useEffect(() => {
+    scrollToEnd()
+  }, [
+    messages,
+    typing,
+    matchedDoctors,
+    quickReplies,
+    dateOptions,
+    timeOptions,
+    locationOptions,
+    appointmentTypeOptions,
+    chatStep,
+    emergencyHold,
+    scrollToEnd
+  ])
+
+  const ticketRows = (data) => {
+    const doctor = data.selectedDoctor
+    if (!doctor) return []
+    const typeKey = CHATBOT_APPOINTMENT_TYPES.find((o) => o.value === data.appointmentType)?.labelKey || 'In clinic'
+    const feeKey = CHATBOT_VISIT_FEE_TYPES.find((o) => o.value === data.visitFeeType)?.labelKey || 'Examination (Kashf)'
+    const isTele = isTeleconsultationType(data.appointmentType)
+    const place =
+      data.appointmentType === 'Home Visit'
+        ? [data.homeVisitAddress?.street, data.homeVisitAddress?.area && translateLoc(data.homeVisitAddress.area)].filter(Boolean).join(', ')
+        : !isTele && (data.clinicLocation || getDoctorPrimaryLocation(doctor))
+          ? translateLoc(data.clinicLocation || getDoctorPrimaryLocation(doctor))
+          : ''
+    return [
+      { label: t('assistant.ticket.patient'), value: personName(data.patientName || userData?.name || '') },
+      { label: t('assistant.ticket.doctor'), value: `${personName(doctor.name)} · ${sectionLabel(getDoctorSpecialty(doctor))}` },
+      { label: t('assistant.ticket.visit'), value: t(typeKey) },
+      { label: t('assistant.ticket.kind'), value: t(feeKey) },
+      { label: t('assistant.ticket.place'), value: place },
+      {
+        label: t('assistant.ticket.when'),
+        value: `${formatLongDay(data.slotDate, chatLang)} · ${formatSlotTime(data.time, chatLang, t)}`
+      }
+    ]
+  }
+
+  const ticketTotal = (data, amount) => {
+    const total =
+      amount ??
+      (data.selectedDoctor
+        ? computeChatbotTotalPrice({
+            doctor: data.selectedDoctor,
+            visitFeeType: data.visitFeeType,
+            appointmentType: data.appointmentType,
+            siteSettings
+          }).total
+        : 0)
+    return total > 0
+      ? formatMoneyAmount(total, chatLang, (value) => localizeWesternDigits(value, chatLang))
+      : t('assistant.ticket.free')
+  }
+
+  const addToCalendar = () => {
+    const content = buildCalendarFile({
+      title: fillTemplate(t('assistant.calendarTitle'), { doctor: personName(bookingData.selectedDoctor?.name) }),
+      slotDate: bookingData.slotDate,
+      time: bookingData.time,
+      location: isTeleconsultationType(bookingData.appointmentType)
+        ? ''
+        : bookingData.appointmentType === 'Home Visit'
+          ? [bookingData.homeVisitAddress?.street, bookingData.homeVisitAddress?.area].filter(Boolean).join(', ')
+          : bookingData.clinicLocation || getDoctorPrimaryLocation(bookingData.selectedDoctor),
+      reservationNumber: ticket?.reservationNumber
+    })
+    if (content) downloadCalendarFile(content)
+  }
+
+  const showNavBar = (canShowNavControls(chatStep) || chatStep === CHAT_STEPS.FAILED) && !emergencyHold
+  const backEnabled = navCanGoBack(chatStep, navDepth)
+  const showChoices = !emergencyHold
+  const atOpening = chatStep === CHAT_STEPS.WAITING_SYMPTOMS && !matchedDoctors.length && !quickReplies.length
+  const isOpeningScreen = atOpening && messages.filter((m) => m.role === 'user').length === 0
+  const stage = journeyStage(chatStep, CHAT_STEPS)
+
+  const optionClass =
+    'cursor-pointer rounded-control border border-line-strong bg-surface text-ink shadow-e1 transition duration-(--duration-fast) ease-standard hover:border-primary hover:bg-primary-soft active:scale-[0.98] assistant-chip'
+
+  const renderMessage = (message) => {
+    const body = messageBody(message)
+    const animate = message.role === 'assistant' && message.id >= firstLiveMessageId
+
+    if (message.emergency) {
+      const isLatest = message.id === messages.filter((m) => m.emergency).at(-1)?.id
+      return (
+        <EmergencyCard
+          key={message.id}
+          info={message.emergency}
+          text={body}
+          t={t}
+          canContinue={emergencyHold && isLatest}
+          onContinue={handleEmergencyContinue}
+        />
+      )
+    }
+
+    if (message.role === 'user') {
+      return (
+        <div key={message.id} className='flex animate-rise justify-end'>
+          <div dir='auto' className='max-w-[88%] whitespace-pre-wrap break-words rounded-card rounded-ee-control bg-primary px-3 py-2 text-body-sm text-on-primary'>
+            {body}
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div key={message.id} className='flex animate-rise flex-col items-start'>
+        <div dir='auto' className='max-w-[92%] whitespace-pre-wrap break-words rounded-card rounded-es-control border border-line bg-surface px-3 py-2 text-body-sm text-ink shadow-e1'>
+          <RevealText text={body} animate={animate} onProgress={scrollToEnd} />
+          {message.link && (
+            <Link
+              to={message.link.to}
+              onClick={() => setOpen(false)}
+              className='mt-2 block font-semibold text-brand underline underline-offset-2'
+            >
+              {t(message.link.key)}
+            </Link>
+          )}
+        </div>
+        <UnderstoodChips chips={understoodChips(message.understood)} t={t} />
+      </div>
+    )
+  }
 
   const panel = (
     <div
-      className={`chatbot-panel fixed z-[9998] flex flex-col overflow-hidden border border-gray-200 bg-white shadow-2xl transition-all
-        start-2 end-2 h-[min(85dvh,680px)] min-h-[min(520px,85dvh)] max-h-[min(85dvh,calc(100dvh-5rem))] rounded-2xl
-        sm:start-auto sm:end-6 sm:w-[min(100%,400px)]
-        ${open ? 'bottom-[5rem] opacity-100 sm:bottom-6' : 'pointer-events-none bottom-[5.75rem] opacity-0 sm:bottom-24'}
+      role='dialog'
+      aria-label={t('assistant.name')}
+      aria-hidden={!open}
+      className={`chatbot-panel fixed z-[9998] flex flex-col overflow-hidden border border-line bg-canvas shadow-e3 transition-all duration-(--duration-base) ease-standard
+        start-2 end-2 h-[min(85dvh,700px)] min-h-[min(520px,85dvh)] max-h-[min(85dvh,calc(100dvh-5rem))] rounded-sheet
+        sm:start-auto sm:end-6 sm:w-[min(100%,420px)]
+        ${open ? 'bottom-[5rem] opacity-100 sm:bottom-6' : 'invisible pointer-events-none bottom-[5.75rem] opacity-0 sm:bottom-24'}
       `}
       dir={isRtl ? 'rtl' : 'ltr'}
+      lang={chatLang}
     >
-      <header className="flex shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-4 py-3">
-        <span className="relative flex h-2.5 w-2.5 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-gray-900">
-            {t('Medical Booking Assistant')}
-          </p>
-          <p className="text-[11px] text-gray-500">{L('Online', 'متصل')}</p>
+      <header className='flex shrink-0 items-center gap-3 border-b border-line bg-surface px-4 py-3'>
+        <span
+          data-busy={typing || booking}
+          aria-hidden='true'
+          className='assistant-orb block size-9 shrink-0 rounded-full rounded-se-none bg-gradient-to-br from-primary to-primary-dark'
+        />
+        <div className='min-w-0 flex-1'>
+          <h2 className='truncate text-subtitle font-bold text-ink'>{t('assistant.name')}</h2>
+          <p className='truncate text-caption text-ink-2'>{t('assistant.tagline')}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
-          aria-label={L('Close', 'إغلاق')}
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <IconButton label={t('assistant.close')} variant='ghost' size='sm' onClick={() => setOpen(false)}>
+          <X className='size-5' />
+        </IconButton>
       </header>
 
-      <div
-        ref={listRef}
-        className="min-h-[min(300px,45dvh)] flex-1 overflow-y-auto overscroll-contain bg-slate-50 p-3"
-      >
-        <div className="flex flex-col gap-2">
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[92%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-[13px] leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'rounded-ee-md bg-primary text-white'
-                    : 'rounded-es-md border border-gray-200 bg-white text-gray-800 shadow-sm'
-                }`}
-              >
-                {messageText(msg, chatLang)}
-              </div>
-            </div>
-          ))}
+      <JourneyRibbon stage={stage} t={t} />
 
-          {typing && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <TypingIndicator />
-              </div>
-            </div>
-          )}
+      <div ref={listRef} role='log' aria-live='polite' className='min-h-0 flex-1 overflow-y-auto overscroll-contain p-3'>
+        <div className='flex flex-col gap-2.5'>
+          {messages.map(renderMessage)}
 
-          {matchedDoctors.length > 0 && (
-            <div className="space-y-2">
-              {matchedDoctors.map((doc) => (
-                <DoctorChatCard
-                  key={doc._id}
-                  doctor={doc}
-                  displayName={displayPersonName(doc.name)}
-                  specialtyLabel={tc(getDoctorSpecialty(doc))}
-                  locationLabel={translateLoc(getDoctorPrimaryLocation(doc))}
-                  locationsLabel={formatDoctorLocationsLine(doc)}
-                  feeHintLabel={L('Consultation fee', 'رسوم الكشف')}
-                  feesLabel={formatDoctorFee(doc)}
-                  chooseLabel={L('Choose this doctor', 'اختر هذا الطبيب')}
-                  unavailableLabel={L(
-                    'Not available for booking yet',
-                    'غير متاح للحجز حالياً'
-                  )}
-                  comingSoonLabel={t('Coming Soon')}
-                  availableLabel={t('Available')}
-                  notAvailableLabel={t('Not Available')}
-                  isRtl={isRtl}
-                  onChoose={chooseDoctor}
-                />
-              ))}
-            </div>
-          )}
+          {typing && <ThinkingBubble t={t} />}
 
-          {quickReplies.length > 0 && chatStep === CHAT_STEPS.SUGGESTING_ALTERNATIVES && (
-            <div className="space-y-2.5 rounded-xl border border-amber-100 bg-gradient-to-b from-amber-50 to-white p-3 shadow-sm">
-              <p className="text-xs font-bold text-amber-900">
-                {L('Suggested options', 'خيارات مقترحة')}
-              </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {quickReplies.map((q) => (
-                  <button
-                    key={q.id}
-                    type="button"
-                    onClick={() => handleQuickReply(q)}
-                    className={`rounded-xl border px-3 py-3 text-start text-xs font-semibold leading-snug shadow-sm transition ${
-                      q.isFallback
-                        ? 'border-primary bg-primary text-white hover:bg-primary/90'
-                        : 'border-emerald-200 bg-white text-emerald-900 hover:border-emerald-400'
-                    }`}
-                  >
-                    <span className="block">{q.label}</span>
-                    {q.isFallback && (
-                      <span
-                        className={`mt-1 block text-[10px] font-medium ${
-                          q.isFallback ? 'text-white/90' : 'text-gray-500'
-                        }`}
-                      >
-                        {L('Initial evaluation', 'للتقييم المبدئي')}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {quickReplies.length > 0 && chatStep === CHAT_STEPS.WAITING_SYMPTOMS && (
-            <div className="space-y-2.5">
-              <p className="px-0.5 text-xs font-bold text-gray-800">
-                {L('Clinic sections', 'أقسام العيادات')}
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {quickReplies.map((q) => (
-                  <button
-                    key={q.id}
-                    type="button"
-                    onClick={() => handleQuickReply(q)}
-                    className="min-h-[3.25rem] rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2.5 text-start text-xs font-semibold leading-snug text-emerald-900 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100"
-                  >
-                    <span className="line-clamp-2">{q.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {quickReplies.length > 0 && chatStep !== CHAT_STEPS.WAITING_SYMPTOMS && (
-            <div className="flex flex-wrap gap-2">
-              {quickReplies.map((q) => (
+          {isOpeningScreen && !typing && (
+            <div className='animate-rise space-y-3 pt-1'>
+              {rebookDoctor && (
                 <button
-                  key={q.id}
-                  type="button"
-                  onClick={() => handleQuickReply(q)}
-                  className="rounded-full border border-primary/30 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm hover:bg-primary/5"
+                  type='button'
+                  onClick={() => handleQuickReply({ kind: 'doctor', doctorId: rebookDoctor._id, label: fillTemplate(t('assistant.rebook'), { doctor: personName(rebookDoctor.name) }) })}
+                  className='w-full cursor-pointer rounded-control bg-primary-soft px-3 py-2.5 text-start text-body-sm font-semibold text-brand transition duration-(--duration-fast) hover:brightness-95'
                 >
-                  {q.label}
+                  {fillTemplate(t('assistant.rebook'), { doctor: personName(rebookDoctor.name) })}
                 </button>
-              ))}
+              )}
+              <div>
+                <p className='mb-1.5 text-caption font-medium text-ink-3'>{t('assistant.tryLabel')}</p>
+                <div className='flex flex-wrap gap-1.5'>
+                  {EXAMPLES.map((key, index) => (
+                    <button
+                      key={key}
+                      type='button'
+                      style={{ animationDelay: `${index * 70}ms` }}
+                      onClick={() => sendText(t(key))}
+                      className={`${optionClass} rounded-full! px-3 py-1.5 text-caption font-medium`}
+                    >
+                      {t(key)}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
-          {appointmentTypeOptions.length > 0 && (
-            <div className="grid grid-cols-2 gap-2">
+          {showChoices && atOpening && !typing && (
+            <div className='space-y-1.5 pt-1'>
+              <p className='text-caption font-medium text-ink-3'>{t('assistant.sectionsLabel')}</p>
+              <div className='grid grid-cols-2 gap-1.5'>
+                {openingSections.map((q) => (
+                  <button
+                    key={q.id}
+                    type='button'
+                    onClick={() => handleQuickReply(q)}
+                    className={`${optionClass} min-h-11 px-2.5 py-2 text-start text-caption font-semibold`}
+                  >
+                    <span className='line-clamp-2'>{quickReplyLabel(q)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {showChoices && matchedDoctors.length > 0 && (
+            <div className='space-y-2'>
+              {matchedDoctors.map((doc, index) => {
+                const hint = slotHints[String(doc._id)]
+                return (
+                  <DoctorChatCard
+                    key={doc._id}
+                    style={{ animationDelay: `${index * 80}ms` }}
+                    doctor={doc}
+                    displayName={personName(doc.name)}
+                    specialtyLabel={sectionLabel(getDoctorSpecialty(doc))}
+                    locationsLabel={getDoctorLocations(doc).map((loc) => translateLoc(loc)).join(' · ') || translateLoc(getDoctorPrimaryLocation(doc))}
+                    feesLabel={
+                      Number(doc.fees) > 0
+                        ? formatMoneyAmount(Number(doc.fees), chatLang, (value) => localizeWesternDigits(value, chatLang))
+                        : ''
+                    }
+                    nextSlots={hint?.slots || []}
+                    slotsMatchRequest={hint?.matched !== false}
+                    slotLabel={slotLabel}
+                    onPickSlot={pickSlot}
+                    onChoose={chooseDoctor}
+                    t={t}
+                  />
+                )
+              })}
+            </div>
+          )}
+
+          {showChoices && quickReplies.length > 0 && (
+            <div className='space-y-1.5'>
+              {chatStep === CHAT_STEPS.SUGGESTING_ALTERNATIVES && (
+                <p className='text-caption font-medium text-ink-3'>{t('assistant.suggestedLabel')}</p>
+              )}
+              <div className='flex flex-wrap gap-1.5'>
+                {quickReplies.map((q) => (
+                  <button
+                    key={q.id}
+                    type='button'
+                    onClick={() => handleQuickReply(q)}
+                    className={`${optionClass} px-3 py-2 text-caption font-semibold ${q.isFallback ? 'border-primary! bg-primary-soft! text-brand!' : ''}`}
+                  >
+                    {quickReplyLabel(q)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {showChoices && appointmentTypeOptions.length > 0 && (
+            <div className='grid grid-cols-2 gap-1.5'>
               {appointmentTypeOptions.map((opt) => (
                 <button
                   key={opt.value}
-                  type="button"
+                  type='button'
                   onClick={() => chooseAppointmentType(opt.value)}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-start text-xs font-semibold text-gray-800 shadow-sm hover:border-primary"
+                  className={`${optionClass} min-h-11 px-3 py-2 text-start text-body-sm font-semibold`}
                 >
                   {t(opt.labelKey)}
                 </button>
@@ -1375,68 +1583,49 @@ const ChatbotWidget = () => {
             </div>
           )}
 
-          {homeVisitAreaOptions.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {homeVisitAreaOptions.map((area) => (
-                <button
-                  key={area}
-                  type="button"
-                  onClick={() => chooseHomeArea(area)}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold shadow-sm hover:border-primary"
-                >
-                  {area}
-                </button>
-              ))}
-            </div>
+          {showChoices && chatStep === CHAT_STEPS.WAITING_HOME_AREA && bookingData.selectedDoctor && (
+            <HomeAddressForm
+              areas={getDoctorHomeVisitAreas(bookingData.selectedDoctor)}
+              initial={bookingData.homeVisitAddress}
+              areaLabel={(area) => translateLoc(area)}
+              onSubmit={submitHomeAddress}
+              t={t}
+            />
           )}
 
-          {chatStep === CHAT_STEPS.WAITING_VISIT_FEE && (
-            <div className="flex flex-col gap-2">
+          {showChoices && chatStep === CHAT_STEPS.WAITING_VISIT_FEE && (
+            <div className='flex flex-col gap-1.5'>
               {CHATBOT_VISIT_FEE_TYPES.map((opt) => {
                 const disabled = opt.value === 'consultation' && !canBookConsultation
                 return (
                   <button
                     key={opt.value}
-                    type="button"
+                    type='button'
                     disabled={disabled}
-                    onClick={() => !disabled && chooseVisitFeeType(opt.value)}
-                    className={`rounded-xl border px-3 py-3 text-start text-xs font-semibold shadow-sm ${
-                      disabled
-                        ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400'
-                        : 'border-gray-200 bg-white text-gray-800 hover:border-primary'
-                    }`}
+                    onClick={() => chooseVisitFeeType(opt.value)}
+                    className={`${optionClass} min-h-11 px-3 py-2 text-start text-body-sm font-semibold disabled:pointer-events-none disabled:opacity-50`}
                   >
                     {t(opt.labelKey)}
-                    {disabled && (
-                      <span className="mt-1 block text-[10px] font-normal">
-                        {L(
-                          'Available within 30 days after examination with this doctor',
-                          'متاح خلال ٣٠ يوم من كشف مكتمل مع نفس الدكتور'
-                        )}
-                      </span>
-                    )}
+                    {disabled && <span className='mt-0.5 block text-caption font-normal'>{t('assistant.followUpHint')}</span>}
                   </button>
                 )
               })}
             </div>
           )}
 
-          {locationOptions.length > 0 && (
-            <div className="flex flex-col gap-2">
+          {showChoices && locationOptions.length > 0 && (
+            <div className='flex flex-col gap-1.5'>
               {locationOptions.map((branch) => (
                 <button
                   key={branch.loc}
-                  type="button"
+                  type='button'
                   onClick={() => chooseLocation(branch)}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-start text-sm font-semibold text-gray-800 shadow-sm hover:border-primary"
+                  className={`${optionClass} px-3 py-2 text-start text-body-sm font-semibold`}
                 >
-                  <span className="block">{translateLoc(branch.loc)}</span>
+                  <span className='block'>{translateLoc(branch.loc)}</span>
                   {branch.slotCount > 0 && (
-                    <span className="mt-0.5 block text-xs font-normal text-gray-500">
-                      {L(
-                        `${branch.slotCount} available slot(s)`,
-                        `${localizeDigits(String(branch.slotCount))} موعد متاح`
-                      )}
+                    <span className='mt-0.5 block text-caption font-normal text-ink-3'>
+                      {localizeWesternDigits(fillTemplate(t('assistant.branchSlots'), { count: branch.slotCount }), chatLang)}
                     </span>
                   )}
                 </button>
@@ -1444,112 +1633,172 @@ const ChatbotWidget = () => {
             </div>
           )}
 
-          {dateOptions.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {dateOptions.map((d) => (
+          {showChoices && dateOptions.length > 0 && (
+            <div className='flex flex-wrap gap-1.5'>
+              {dateOptions.map((d, index) => (
                 <button
                   key={d.slotDate}
-                  type="button"
+                  type='button'
+                  style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}
                   onClick={() => chooseDate(d)}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-800 shadow-sm hover:border-primary"
+                  className={`${optionClass} min-h-9 px-3 py-1.5 text-caption font-semibold`}
                 >
-                  {localizeDigits(d.label)}
+                  {formatDayLabel(d.slotDate, chatLang, t)}
                 </button>
               ))}
             </div>
           )}
 
-          {timeOptions.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {timeOptions.map((slot) => (
+          {showChoices && timeOptions.length > 0 && (
+            <div className='flex flex-wrap gap-1.5'>
+              {timeOptions.map((slot, index) => (
                 <button
-                  key={slot.time}
-                  type="button"
+                  key={`${slot.time}-${slot.branch || ''}`}
+                  type='button'
+                  style={{ animationDelay: `${Math.min(index, 12) * 20}ms` }}
                   onClick={() => chooseTime(slot)}
-                  className="min-w-[4.25rem] rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs font-semibold shadow-sm hover:border-primary"
+                  className={`${optionClass} min-h-9 min-w-16 px-2.5 py-1.5 text-caption font-semibold`}
                 >
-                  {localizeDigits(slot.time)}
+                  {formatSlotTime(slot.time, chatLang, t)}
                 </button>
               ))}
             </div>
           )}
 
-          {showConfirmButton && (
-            <button
-              type="button"
-              disabled={booking}
-              onClick={submitBooking}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white disabled:opacity-60"
+          {showChoices && chatStep === STEP_NEEDS_LOGIN && (
+            <Button
+              fullWidth
+              onClick={() => {
+                setOpen(false)
+                navigate('/login?mode=login')
+              }}
             >
-              {booking ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {L('Confirm booking', 'تأكيد الحجز')}
-            </button>
+              {t('assistant.login')}
+            </Button>
+          )}
+
+          {showChoices && chatStep === CHAT_STEPS.CONFIRMING && (
+            <AppointmentTicket rows={ticketRows(bookingData)} total={ticketTotal(bookingData)} t={t}>
+              <Button fullWidth size='lg' loading={booking} onClick={submitBooking}>
+                {t('assistant.confirm')}
+              </Button>
+              <div className='grid grid-cols-2 gap-2'>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  disabled={booking || typing}
+                  onClick={() => {
+                    pushHistory()
+                    pushUserKey('assistant.changeTime')
+                    backToDates()
+                  }}
+                >
+                  {t('assistant.changeTime')}
+                </Button>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  disabled={booking || typing}
+                  onClick={() => {
+                    pushHistory()
+                    pushUserKey('assistant.changeDoctor')
+                    withThinking(backToDoctors)
+                  }}
+                >
+                  {t('assistant.changeDoctor')}
+                </Button>
+              </div>
+            </AppointmentTicket>
+          )}
+
+          {chatStep === CHAT_STEPS.SUCCESS && ticket && (
+            <AppointmentTicket
+              rows={ticketRows(bookingData)}
+              total={ticketTotal(bookingData, ticket.amount)}
+              reservationNumber={localizeWesternDigits(String(ticket.reservationNumber || ''), chatLang)}
+              confirmed
+              t={t}
+            >
+              <SuccessActions
+                t={t}
+                onCalendar={addToCalendar}
+                onLeave={() => setOpen(false)}
+                onNewBooking={() => {
+                  resetFlow()
+                  say('assistant.startedOver')
+                }}
+              />
+            </AppointmentTicket>
           )}
         </div>
       </div>
 
-      {(showNavBar || chatStep === CHAT_STEPS.SUCCESS || chatStep === CHAT_STEPS.FAILED) && (
-        <div className="flex shrink-0 flex-wrap gap-1.5 border-t border-gray-100 bg-gray-50 px-3 py-2">
-          {showNavBar && (
-            <button
-              type="button"
-              disabled={!backEnabled || typing || booking}
-              onClick={handleGoBack}
-              className="min-h-[36px] flex-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {L('⬅ Back', '⬅ الرجوع')}
-            </button>
-          )}
-          {showNavBar && (
-            <button
-              type="button"
-              disabled={typing || booking}
-              onClick={handleChangeSelection}
-              className="min-h-[36px] flex-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 disabled:opacity-40"
-            >
-              {L('Change Selection', 'تغيير الاختيار')}
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={typing || booking}
-            onClick={handleStartOver}
-            className="min-h-[36px] flex-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-900 disabled:opacity-40"
-          >
-            {L('Start Over', 'البدء من جديد')}
-          </button>
+      {showNavBar && (
+        <div className='flex shrink-0 gap-1.5 border-t border-line bg-surface px-3 py-1.5'>
+          <Button variant='ghost' size='sm' className='flex-1' disabled={!backEnabled || typing || booking} onClick={handleGoBack}>
+            {t('assistant.back')}
+          </Button>
+          <Button variant='ghost' size='sm' className='flex-1' disabled={typing || booking} onClick={handleChangeSelection}>
+            {t('assistant.change')}
+          </Button>
+          <Button variant='ghost' size='sm' className='flex-1' disabled={typing || booking} onClick={handleStartOver}>
+            {t('assistant.startOver')}
+          </Button>
         </div>
       )}
 
       <form
-        className="flex shrink-0 items-end gap-2 border-t border-gray-100 bg-white p-3"
+        className='shrink-0 border-t border-line bg-surface px-3 pb-2 pt-2.5'
         onSubmit={(e) => {
           e.preventDefault()
           handleTextSubmit()
         }}
       >
-        <textarea
-          rows={2}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              handleTextSubmit()
-            }
-          }}
-          placeholder={t('Type your symptoms or start booking...')}
-          className="chatbot-input max-h-[120px] min-h-[48px] flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-base leading-snug outline-none focus:border-primary"
-          dir={isRtl ? 'rtl' : 'ltr'}
-          disabled={chatStep === CHAT_STEPS.SUCCESS}
-        />
-        <button
-          type="submit"
-          disabled={typing || !input.trim() || chatStep === CHAT_STEPS.SUCCESS}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white disabled:opacity-50"
-        >
-          {typing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-        </button>
+        {(speech.listening || voiceNotice) && (
+          <p role='status' className={`mb-1.5 text-caption ${voiceNotice ? 'text-accent-ink' : 'text-ink-2'}`}>
+            {t(voiceNotice || 'assistant.voice.listening')}
+          </p>
+        )}
+        <div className='flex items-end gap-2'>
+          <textarea
+            ref={inputRef}
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleTextSubmit()
+              }
+            }}
+            aria-label={t('assistant.inputPlaceholder')}
+            placeholder={t('assistant.inputPlaceholder')}
+            maxLength={800}
+            dir='auto'
+            className='chatbot-input max-h-28 min-h-11 flex-1 resize-none rounded-control border border-field bg-surface px-3 py-2.5 leading-snug text-ink outline-none placeholder:text-ink-3 focus:border-primary'
+          />
+          {speech.supported && (
+            <IconButton
+              type='button'
+              label={t(speech.listening ? 'assistant.voice.stop' : 'assistant.voice.start')}
+              aria-pressed={speech.listening}
+              variant={speech.listening ? 'accent' : 'secondary'}
+              onClick={toggleVoice}
+              className={speech.listening ? 'assistant-listening rounded-full!' : ''}
+            >
+              {speech.listening ? <MicOff className='size-5' /> : <Mic className='size-5' />}
+            </IconButton>
+          )}
+          <IconButton
+            type='submit'
+            label={t('assistant.send')}
+            variant='primary'
+            disabled={typing || booking || !input.trim()}
+          >
+            <Send className='size-5 rtl:-scale-x-100' />
+          </IconButton>
+        </div>
+        <p className='mt-1.5 text-center text-caption text-ink-3'>{t('assistant.disclaimer')}</p>
       </form>
     </div>
   )
@@ -1557,33 +1806,33 @@ const ChatbotWidget = () => {
   return createPortal(
     <>
       <button
-        type="button"
+        type='button'
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        aria-label={open ? t('Close chat') : t('Open booking assistant')}
+        aria-label={translateString(open ? 'Close chat' : 'Open booking assistant', siteLanguage)}
         className={
           open
-            ? 'chatbot-launcher chatbot-launcher--open fixed bottom-4 end-3 z-[9999] flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_28px_rgba(14,147,132,0.45)] ring-4 ring-primary/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary-dark hover:shadow-[0_12px_36px_rgba(14,147,132,0.55)] active:scale-95 sm:bottom-6 sm:end-6 sm:h-14 sm:w-14'
-            : 'chatbot-launcher chatbot-launcher--closed group fixed bottom-4 end-3 z-[9999] flex h-[3.75rem] items-center gap-3 overflow-hidden rounded-full border border-white/20 bg-gradient-to-br from-primary via-teal-600 to-primary-dark px-1.5 py-1.5 text-white shadow-[0_10px_36px_rgba(14,147,132,0.42)] transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-white/35 hover:shadow-[0_16px_44px_rgba(14,147,132,0.52)] active:scale-[0.98] max-[380px]:h-14 max-[380px]:w-14 max-[380px]:justify-center max-[380px]:p-0 sm:bottom-6 sm:end-6 sm:h-16 sm:gap-3.5 sm:ps-2 sm:pe-5'
+            ? 'chatbot-launcher chatbot-launcher--open fixed bottom-4 end-3 z-[9999] flex h-12 w-12 items-center justify-center rounded-full bg-primary text-on-primary shadow-brand transition-all duration-300 hover:bg-primary-dark active:scale-95 sm:hidden'
+            : 'chatbot-launcher chatbot-launcher--closed group fixed bottom-4 end-3 z-[9999] flex h-[3.75rem] items-center gap-3 overflow-hidden rounded-full border border-white/20 bg-gradient-to-br from-primary to-primary-dark px-1.5 py-1.5 text-on-primary shadow-brand transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-white/35 active:scale-[0.98] max-[380px]:h-14 max-[380px]:w-14 max-[380px]:justify-center max-[380px]:p-0 sm:bottom-6 sm:end-6 sm:h-16 sm:gap-3.5 sm:ps-2 sm:pe-5'
         }
       >
         {open ? (
-          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+          <X className='h-5 w-5 sm:h-6 sm:w-6' />
         ) : (
           <>
-            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15 ring-2 ring-white/25 backdrop-blur-sm transition duration-300 group-hover:bg-white/25 group-hover:ring-white/40 sm:h-12 sm:w-12">
-              <CalendarClock className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2.25} />
-              <span className="absolute -end-0.5 -top-0.5 flex h-3 w-3">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-70" />
-                <span className="relative inline-flex h-3 w-3 rounded-full border-2 border-teal-700 bg-emerald-400" />
+            <span className='relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15 ring-2 ring-white/25 backdrop-blur-sm transition duration-300 group-hover:bg-white/25 group-hover:ring-white/40 sm:h-12 sm:w-12'>
+              <CalendarClock className='h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]' strokeWidth={2.25} />
+              <span className='absolute -end-0.5 -top-0.5 flex h-3 w-3'>
+                <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-70' />
+                <span className='relative inline-flex h-3 w-3 rounded-full border-2 border-primary-dark bg-success' />
               </span>
             </span>
-            <span className="chatbot-launcher-copy min-w-0 flex-1 text-start max-[380px]:hidden">
-              <span className="block truncate text-sm font-bold leading-tight tracking-tight sm:text-[0.9375rem]">
-                {t('Medical Booking Assistant')}
+            <span className='chatbot-launcher-copy min-w-0 flex-1 text-start max-[380px]:hidden'>
+              <span className='block truncate text-sm font-bold leading-tight sm:text-[0.9375rem]'>
+                {translateString('assistant.name', siteLanguage)}
               </span>
-              <span className="mt-0.5 block truncate text-[11px] font-medium text-white/85 sm:text-xs">
-                {t('Start Chat')}
+              <span className='mt-0.5 block truncate text-[11px] font-medium text-white/85 sm:text-xs'>
+                {translateString('Start Chat', siteLanguage)}
               </span>
             </span>
           </>
@@ -1593,6 +1842,13 @@ const ChatbotWidget = () => {
     </>,
     document.body
   )
+}
+
+/** Minutes since midnight for "05:30 PM", to match the server's reading of a typed time. */
+const slotClockMinutes = (time = '') => {
+  const match = String(time).match(/^(\d{1,2}):(\d{2})\s*([AP])M$/i)
+  if (!match) return -1
+  return ((Number(match[1]) % 12) + (match[3].toUpperCase() === 'P' ? 12 : 0)) * 60 + Number(match[2])
 }
 
 export default ChatbotWidget

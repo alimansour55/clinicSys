@@ -19,17 +19,12 @@ import { getNextReservationNumber } from './reservationService.js'
 import { notifyAppointmentBooked } from './notificationService.js'
 import { logAudit } from './auditService.js'
 import { normalizeVisitFeeType } from './globalVisitFeesService.js'
-import { normalizeEgyptPhone, isValidEgyptPhone } from '../utils/egyptPhone.js'
 import { normalizeHomeVisitAddress, validateHomeVisitAddress } from './homeVisitService.js'
-
-const normalizePhone = (phone = '') => {
-  const egypt = normalizeEgyptPhone(phone)
-  if (egypt) return egypt
-  return String(phone).trim()
-}
+import { getHomeVisitPricingSettings } from './homeVisitPricingService.js'
 
 /**
  * Book appointment from chatbot — same safety checks as patient bookAppointment.
+ * Health details from the chat are not stored on the appointment or in the audit log.
  */
 export const bookChatbotAppointment = async ({
   userId,
@@ -42,7 +37,6 @@ export const bookChatbotAppointment = async ({
   visitFeeType = 'examination',
   promoCode = '',
   homeVisitAddress = {},
-  symptoms = '',
   req
 }) => {
   if (!userId) {
@@ -53,7 +47,7 @@ export const bookChatbotAppointment = async ({
     return { success: false, message: 'Please choose Cash or Visa payment method' }
   }
 
-  const docData = await doctorModel.findById(docId).select('-password')
+  const docData = await doctorModel.findById(docId).select('-password -mfa.secret')
   if (!docData) {
     return { success: false, message: 'Doctor not found' }
   }
@@ -91,6 +85,22 @@ export const bookChatbotAppointment = async ({
     return { success: false, message: 'Please choose a clinic location' }
   }
 
+  if (
+    usesClinicWeeklySchedule(normalizedType) &&
+    resolvedClinicLocation &&
+    doctorLocations.length > 0 &&
+    !doctorLocations.includes(resolvedClinicLocation)
+  ) {
+    return { success: false, message: 'Please choose a valid clinic location' }
+  }
+
+  if (String(paymentMethod).trim() === 'Cash' && docData.acceptsCash === false) {
+    return { success: false, message: 'This doctor does not accept cash payment' }
+  }
+  if (String(paymentMethod).trim() === 'Visa' && docData.acceptsOnlinePayment === false) {
+    return { success: false, message: 'This doctor does not accept online payment' }
+  }
+
   const normalizedHomeAddress = normalizeHomeVisitAddress(homeVisitAddress || {})
   if (normalizedType === 'Home Visit') {
     const addressError = validateHomeVisitAddress(normalizedHomeAddress, docData)
@@ -99,9 +109,11 @@ export const bookChatbotAppointment = async ({
     }
   }
 
+  const homeVisitPricing = await getHomeVisitPricingSettings()
   const pricing = await applyAppointmentPricing(docData, {
     promoCode: String(promoCode || '').trim(),
     appointmentType: normalizedType,
+    homeVisitPricing,
     visitFeeType: normalizedVisitFee
   })
   if (pricing.error) {
@@ -113,7 +125,7 @@ export const bookChatbotAppointment = async ({
     return { success: false, message: scheduleCheck.reason }
   }
 
-  const userData = await userModel.findById(userId).select('-password')
+  const userData = await userModel.findById(userId).select('-password -mfa.secret')
   if (!userData || userData.isActive === false) {
     return { success: false, message: 'Patient account is deactivated' }
   }
@@ -178,12 +190,17 @@ export const bookChatbotAppointment = async ({
     appointmentStatus: 'Booked',
     paymentStatus: 'Not Paid',
     paymentMethod: String(paymentMethod).trim(),
-    bookedBy: 'Patient',
-    paymentNote: symptoms ? `Chatbot: ${String(symptoms).trim().slice(0, 400)}` : ''
+    bookedBy: 'Patient'
   }
 
   const newAppointment = new appointmentModel(appointmentData)
-  await newAppointment.save()
+  try {
+    await newAppointment.save()
+  } catch (error) {
+    // Give the slot back, or a failed save would hide it from every other patient.
+    await doctorModel.updateOne({ _id: docId }, { $pull: { [`${bookedSlotsField}.${slotDate}`]: slotTime } })
+    throw error
+  }
 
   await logAudit({
     action: 'appointment_create',
@@ -198,8 +215,7 @@ export const bookChatbotAppointment = async ({
       doctorId: docId,
       slotDate,
       slotTime,
-      appointmentType: normalizedType,
-      symptoms: String(symptoms || '').slice(0, 200)
+      appointmentType: normalizedType
     },
     req
   })
@@ -214,31 +230,16 @@ export const bookChatbotAppointment = async ({
   }
 }
 
-export const resolvePatientForChatbot = async ({ userId, phone, name }) => {
-  if (userId) {
-    const user = await userModel.findById(userId).select('-password')
-    if (user && user.isActive !== false) return { userId: user._id.toString(), user }
-    return { error: 'Patient account not found or deactivated' }
-  }
-
-  const normalized = normalizePhone(phone)
-  if (!normalized || !isValidEgyptPhone(normalized)) {
-    return { error: 'Please provide a valid Egyptian mobile number' }
-  }
-
-  const user = await userModel.findOne({ phone: normalized }).select('-password')
-  if (!user) {
+/** Booking needs a logged-in patient. A phone number alone must never act for an account. */
+/** Booking needs a logged-in patient. A phone number alone must never act for an account. */
+export const resolvePatientForChatbot = async ({ userId }) => {
+  if (!userId) {
     return {
       needRegistration: true,
-      message: 'No account found with this phone. Please register or log in first.',
-      phone: normalized,
-      name: String(name || '').trim()
+      message: 'Please log in or register to confirm your appointment.'
     }
   }
-
-  if (user.isActive === false) {
-    return { error: 'Patient account is deactivated' }
-  }
-
-  return { userId: user._id.toString(), user }
+  const user = await userModel.findById(userId).select('-password -mfa.secret')
+  if (user && user.isActive !== false) return { userId: user._id.toString(), user }
+  return { error: 'Patient account not found or deactivated' }
 }

@@ -1,0 +1,83 @@
+/* Motion for the assistant. base.css stops all of it under prefers-reduced-motion. */
+
+@keyframes assistant-breathe {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 35%, transparent); }
+  50% { transform: scale(1.06); box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-primary) 0%, transparent); }
+}
+
+@keyframes assistant-think {
+  0%, 100% { transform: scale(0.92) rotate(0deg); }
+  50% { transform: scale(1.12) rotate(8deg); }
+}
+
+@keyframes assistant-listen {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 55%, transparent); }
+  100% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--color-accent) 0%, transparent); }
+}
+
+@keyframes assistant-pop {
+  0% { opacity: 0; transform: translateY(4px) scale(0.92); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes assistant-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes assistant-alert {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-danger) 45%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-danger) 0%, transparent); }
+}
+
+.assistant-orb {
+  animation: assistant-breathe 3.6s ease-in-out infinite;
+}
+
+.assistant-orb[data-busy='true'] {
+  animation: assistant-think 0.9s ease-in-out infinite;
+}
+
+.assistant-listening {
+  animation: assistant-listen 1.2s ease-out infinite;
+}
+
+.assistant-chip {
+  animation: assistant-pop 260ms var(--ease-enter, ease-out) both;
+}
+
+.assistant-emergency {
+  animation: assistant-alert 1.6s ease-in-out 3;
+}
+
+.assistant-check path {
+  stroke-dasharray: 32;
+  stroke-dashoffset: 32;
+  animation: assistant-draw 480ms 120ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-check path {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+}
+
+/* A ticket edge: two notches where the stub tears off. */
+.assistant-ticket-tear {
+  position: relative;
+  border-top: 1px dashed var(--color-line-strong);
+}
+
+.assistant-ticket-tear::before,
+.assistant-ticket-tear::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--color-canvas);
+}
+
+.assistant-ticket-tear::before { inset-inline-start: -8px; }
+.assistant-ticket-tear::after { inset-inline-end: -8px; }
