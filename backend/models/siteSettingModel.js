@@ -1,6 +1,52 @@
 import mongoose from 'mongoose'
+import { bilingualFieldSchema } from './bilingualFieldSchema.js'
+
+const textFields = (...names) => Object.fromEntries(names.map((name) => [name, { kind: 'text' }]))
+
+/** What the patient site reads in each section. Stored under `<section>.i18n.<field>`. */
+export const homeHeroBilingualFields = textFields('title', 'subtitle', 'bookButtonText', 'appointmentsButtonText')
+export const homeBannerBilingualFields = textFields('title', 'appointmentsButtonText', 'profileButtonText')
+export const homeServiceCardsBilingualFields = textFields(
+  'teleconsultationTitle',
+  'teleconsultationDescription',
+  'teleconsultationButtonText',
+  'homeVisitTitle',
+  'homeVisitDescription',
+  'homeVisitButtonText'
+)
+export const footerBilingualFields = textFields(
+  'description',
+  'companyTitle',
+  'contactTitle',
+  'homeLabel',
+  'aboutLabel',
+  'doctorsLabel',
+  'contactLabel',
+  'appointmentsLabel',
+  'profileLabel',
+  'privacyLabel',
+  'phoneLabel',
+  'emailLabel',
+  'copyrightText'
+)
+
+const prefixed = (section, fields) =>
+  Object.fromEntries(Object.entries(fields).map(([field, config]) => [`${section}.${field}`, config]))
+
+/** Dotted paths, so the registry can walk the nested sections of this one document. */
+export const siteSettingBilingualFields = {
+  ...prefixed('homeHero', homeHeroBilingualFields),
+  ...prefixed('homeBanner', homeBannerBilingualFields),
+  ...prefixed('homeServiceCards', homeServiceCardsBilingualFields),
+  ...prefixed('footer', footerBilingualFields),
+  insuranceProviders: { kind: 'label', each: true, i18n: 'insuranceProvidersI18n' }
+}
+
+const i18nGroup = (fields) =>
+  Object.fromEntries(Object.keys(fields).map((name) => [name, { type: bilingualFieldSchema, default: undefined }]))
 
 const homeHeroSchema = new mongoose.Schema({
+  i18n: i18nGroup(homeHeroBilingualFields),
   title: {
     type: String,
     default: 'Book Appointment With Trusted Doctors',
@@ -49,6 +95,7 @@ const homeHeroSchema = new mongoose.Schema({
 }, { _id: false })
 
 const homeBannerSchema = new mongoose.Schema({
+  i18n: i18nGroup(homeBannerBilingualFields),
   title: {
     type: String,
     default: 'Book Appointment\nWith 100+ Trusted Doctors',
@@ -88,6 +135,7 @@ const homeBannerSchema = new mongoose.Schema({
 }, { _id: false })
 
 const homeServiceCardsSchema = new mongoose.Schema({
+  i18n: i18nGroup(homeServiceCardsBilingualFields),
   teleconsultationTitle: { type: String, default: 'Teleconsultation', trim: true },
   teleconsultationDescription: { type: String, default: 'Schedule a voice or video call with a specialist doctor.', trim: true },
   teleconsultationImage: { type: String, default: '' },
@@ -101,6 +149,7 @@ const homeServiceCardsSchema = new mongoose.Schema({
 }, { _id: false })
 
 const footerSchema = new mongoose.Schema({
+  i18n: i18nGroup(footerBilingualFields),
   description: {
     type: String,
     default: "Simplifying healthcare access through smart appointment management. Book your doctor, anytime, anywhere with our intelligent scheduling system. No more long waits or booking hassles — just efficient, reliable, and patient-focused healthcare at your convenience.",
@@ -348,6 +397,11 @@ const siteSettingSchema = new mongoose.Schema({
   /** When empty or missing, app uses built-in default list from insuranceProvidersService */
   insuranceProviders: {
     type: [String],
+    default: []
+  },
+  /** Same order as insuranceProviders. The plain name stays the value patients and bookings store. */
+  insuranceProvidersI18n: {
+    type: [bilingualFieldSchema],
     default: []
   },
   /** @deprecated use languagePolicies — kept for backward compatibility */

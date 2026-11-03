@@ -1,7 +1,7 @@
 import validator from 'validator'
 import bcrypt from 'bcryptjs'
 import { v2 as cloudinary } from 'cloudinary'
-import doctorModel from '../models/doctorModel.js'
+import doctorModel, { doctorBilingualFields } from '../models/doctorModel.js'
 import jwt from 'jsonwebtoken'
 import appointmentModel from '../models/appointmentModel.js'
 import userModel from '../models/userModel.js'
@@ -9,7 +9,8 @@ import prescriptionModel from '../models/prescriptionModel.js'
 import receptionistModel from '../models/receptionistModel.js'
 import clinicModel from '../models/clinicModel.js'
 import siteSettingModel from '../models/siteSettingModel.js'
-import { addReceptionist, allReceptionists, changeReceptionistStatus } from './receptionistController.js'
+import auditLogModel from '../models/auditLogModel.js'
+import { addReceptionist, changeReceptionistStatus } from './receptionistController.js'
 import { createJwtPayload } from '../middlewares/rbac.js'
 import { logAudit } from '../services/auditService.js'
 import { refundAppointmentPayment } from './paymentController.js'
@@ -35,11 +36,42 @@ import {
   parseAdminProfileUpdate,
   patchAdminProfile
 } from '../services/adminProfileService.js'
+import { primaryOf, readBilingualInputs, resolveBilingualFields, resolveBilingualValue } from '../services/bilingualContentService.js'
+import { receptionistBilingualFields } from '../services/bilingualRegistry.js'
 
 const SETTING_KEY = 'site-settings'
 const ADMIN_MFA_TOKEN_EXPIRES_IN = '10m'
-const signAdminToken = (email) => jwt.sign(createJwtPayload({ id: email, role: 'admin', email }), process.env.JWT_SECRET)
-const signAdminMfaToken = (purpose = 'admin-mfa') => jwt.sign({ id: process.env.ADMIN_EMAIL, role: 'admin', purpose, email: process.env.ADMIN_EMAIL }, process.env.JWT_SECRET, { expiresIn: ADMIN_MFA_TOKEN_EXPIRES_IN })
+/* Not the role 'admin': a token issued before the MFA code is checked must not open admin routes */
+const ADMIN_MFA_PENDING_ROLE = 'admin-mfa-pending'
+const signAdminToken = async (email) => {
+  const { sessionTimeoutMinutes } = await getSecuritySettings()
+  return jwt.sign(createJwtPayload({ id: email, role: 'admin', email }), process.env.JWT_SECRET, { expiresIn: `${sessionTimeoutMinutes}m` })
+}
+const signAdminMfaToken = (purpose = 'admin-mfa') => jwt.sign({ id: process.env.ADMIN_EMAIL, role: ADMIN_MFA_PENDING_ROLE, purpose, email: process.env.ADMIN_EMAIL }, process.env.JWT_SECRET, { expiresIn: ADMIN_MFA_TOKEN_EXPIRES_IN })
+
+/** Failed admin sign-ins from this address inside the lockout window, from the audit log. */
+const isAdminLoginLockedOut = async (req) => {
+  const { maxLoginAttempts, lockoutMinutes, auditLogsEnabled } = await getSecuritySettings()
+  const ipAddress = String(req.headers?.['x-forwarded-for'] || req.ip || '').split(',')[0].trim()
+  if (!auditLogsEnabled || !ipAddress) return false
+  const failures = await auditLogModel.countDocuments({
+    action: 'login_failed',
+    actorRole: 'admin',
+    ipAddress,
+    createdAt: { $gte: new Date(Date.now() - lockoutMinutes * 60_000) }
+  })
+  return failures >= maxLoginAttempts
+}
+
+const parseJsonObject = (value, fallback = {}) => {
+  if (value && typeof value === 'object') return value
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' ? parsed : fallback
+  } catch {
+    return fallback
+  }
+}
 
 const normalizeClinicIds = (clinicIds) => {
   if (!clinicIds) return []
@@ -154,7 +186,7 @@ const mapToSeries = (map, limit = 12) => Array.from(map.entries())
 const addDoctor = async (req,res) => {
    try {
     
-    const { name, email, password, phone, speciality, degree, experience, about, fees, address } = req.body
+    const { email, password, phone, speciality, experience, fees, address } = req.body
     const clinicIds = normalizeClinicIds(req.body.clinicIds)
     const locations = normalizeDoctorLocations(req.body.locations)
     // New doctors start unpublished: patients see "Coming soon" until the doctor sets availability.
@@ -173,10 +205,18 @@ const addDoctor = async (req,res) => {
     }
 
     const imageFile = req.file
+    const i18n = await resolveBilingualFields({ fields: doctorBilingualFields, body: req.body })
+    const name = primaryOf(i18n.name)
+    const about = primaryOf(i18n.about)
+    const degree = primaryOf(i18n.degree)
 
     // checking for all data to add doctor
-    if( !name || !email || !password || !phone || !speciality || !degree || !experience || !about || !address ){
+    if( !name || !email || !password || !phone || !speciality || !degree || experience === undefined || experience === '' || !about ){
         return res.json({success: false, message: "Missing Details"})
+    }
+
+    if (!imageFile) {
+      return res.json({ success: false, message: 'Please add a photo of the doctor' })
     }
 
     const normalizedExperience = normalizeExperienceForStorage(experience)
@@ -210,8 +250,12 @@ const addDoctor = async (req,res) => {
     const imageUrl = imageUpload.secure_url
     const resolvedClinicIds = await resolveClinicIdsForDoctor(speciality, clinicIds)
 
+    const addressObj = parseJsonObject(address, { line1: '', line2: '' })
+    if (i18n.address) addressObj.line1 = primaryOf(i18n.address)
+
     const doctorData = {
         name,
+        i18n,
         email: normalizedEmail,
         image:imageUrl,
         password: hashedPassword,
@@ -223,7 +267,7 @@ const addDoctor = async (req,res) => {
         experience: normalizedExperience,
         about,
         fees: fees !== undefined && fees !== null ? String(fees).trim() : '',
-        address:JSON.parse(address),
+        address: addressObj,
         locations,
         locationSchedules,
         acceptsCash: parseBoolean(req.body.acceptsCash, true),
@@ -275,14 +319,11 @@ const updateDoctorByAdmin = async (req, res) => {
   try {
     const { docId } = req.body
     const {
-      name,
       email,
       phone,
       password, // Password optional hai
       speciality,
-      degree,
       experience,
-      about,
       fees,
       address,
       locations,
@@ -344,11 +385,14 @@ const updateDoctorByAdmin = async (req, res) => {
       hashedPassword = await bcrypt.hash(password, salt)
     }
 
+    const i18n = await resolveBilingualFields({ previous: doctor.toObject().i18n, fields: doctorBilingualFields, body: req.body })
+
     //  Parse address if it's a string
     let addressObj = doctor.address
     if (address) {
-      addressObj = typeof address === 'string' ? JSON.parse(address) : address
+      addressObj = parseJsonObject(address, doctor.address)
     }
+    if (i18n.address) addressObj = { ...addressObj, line1: primaryOf(i18n.address) }
     const nextLocations = locations ? normalizeDoctorLocations(locations) : doctor.locations
     const nextLocationSchedules = locationSchedules !== undefined
       ? normalizeLocationSchedules(locationSchedules, nextLocations, doctor.schedule || {})
@@ -368,16 +412,16 @@ const updateDoctorByAdmin = async (req, res) => {
 
     // Update data
     const updatedData = {
-      name: name || doctor.name,
+      name: primaryOf(i18n.name) || doctor.name,
       email: normalizedEmail || doctor.email,
       password: hashedPassword,
       phone: phone || doctor.phone,
       speciality: speciality || doctor.speciality,
-      degree: degree || doctor.degree,
+      degree: primaryOf(i18n.degree) || doctor.degree,
       gender: gender !== undefined ? normalizeDoctorGender(gender) : doctor.gender,
       title: title !== undefined ? normalizeDoctorTitle(title) : doctor.title,
       experience: nextExperience,
-      about: about || doctor.about,
+      about: primaryOf(i18n.about) || doctor.about,
       fees: fees !== undefined && fees !== null ? String(fees).trim() : doctor.fees,
       address: addressObj,  // Object me save hoga
       locations: nextLocations,
@@ -418,6 +462,11 @@ const updateDoctorByAdmin = async (req, res) => {
       : (doctor.clinics || []).map((clinic) => String(clinic?._id || clinic)).filter(Boolean)
     updatedData.clinics = await resolveClinicIdsForDoctor(nextSpeciality, explicitClinicIds)
 
+    /* A blank box keeps the saved text, as the plain fields above do */
+    for (const [field, value] of Object.entries(i18n)) {
+      if (primaryOf(value)) updatedData[`i18n.${field}`] = value
+    }
+
     await doctorModel.findByIdAndUpdate(docId, updatedData)
 
     await logAudit({
@@ -456,6 +505,10 @@ const loginAdmin = async (req, res) => {
     
     const { email, password } = req.body
 
+    if (await isAdminLoginLockedOut(req)) {
+      return res.json({ success: false, message: 'Too many failed attempts. Try again later.' })
+    }
+
     if(adminEmailsMatch(email, process.env.ADMIN_EMAIL) && password === process.env.ADMIN_PASSWORD){
     const security = await getSecuritySettings()
     const adminMfaRequired = isMfaRequiredForProfile(security, 'admin', { mfa: security.adminMfa })
@@ -486,7 +539,7 @@ const loginAdmin = async (req, res) => {
       })
     }
       
-    const token = signAdminToken(email)
+    const token = await signAdminToken(email)
     await logAudit({
       action: 'login_success',
       actorUserId: email,
@@ -526,7 +579,7 @@ const verifyAdminMfaLogin = async (req, res) => {
   try {
     const { mfaToken, code } = req.body
     const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET)
-    if (decoded?.purpose !== 'admin-mfa' || decoded?.role !== 'admin') {
+    if (decoded?.purpose !== 'admin-mfa' || decoded?.role !== ADMIN_MFA_PENDING_ROLE) {
       return res.json({ success: false, message: 'Invalid MFA session' })
     }
 
@@ -535,7 +588,7 @@ const verifyAdminMfaLogin = async (req, res) => {
       return res.json({ success: false, message: 'Invalid MFA code' })
     }
 
-    res.json({ success: true, token: signAdminToken(process.env.ADMIN_EMAIL) })
+    res.json({ success: true, token: await signAdminToken(process.env.ADMIN_EMAIL) })
   } catch (error) {
     console.log(error)
     res.json({ success: false, message: 'MFA session expired. Please sign in again.' })
@@ -546,7 +599,7 @@ const completeAdminMfaLoginSetup = async (req, res) => {
   try {
     const { mfaToken, code } = req.body
     const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET)
-    if (decoded?.purpose !== 'admin-mfa-setup' || decoded?.role !== 'admin') {
+    if (decoded?.purpose !== 'admin-mfa-setup' || decoded?.role !== ADMIN_MFA_PENDING_ROLE) {
       return res.json({ success: false, message: 'Invalid MFA setup session' })
     }
 
@@ -561,7 +614,7 @@ const completeAdminMfaLoginSetup = async (req, res) => {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     )
 
-    res.json({ success: true, token: signAdminToken(process.env.ADMIN_EMAIL), message: 'Admin MFA configured successfully' })
+    res.json({ success: true, token: await signAdminToken(process.env.ADMIN_EMAIL), message: 'Admin MFA configured successfully' })
   } catch (error) {
     console.log(error)
     res.json({ success: false, message: 'MFA setup session expired. Please sign in again.' })
@@ -736,7 +789,7 @@ const disableAdminMfa = async (req, res) => {
 // API to get all doctor list for admin panel
 const allDoctors = async (req,res) => {
    try {
-    const doctors = await doctorModel.find({}).select('-password').populate('clinics')
+    const doctors = await doctorModel.find({}).select('-password -mfa.secret').populate('clinics')
     const doctorsWithRatings = await attachRatingSummariesToDoctors(doctors)
     res.json({success: true, doctors: doctorsWithRatings})
 
@@ -749,7 +802,7 @@ const allDoctors = async (req,res) => {
 // API to get all patients for admin panel
 const allPatients = async (req, res) => {
   try {
-    const patients = await userModel.find({}).select('-password -resetOtp -resetOtpExpireAt').sort({ createdAt: -1 }).lean()
+    const patients = await userModel.find({}).select('-password -resetOtp -resetOtpExpireAt -mfa.secret').sort({ createdAt: -1 }).lean()
     const patientIds = patients.map((patient) => patient._id.toString())
 
     const appointmentCounts = await appointmentModel.aggregate([
@@ -806,6 +859,7 @@ const buildUserAccount = (profileType, item) => ({
   profileType,
   role: profileType,
   name: item.name || '',
+  nameI18n: item.i18n?.name || null,
   email: item.email || '',
   phone: item.phone || '',
   image: item.image || '',
@@ -836,9 +890,9 @@ const buildUserAccount = (profileType, item) => ({
 const allUsers = async (req, res) => {
   try {
     const [patients, doctors, receptionists] = await Promise.all([
-      userModel.find({}).select('-password -resetOtp -resetOtpExpireAt').lean(),
-      doctorModel.find({}).select('-password').lean(),
-      receptionistModel.find({}).select('-password').lean()
+      userModel.find({}).select('-password -resetOtp -resetOtpExpireAt -mfa.secret').lean(),
+      doctorModel.find({}).select('-password -mfa.secret').lean(),
+      receptionistModel.find({}).select('-password -mfa.secret').lean()
     ])
 
     const users = [
@@ -904,7 +958,13 @@ const updateUserByAdmin = async (req, res) => {
       return res.json({ success: false, message: 'No changes were provided' })
     }
 
-    await selectedModel.findByIdAndUpdate(profileId, updateData)
+    /* Staff names are shown in both languages. A patient's record stays as they typed it. */
+    if (updateData.name && profileType !== 'patient') {
+      const previous = profile.toObject().i18n?.name
+      updateData['i18n.name'] = await resolveBilingualValue({ previous, input: updateData.name, kind: 'name' })
+    }
+
+    await selectedModel.findByIdAndUpdate(profileId, updateData, { strict: false })
 
     await logAudit({
       action: 'user_update',
@@ -1057,6 +1117,17 @@ const resetUserMfa = async (req, res) => {
   }
 }
 
+/** Deleting a doctor with visits still to come would leave those patients with no one to see. */
+const doctorHasOpenAppointments = (docId) =>
+  appointmentModel.exists({
+    docId: String(docId),
+    cancelled: { $ne: true },
+    isCompleted: { $ne: true },
+    appointmentStatus: { $nin: ['Finished', 'Cancelled'] }
+  })
+
+const OPEN_APPOINTMENTS_MESSAGE = 'This doctor still has open appointments. Cancel or finish them first.'
+
 const deleteUserAccount = async (req, res) => {
   try {
     const { profileType, profileId } = req.body
@@ -1064,6 +1135,10 @@ const deleteUserAccount = async (req, res) => {
 
     if (!selectedModel || !profileId) {
       return res.json({ success: false, message: 'Valid user type and user ID are required' })
+    }
+
+    if (profileType === 'doctor' && (await doctorHasOpenAppointments(profileId))) {
+      return res.json({ success: false, message: OPEN_APPOINTMENTS_MESSAGE })
     }
 
     const deletedProfile = await selectedModel.findByIdAndDelete(profileId)
@@ -1185,7 +1260,7 @@ const patientDetails = async (req, res) => {
       return res.json({ success: false, message: 'Patient ID is required' })
     }
 
-    const patient = await userModel.findById(patientId).select('-password -resetOtp -resetOtpExpireAt').lean()
+    const patient = await userModel.findById(patientId).select('-password -resetOtp -resetOtpExpireAt -mfa.secret').lean()
     if (!patient) {
       return res.json({ success: false, message: 'Patient not found' })
     }
@@ -1315,13 +1390,18 @@ const appointmentsAdmin = async (req,res) => {
 }
 
 
-// API for appointment cancellation
-const appointmentCancel = async (req,res) => {
-  try {
-
-   const { appointmentId } = req.body; // ✔ Only appointmentId comes from body
-
+/** Cancels one appointment, refunds it when paid online, and frees the slot. */
+const cancelOneAppointment = async (appointmentId, req) => {
    const appointmentData = await appointmentModel.findById(appointmentId)
+   if (!appointmentData) {
+    return { success: false, message: 'Appointment not found' }
+   }
+   if (appointmentData.cancelled || appointmentData.appointmentStatus === 'Cancelled') {
+    return { success: false, message: 'Appointment is already cancelled' }
+   }
+   if (appointmentData.isCompleted || appointmentData.appointmentStatus === 'Finished') {
+    return { success: false, message: 'A finished appointment cannot be cancelled' }
+   }
 
    let refundMessage = ''
    if (appointmentData.paymentStatus === 'Paid' && appointmentData.paymentMethod === 'Visa') {
@@ -1336,12 +1416,15 @@ const appointmentCancel = async (req,res) => {
    
    const doctorData = await doctorModel.findById(docId)
 
-   const bookedSlotsField = getBookedSlotsField(appointmentData.appointmentType)
-   let slots_booked = doctorData[bookedSlotsField] || {}
+   /* The doctor may have been deleted since this was booked */
+   if (doctorData) {
+    const bookedSlotsField = getBookedSlotsField(appointmentData.appointmentType)
+    let slots_booked = doctorData[bookedSlotsField] || {}
 
-   slots_booked[slotDate] = (slots_booked[slotDate] || []).filter(e => e !== slotTime)
+    slots_booked[slotDate] = (slots_booked[slotDate] || []).filter(e => e !== slotTime)
 
-   await doctorModel.findByIdAndUpdate(docId, { [bookedSlotsField]: slots_booked })
+    await doctorModel.findByIdAndUpdate(docId, { [bookedSlotsField]: slots_booked })
+   }
 
    await logAudit({
     action: 'appointment_cancel',
@@ -1361,9 +1444,14 @@ const appointmentCancel = async (req,res) => {
 
    notifyAppointmentCancelled({ appointment: appointmentData, cancelledBy: 'admin' })
 
-   res.json({success: true, message:`Appointment Cancelled${refundMessage}`})
+   return { success: true, message: `Appointment Cancelled${refundMessage}` }
+}
 
-
+// API for appointment cancellation
+const appointmentCancel = async (req,res) => {
+  try {
+   const { appointmentId } = req.body; // ✔ Only appointmentId comes from body
+   res.json(await cancelOneAppointment(appointmentId, req))
   } catch (error) {
     console.log(error)
     res.json({success: false, message: error.message})
@@ -1462,6 +1550,10 @@ const deleteProfile = async (req, res) => {
       return res.json({ success: false, message: 'Invalid profile type' })
     }
 
+    if (profileType === 'doctor' && (await doctorHasOpenAppointments(profileId))) {
+      return res.json({ success: false, message: OPEN_APPOINTMENTS_MESSAGE })
+    }
+
     const deletedProfile = await selectedModel.findByIdAndDelete(profileId)
 
     if (!deletedProfile) {
@@ -1526,6 +1618,7 @@ const adminDashboard = async (req,res) => {
       clinicStatsByName.set(clinic.name, {
         clinicId: clinic._id,
         name: clinic.name,
+        i18n: clinic.i18n,
         doctors: doctors.filter((doctor) =>
           (doctor.clinics || []).some((assignedClinic) => assignedClinic?._id?.toString() === clinic._id.toString())
         ).length,
@@ -1545,7 +1638,8 @@ const adminDashboard = async (req,res) => {
 
      appointments.forEach((appointment) => {
       const amount = Number(appointment.amount || 0)
-      const isPaid = appointment.paymentStatus === 'Paid'
+      /* Money handed back is not revenue */
+      const isPaid = appointment.paymentStatus === 'Paid' && appointment.refundStatus !== 'Refunded'
       const isCancelled = appointment.cancelled || appointment.appointmentStatus === 'Cancelled'
 
       if (isPaid) {
@@ -1631,6 +1725,42 @@ const adminDashboard = async (req,res) => {
 
 }
 
+const allReceptionists = async (req, res) => {
+  try {
+    const receptionists = await receptionistModel.find({}).select('-password -mfa.secret').lean()
+    res.json({ success: true, receptionists })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+/**
+ * Creates the account through the shared controller, then stores the name in both languages.
+ * That controller answers the request itself, so the name is added just before it replies.
+ */
+const addReceptionistByAdmin = async (req, res) => {
+  try {
+    const { name: nameInput } = readBilingualInputs(receptionistBilingualFields, req.body)
+    const name = nameInput === undefined ? null : await resolveBilingualValue({ input: nameInput, kind: 'name' })
+    if (name) req.body.name = primaryOf(name)
+
+    const reply = res.json.bind(res)
+    res.json = (payload) => {
+      if (!payload?.success || !name) return reply(payload)
+      receptionistModel
+        .updateOne({ email: normalizeEmail(req.body.email) }, { $set: { 'i18n.name': name } }, { strict: false })
+        .catch((error) => console.log(error))
+        .finally(() => reply(payload))
+      return res
+    }
+    await addReceptionist(req, res)
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
 const receptionistProfileByAdmin = async (req, res) => {
   try {
     const { receptionistId } = req.params
@@ -1659,12 +1789,14 @@ const updateReceptionistByAdmin = async (req, res) => {
 
     const updateData = {}
 
-    if (req.body.name !== undefined) {
-      const nextName = String(req.body.name || '').trim()
-      if (!nextName) {
+    const { name: nameInput } = readBilingualInputs(receptionistBilingualFields, req.body)
+    if (nameInput !== undefined) {
+      const name = await resolveBilingualValue({ previous: existing.toObject().i18n?.name, input: nameInput, kind: 'name' })
+      if (!primaryOf(name)) {
         return res.json({ success: false, message: 'Name is required' })
       }
-      updateData.name = nextName
+      updateData.name = primaryOf(name)
+      updateData['i18n.name'] = name
     }
 
     if (req.body.email !== undefined) {
@@ -1731,7 +1863,7 @@ const updateReceptionistByAdmin = async (req, res) => {
       return res.json({ success: false, message: 'Nothing to update' })
     }
 
-    await receptionistModel.findByIdAndUpdate(receptionistId, { $set: updateData })
+    await receptionistModel.findByIdAndUpdate(receptionistId, { $set: updateData }, { strict: false })
 
     await logAudit({
       action: 'receptionist_update',
@@ -1805,8 +1937,11 @@ const adminFinancialAnalytics = async (req, res) => {
       if (finished) row.completedAppointments += 1
       if (cancelled) row.cancelledAppointments += 1
       const amount = Number(apt.amount || 0)
-      const paid = apt.paymentStatus === 'Paid' || apt.isCompleted
-      if (paid) {
+      const refunded = apt.refundStatus === 'Refunded'
+      const paid = !refunded && (apt.paymentStatus === 'Paid' || apt.isCompleted)
+      if (refunded) {
+        /* Neither earned nor owed */
+      } else if (paid) {
         row.paidRevenue += amount
         row.paidVisitCount += 1
       } else if (!cancelled) row.outstandingAmount += amount
@@ -1867,4 +2002,4 @@ const adminFinancialAnalytics = async (req, res) => {
   }
 }
 
-export { addDoctor, updateDoctorByAdmin, loginAdmin, verifyAdminMfaLogin, completeAdminMfaLoginSetup, getAdminProfile, updateAdminProfile, getAdminMfaStatus, startAdminMfaSetup, enableAdminMfa, disableAdminMfa, allDoctors, allPatients, allUsers, createUserByAdmin, updateUserByAdmin, resetUserPassword, updateUserMfaRequirement, resetUserMfa, deleteUserAccount, patientDetails, changePatientStatus, deletePatientProfile, appointmentsAdmin, appointmentCancel, adminDashboard, allAppointmentHistory, deleteAppointmentHistory, deleteProfile, addReceptionist, allReceptionists, changeReceptionistStatus, receptionistProfileByAdmin, updateReceptionistByAdmin, adminFinancialAnalytics }
+export { cancelOneAppointment, addReceptionistByAdmin, addDoctor, updateDoctorByAdmin, loginAdmin, verifyAdminMfaLogin, completeAdminMfaLoginSetup, getAdminProfile, updateAdminProfile, getAdminMfaStatus, startAdminMfaSetup, enableAdminMfa, disableAdminMfa, allDoctors, allPatients, allUsers, createUserByAdmin, updateUserByAdmin, resetUserPassword, updateUserMfaRequirement, resetUserMfa, deleteUserAccount, patientDetails, changePatientStatus, deletePatientProfile, appointmentsAdmin, appointmentCancel, adminDashboard, allAppointmentHistory, deleteAppointmentHistory, deleteProfile, addReceptionist, allReceptionists, changeReceptionistStatus, receptionistProfileByAdmin, updateReceptionistByAdmin, adminFinancialAnalytics }

@@ -37,7 +37,7 @@ const getClinics = async (req, res) => {
     })
 
     const clinics = await clinicModel.find({}).sort({ name: 1 }).lean()
-    const doctors = await doctorModel.find({}).select('-password').populate('clinics').lean()
+    const doctors = await doctorModel.find({}).select('-password -mfa.secret').populate('clinics').lean()
 
     const clinicsWithDoctors = clinics.map((clinic) => ({
       ...clinic,
