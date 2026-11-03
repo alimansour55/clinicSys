@@ -129,7 +129,7 @@ const Attention = ({ items, onOpenTab }) => {
                 </span>
               </>
             )
-            const row = 'flex min-h-11 w-full flex-wrap items-center justify-between gap-2 py-3 text-start'
+            const row = 'flex min-h-11 w-full flex-col items-start gap-1 py-3 text-start sm:flex-row sm:items-center sm:justify-between sm:gap-4'
             return (
               <li key={item.key}>
                 {item.to
