@@ -40,7 +40,8 @@ export const attachInsuranceVerification = (insurance, { updatedBy = 'patient', 
   const changed = insuranceDataChanged(existingInsurance, insurance)
   const previousStatus = getEffectiveVerificationStatus(existingInsurance)
 
-  if (updatedBy === 'patient' || changed) {
+  // Saving identical details must not throw away an approval. Only new or changed details need a new review.
+  if (changed || (updatedBy === 'patient' && !existingInsurance?.enabled)) {
     return {
       ...insurance,
       verificationStatus: INSURANCE_VERIFICATION.PENDING,

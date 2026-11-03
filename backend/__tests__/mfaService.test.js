@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import crypto from 'crypto'
-import { generateMfaSecret, verifyTotpCode, buildMfaSetupPayload } from '../services/mfaService.js'
+import { generateMfaSecret, generateRecoveryCodes, hashRecoveryCode, matchTotpStep, verifyTotpCode, buildMfaSetupPayload } from '../services/mfaService.js'
 
 const base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 
@@ -53,11 +53,26 @@ describe('mfaService', () => {
     expect(verifyTotpCode(secret, '000000')).toBe(false)
   })
 
-  it('builds otpauth and QR URLs', () => {
+  it('builds an otpauth URL and never a third-party QR link holding the secret', () => {
     const secret = generateMfaSecret()
     const payload = buildMfaSetupPayload({ secret, accountName: 'user@test.com' })
     expect(payload.secret).toBe(secret)
     expect(payload.otpauthUrl).toContain('otpauth://totp/')
-    expect(payload.qrCodeUrl).toContain('api.qrserver.com')
+    expect(JSON.stringify(payload)).not.toContain('qrserver')
+  })
+
+  it('matchTotpStep returns the step that matched, so a replay can be refused', () => {
+    const secret = generateMfaSecret()
+    const step = Math.floor(Date.now() / 1000 / 30)
+    expect(matchTotpStep(secret, totpForTest(secret, step))).toBeGreaterThanOrEqual(step - 1)
+    expect(matchTotpStep(secret, 'abc')).toBe(0)
+  })
+
+  it('recovery codes are unique, hashed, and match however they are typed', () => {
+    const { codes, hashes } = generateRecoveryCodes()
+    expect(codes).toHaveLength(8)
+    expect(new Set(codes).size).toBe(8)
+    expect(hashes[0]).not.toContain(codes[0])
+    expect(hashRecoveryCode(codes[0].toLowerCase().replace('-', ' '))).toBe(hashes[0])
   })
 })

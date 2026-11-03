@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'
 import notificationModel from '../models/notificationModel.js'
 
 const recipientQuery = (req) => ({
@@ -5,14 +6,18 @@ const recipientQuery = (req) => ({
   recipientId: String(req.user.userId)
 })
 
+const failed = (res, label, error) => {
+  console.error(`${label}:`, error.message)
+  return res.json({ success: false, message: 'Something went wrong. Please try again.' })
+}
+
 export const listNotifications = async (req, res) => {
   try {
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 30))
     const items = await notificationModel.find(recipientQuery(req)).sort({ createdAt: -1 }).limit(limit).lean()
     res.json({ success: true, notifications: items })
   } catch (error) {
-    console.log(error)
-    res.json({ success: false, message: error.message })
+    failed(res, 'List notifications', error)
   }
 }
 
@@ -21,14 +26,16 @@ export const getUnreadCount = async (req, res) => {
     const count = await notificationModel.countDocuments({ ...recipientQuery(req), read: false })
     res.json({ success: true, unreadCount: count })
   } catch (error) {
-    console.log(error)
-    res.json({ success: false, message: error.message })
+    failed(res, 'Unread count', error)
   }
 }
 
 export const markNotificationRead = async (req, res) => {
   try {
     const { id } = req.params
+    if (!mongoose.isValidObjectId(id)) {
+      return res.json({ success: false, message: 'Notification not found' })
+    }
     const doc = await notificationModel.findOneAndUpdate(
       { _id: id, ...recipientQuery(req) },
       { read: true, readAt: Date.now() },
@@ -39,8 +46,7 @@ export const markNotificationRead = async (req, res) => {
     }
     res.json({ success: true, notification: doc })
   } catch (error) {
-    console.log(error)
-    res.json({ success: false, message: error.message })
+    failed(res, 'Mark notification read', error)
   }
 }
 
@@ -49,7 +55,6 @@ export const markAllNotificationsRead = async (req, res) => {
     await notificationModel.updateMany({ ...recipientQuery(req), read: false }, { read: true, readAt: Date.now() })
     res.json({ success: true })
   } catch (error) {
-    console.log(error)
-    res.json({ success: false, message: error.message })
+    failed(res, 'Mark all notifications read', error)
   }
 }

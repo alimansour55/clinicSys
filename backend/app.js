@@ -9,15 +9,27 @@ import { getCorsOriginConfig } from './config/corsOrigins.js'
 import adminRouter from './routes/adminRoute.js'
 import doctorRouter from './routes/doctorRoute.js'
 import userRouter from './routes/userRoute.js'
+import accountRouter, { patientAuthRouter } from './routes/accountRoute.js'
 import receptionistRouter from './routes/receptionistRoute.js'
 import auditLogRouter from './routes/auditLogRoute.js'
 import notificationRouter from './routes/notificationRoute.js'
 import chatbotRouter from './routes/chatbotRoute.js'
+import patientSessionGuard from './middlewares/patientSessionGuard.js'
 
 /** Express app without listen/DB — used by server.js and integration tests. */
 export function createApp() {
   const app = express()
-  app.set('trust proxy', true)
+  // One proxy (Vercel). With `true`, req.ip comes from a header the client controls, which would defeat rate limits.
+  app.set('trust proxy', 1)
+  app.disable('x-powered-by')
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('X-Frame-Options', 'DENY')
+    res.setHeader('Referrer-Policy', 'no-referrer')
+    // API answers can hold health data, so they must not sit in a shared or browser cache.
+    if (req.path.startsWith('/api')) res.setHeader('Cache-Control', 'no-store')
+    next()
+  })
   app.use(express.json())
   app.use(cors({
     origin: getCorsOriginConfig(),
@@ -41,10 +53,13 @@ export function createApp() {
     if (!req.body) req.body = {}
     next()
   })
+  app.use('/api', patientSessionGuard)
 
   app.use('/api/admin', adminRouter)
   app.use('/api/doctor', doctorRouter)
+  app.use('/api/user', patientAuthRouter)
   app.use('/api/user', userRouter)
+  app.use('/api/account', accountRouter)
   app.use('/api/receptionist', receptionistRouter)
   app.use('/api/audit-logs', auditLogRouter)
   app.use('/api/notifications', notificationRouter)
@@ -52,6 +67,17 @@ export function createApp() {
 
   app.get('/', (req, res) => {
     res.send('API WORKING')
+  })
+
+  // Express would otherwise answer a malformed body with an HTML page that includes a stack trace.
+  app.use((error, req, res, next) => {
+    if (res.headersSent) return next(error)
+    const badRequest = error.type === 'entity.parse.failed' || error.type === 'entity.too.large' || error.name === 'MulterError'
+    if (!badRequest) console.error('Unhandled API error:', error.message)
+    res.status(badRequest ? 400 : 500).json({
+      success: false,
+      message: badRequest ? 'The request could not be read' : 'Something went wrong. Please try again.'
+    })
   })
 
   return app

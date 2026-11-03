@@ -44,24 +44,45 @@ const userSchema = new mongoose.Schema({
       updatedBy: { type: String, default: '' }
     },
 
+    emergency: {
+      bloodType: { type: String, default: '' },
+      contactName: { type: String, default: '' },
+      contactPhone: { type: String, default: '' },
+      updatedAt: { type: Number, default: 0 }
+    },
+    onboarding: {
+      completedAt: { type: Number, default: 0 },
+      dismissedAt: { type: Number, default: 0 }
+    },
+
+    // Secrets are select:false so they cannot leave through a profile response or an appointment snapshot.
+    // Code that needs one asks for it with .select('+field').
     emailVerified: { type: Boolean, default: false },
     phoneVerified: { type: Boolean, default: false },
     accountVerifiedAt: { type: Number, default: 0 },
-    emailVerifyOtp: { type: String, default: '' },
+    emailVerifyOtp: { type: String, default: '', select: false },
     emailVerifyOtpExpireAt: { type: Number, default: 0 },
     emailVerifyOtpSentAt: { type: Number, default: 0 },
-    phoneVerifyOtp: { type: String, default: '' },
+    phoneVerifyOtp: { type: String, default: '', select: false },
     phoneVerifyOtpExpireAt: { type: Number, default: 0 },
     phoneVerifyOtpSentAt: { type: Number, default: 0 },
 
-    resetOtp: {type: String, default: ''},
+    resetOtp: {type: String, default: '', select: false},
     resetOtpExpireAt: {type: Number, default: 0},
+    resetOtpSentAt: {type: Number, default: 0},
+    passwordChangedAt: {type: Number, default: 0},
+    /** Patient tokens issued before this time (ms) are refused. See middlewares/patientSessionGuard.js. */
+    sessionsValidAfter: {type: Number, default: 0},
     mfa: {
       enabled: { type: Boolean, default: false },
-      secret: { type: String, default: '' },
+      secret: { type: String, default: '', select: false },
       requiredByAdmin: { type: Boolean, default: false },
       configuredAt: { type: Number, default: 0 },
-      resetAt: { type: Number, default: 0 }
+      resetAt: { type: Number, default: 0 },
+      /** Last accepted TOTP time step, so one code cannot be used twice. */
+      lastUsedStep: { type: Number, default: 0, select: false },
+      /** Hashes of unused one-time recovery codes. */
+      recoveryCodes: { type: [String], default: [], select: false }
     }
 
 

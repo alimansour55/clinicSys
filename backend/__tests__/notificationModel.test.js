@@ -58,9 +58,9 @@ describe('notification list / mark read (controller + mock DB)', () => {
   it('marks one notification read', async () => {
     notificationModel.findOneAndUpdate.mockResolvedValue({ _id: 'n1', read: true })
     const res = mockRes()
-    await markNotificationRead({ ...req, params: { id: 'n1' } }, res)
+    await markNotificationRead({ ...req, params: { id: '64b000000000000000000001' } }, res)
     expect(notificationModel.findOneAndUpdate).toHaveBeenCalledWith(
-      { _id: 'n1', recipientRole: 'patient', recipientId: 'user1' },
+      { _id: '64b000000000000000000001', recipientRole: 'patient', recipientId: 'user1' },
       { read: true, readAt: expect.any(Number) },
       { new: true }
     )

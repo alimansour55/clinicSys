@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import jwt from 'jsonwebtoken'
 import transporter from '../config/nodemailer.js'
 import { ACCOUNT_VERIFICATION_TEMPLATE } from '../config/EmailTemplates.js'
@@ -14,7 +15,21 @@ export const getOtpExpiryMs = () => {
   return minutes * 60 * 1000
 }
 
-export const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000))
+export const generateOtp = () => String(crypto.randomInt(100000, 1000000))
+
+/** Codes that guard an existing account are stored hashed. Keyed by JWT_SECRET, so a database leak alone does not reveal them. */
+export const hashOtp = (otp) =>
+  crypto.createHmac('sha256', String(process.env.JWT_SECRET || '')).update(String(otp ?? '').trim()).digest('hex')
+
+export const otpMatches = (storedHash, candidate) => {
+  const value = typeof candidate === 'string' || typeof candidate === 'number' ? String(candidate).trim() : ''
+  if (!storedHash || !/^\d{6}$/.test(value)) return false
+  const a = Buffer.from(String(storedHash))
+  const b = Buffer.from(hashOtp(value))
+  return a.length === b.length && crypto.timingSafeEqual(a, b)
+}
+
+export const OTP_MAX_ATTEMPTS = 5
 
 export const isAccountVerified = (user) => {
   if (!user) return false
@@ -45,11 +60,16 @@ export const signVerificationToken = (userId) =>
   )
 
 export const getUserFromVerificationToken = async (verificationToken) => {
-  const decoded = jwt.verify(verificationToken, process.env.JWT_SECRET)
+  let decoded
+  try {
+    decoded = jwt.verify(String(verificationToken || ''), process.env.JWT_SECRET)
+  } catch {
+    return null
+  }
   if (decoded?.purpose !== 'account-verify' || decoded?.role !== 'patient' || !decoded?.id) {
     return null
   }
-  return userModel.findById(decoded.id)
+  return userModel.findById(decoded.id).select('+emailVerifyOtp +phoneVerifyOtp')
 }
 
 const canResend = (sentAt) => !sentAt || Date.now() - sentAt >= RESEND_COOLDOWN_MS
@@ -97,7 +117,7 @@ export const issueVerificationCodes = async (user, { forceEmail = true, forcePho
       throw err
     }
     const otp = generateOtp()
-    updates.emailVerifyOtp = otp
+    updates.emailVerifyOtp = hashOtp(otp)
     updates.emailVerifyOtpExpireAt = now + expiryMs
     updates.emailVerifyOtpSentAt = now
     await sendEmailOtp(user, otp)
@@ -117,7 +137,7 @@ export const issueVerificationCodes = async (user, { forceEmail = true, forcePho
       updates.phoneVerifyOtpExpireAt = 0
     } else {
       const otp = generateOtp()
-      updates.phoneVerifyOtp = otp
+      updates.phoneVerifyOtp = hashOtp(otp)
       updates.phoneVerifyOtpExpireAt = now + expiryMs
       const smsResult = await sendPhoneOtp(user, otp)
       updates._smsDevMode = smsResult.devMode
