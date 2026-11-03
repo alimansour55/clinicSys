@@ -2,9 +2,16 @@ import {
   getDoctorSchedule,
   getBookedSlots,
   hasDoctorPublishedSchedule,
+  isSlotAllowedBySchedule,
   resolveClinicLocationForSchedule,
   usesClinicWeeklySchedule
 } from './scheduleService.js'
+import {
+  clinicNow,
+  nearestSlotDistance,
+  slotInDayPart,
+  slotMatchesRequestedTime
+} from './chatbotScheduling.js'
 
 const parseMinutes = (value) => {
   if (!value) return null
@@ -54,7 +61,7 @@ const resolveClinicLocation = (doctor, clinicLocation = '') => {
  */
 export const buildAvailableSlotsForDoctor = (
   doctor,
-  { days = 14, appointmentType = 'Clinic', clinicLocation = '' } = {}
+  { days = 14, appointmentType = 'Clinic', clinicLocation = '', now = new Date() } = {}
 ) => {
   if (!hasDoctorPublishedSchedule(doctor)) {
     return []
@@ -76,7 +83,7 @@ export const buildAvailableSlotsForDoctor = (
   const slotDuration = Number(schedule.slotDuration || 30)
   const dayStart = parseMinutes(schedule.startTime) ?? 600
   const dayEnd = parseMinutes(schedule.endTime) ?? 1260
-  const today = new Date()
+  const today = clinicNow(now)
 
   return Array.from({ length: days }, (_, index) => {
     const date = addDays(today, index)
@@ -101,10 +108,12 @@ export const buildAvailableSlotsForDoctor = (
 
       const time = minutesToTime(minutes)
       const isBooked = bookedSlots?.[slotDate]?.includes(time)
-      const isPast = slotStart <= new Date()
-      const available = !isPast && !overlapsBreak && !isBooked
+      const isPast = slotStart <= today
+      // The same rule booking applies, so nothing offered here can be refused at the last step.
+      const isAllowed = isSlotAllowedBySchedule(doctor, slotDate, time, appointmentType, effectiveClinicLocation).allowed
+      const available = !isPast && !overlapsBreak && !isBooked && isAllowed
 
-      slots.push({ time, available, reason: isPast ? 'Past' : isBooked ? 'Booked' : overlapsBreak ? 'Break' : 'Available' })
+      slots.push({ time, available, reason: isPast ? 'Past' : isBooked ? 'Booked' : overlapsBreak ? 'Break' : isAllowed ? 'Available' : 'Unavailable' })
     }
 
     return {
@@ -119,4 +128,64 @@ export const buildAvailableSlotsForDoctor = (
 export const getDefaultClinicLocation = (doctor) => {
   const locations = (doctor?.locations || []).map((l) => String(l || '').trim()).filter(Boolean)
   return locations.length === 1 ? locations[0] : ''
+}
+
+/** Every open slot for one visit type, soonest first, across all of the doctor's branches. */
+const listOpenSlots = (doctor, { appointmentType, now }) => {
+  const locations = (doctor?.locations || []).map((l) => String(l || '').trim()).filter(Boolean)
+  const branches = usesClinicWeeklySchedule(appointmentType) && locations.length > 1 ? locations : [locations[0] || '']
+  const isClinicVisit = appointmentType === 'Clinic'
+
+  return branches
+    .flatMap((branch) =>
+      buildAvailableSlotsForDoctor(doctor, { appointmentType, clinicLocation: branch, now }).flatMap((day) =>
+        day.slots.map((slot) => ({
+          slotDate: day.slotDate,
+          date: day.date,
+          time: slot.time,
+          clinicLocation: usesClinicWeeklySchedule(appointmentType) ? branch : '',
+          appointmentType,
+          sortKey: new Date(day.date).getTime() + minutesOfTime(slot.time) * 60000
+        }))
+      )
+    )
+    .sort((a, b) => a.sortKey - b.sortKey)
+}
+
+const minutesOfTime = (time) => parseMinutes(time) ?? 0
+
+/**
+ * The few slots to show on a doctor's card, honouring what the patient asked for.
+ * `matched` says whether they fit the request or are the nearest alternative.
+ */
+export const pickNextSlots = (
+  doctor,
+  { appointmentType = 'Clinic', date = null, dayPart = null, time = null, limit = 3, now = new Date() } = {}
+) => {
+  const open = listOpenSlots(doctor, { appointmentType, now })
+  const dayKey = date ? toSlotDate(date) : null
+  const onDay = dayKey ? open.filter((slot) => slot.slotDate === dayKey) : open
+  const inPart = dayPart ? onDay.filter((slot) => slotInDayPart(slot.time, dayPart)) : onDay
+  const exact = time ? inPart.filter((slot) => slotMatchesRequestedTime(slot.time, time)) : inPart
+
+  const hasRequest = Boolean(date || dayPart || time)
+  let chosen = exact
+  let matched = exact.length > 0
+
+  if (!chosen.length && time) {
+    chosen = [...(onDay.length ? onDay : open)].sort(
+      (a, b) => nearestSlotDistance(a.time, time) - nearestSlotDistance(b.time, time)
+    )
+    matched = false
+  }
+  if (!chosen.length) {
+    chosen = onDay.length ? onDay : open
+    matched = false
+  }
+
+  return {
+    matched: hasRequest ? matched : true,
+    totalOpen: open.length,
+    slots: chosen.slice(0, limit).map(({ sortKey, ...slot }) => slot)
+  }
 }
