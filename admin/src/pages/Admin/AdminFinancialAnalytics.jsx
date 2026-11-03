@@ -1,13 +1,11 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
-import { toast } from 'react-toastify'
 import {
+  AlertCircle,
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
-  Building2,
   Calculator,
-  Filter,
   Layers,
   LineChart,
   Percent,
@@ -15,11 +13,15 @@ import {
   RefreshCw,
   Save,
   Sparkles,
-  Users
+  Users,
+  Wallet
 } from 'lucide-react'
 import { AdminContext } from '../../context/AdminContext'
 import { AppContext } from '../../context/AppContext'
 import { useLanguage } from '../../i18n'
+import { AdminPage, ExportButton, StatCard } from '../../components/admin/AdminPage'
+import { Badge, Button, EmptyState, Field, Input, Select, Skeleton, SkeletonGroup, notify } from '../../components/ui'
+import { downloadCsv } from '../../utils/csvExport'
 import { describeCompensationAttribution, normalizeFinancialCompensation } from '../../utils/financialCompensation'
 
 const aggregateTotals = (breakdown) => {
@@ -54,11 +56,68 @@ const aggregateTotals = (breakdown) => {
   }
 }
 
+/** Typing replaces the value rather than appending to the 0 already there. */
+const selectOnFocus = (e) => e.target.select()
+
+const numberFrom = (raw) => {
+  const n = raw === '' ? 0 : Number(raw)
+  return Number.isFinite(n) ? n : 0
+}
+
+const ShareControl = ({ value, onChange, note }) => {
+  const { t } = useLanguage()
+  const safe = Number.isFinite(value) ? value : 0
+  return (
+    <div className='space-y-3'>
+      <Field label={t('Revenue share (0–100%)')}>
+        <Input
+          type='number'
+          min={0}
+          max={100}
+          step={1}
+          inputMode='numeric'
+          value={safe}
+          onFocus={selectOnFocus}
+          onChange={(e) => onChange(Math.min(100, Math.max(0, numberFrom(e.target.value))))}
+          className='max-w-32 font-semibold tabular-nums'
+        />
+      </Field>
+      <input
+        type='range'
+        min={0}
+        max={100}
+        value={safe}
+        aria-label={t('Revenue share (0–100%)')}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className='h-6 w-full cursor-pointer accent-(--color-primary)'
+      />
+      <p className='text-caption text-ink-3'>{note}</p>
+    </div>
+  )
+}
+
+const FixedControl = ({ value, onChange, label, note }) => (
+  <Field label={label} hint={note}>
+    <Input
+      type='number'
+      min={0}
+      inputMode='numeric'
+      value={Number.isFinite(value) ? value : 0}
+      onFocus={selectOnFocus}
+      onChange={(e) => onChange(Math.max(0, numberFrom(e.target.value)))}
+      className='max-w-xs font-semibold tabular-nums'
+    />
+  </Field>
+)
+
 const AdminFinancialAnalytics = () => {
   const { aToken, backendUrl, doctors, getAllDoctors } = useContext(AdminContext)
   const { currency } = useContext(AppContext)
-  const { t } = useLanguage()
-  const [loading, setLoading] = useState(true)
+  const { t, tc, language } = useLanguage()
+  const [loading, setLoading] = useState(Boolean(aToken))
+  const [loadError, setLoadError] = useState(null)
+
+  const locale = language === 'ar' ? 'ar-EG' : 'en-US'
 
   const fillT = (key, vars = {}) => {
     let s = String(t(key))
@@ -78,11 +137,9 @@ const AdminFinancialAnalytics = () => {
   /** Avoid re-loading pay form from `doctors` on every list refresh (that was resetting % vs fixed for unsaved edits). */
   const lastPayFormSyncedForDocId = useRef(null)
 
+  /* Holds no translated text, so switching language does not fetch again */
   const load = useCallback(async () => {
-    if (!aToken) {
-      setLoading(false)
-      return
-    }
+    if (!aToken) return
     setLoading(true)
     try {
       const { data } = await axios.get(`${backendUrl}/api/admin/financial-analytics`, {
@@ -90,19 +147,26 @@ const AdminFinancialAnalytics = () => {
       })
       if (data.success) {
         setPayload(data)
+        setLoadError(null)
       } else {
-        toast.error(data.message || t('Failed to load analytics'))
+        setLoadError({ message: data.message })
       }
     } catch (e) {
-      toast.error(e.message)
+      setLoadError({ message: e.response?.data?.message })
     } finally {
       setLoading(false)
     }
-  }, [aToken, backendUrl, t])
+  }, [aToken, backendUrl])
+
+  /* getAllDoctors is a new function on every provider render, and calling it re-renders the provider */
+  const getAllDoctorsRef = useRef(getAllDoctors)
+  useEffect(() => {
+    getAllDoctorsRef.current = getAllDoctors
+  })
 
   useEffect(() => {
-    if (aToken) getAllDoctors()
-  }, [aToken, getAllDoctors])
+    if (aToken) getAllDoctorsRef.current()
+  }, [aToken])
 
   useEffect(() => {
     load()
@@ -118,13 +182,35 @@ const AdminFinancialAnalytics = () => {
 
   const totals = useMemo(() => aggregateTotals(displayRows), [displayRows])
 
+  const doctorById = useMemo(() => new Map((doctors || []).map((d) => [String(d._id), d])), [doctors])
+
+  /* The analytics rows may not carry i18n, so the doctors list fills in the other language */
+  const rowName = useCallback(
+    (r) => {
+      const name = tc(r.i18n?.name) || tc(doctorById.get(String(r.docId))?.i18n?.name) || r.doctorName
+      return !name || name === 'Unknown doctor' ? t('Unknown doctor') : name
+    },
+    [doctorById, t, tc]
+  )
+  const rowSpeciality = (r) =>
+    tc(r.i18n?.speciality) || tc(doctorById.get(String(r.docId))?.i18n?.speciality) || (r.speciality ? t(r.speciality) : '')
+
   const doctorOptions = useMemo(
     () =>
       (doctors || [])
-        .map((d) => ({ id: String(d._id), name: d.name || 'Doctor' }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [doctors]
+        .map((d) => ({ id: String(d._id), name: tc(d.i18n?.name) || d.name || t('Doctor') }))
+        .sort((a, b) => a.name.localeCompare(b.name, locale)),
+    [doctors, locale, t, tc]
   )
+
+  /* A removed doctor still has revenue in the table, so the filter has to reach them too */
+  const tableOptions = useMemo(() => {
+    const known = new Set(doctorOptions.map((d) => d.id))
+    const extra = allRows
+      .filter((r) => r.docId && !known.has(String(r.docId)))
+      .map((r) => ({ id: String(r.docId), name: rowName(r) }))
+    return [...doctorOptions, ...extra].sort((a, b) => a.name.localeCompare(b.name, locale))
+  }, [allRows, doctorOptions, locale, rowName])
 
   useEffect(() => {
     if (!doctorOptions.length) return
@@ -170,26 +256,27 @@ const AdminFinancialAnalytics = () => {
     )
   }, [previewRevenue, previewPaidVisits, payMode, payPercentage, payFixed, t])
 
-  const formatMoney = (n) => `${currency}${Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+  const formatNumber = (n) => Number(n ?? 0).toLocaleString(locale, { maximumFractionDigits: 0 })
+  const formatMoney = (n) => `${currency}${formatNumber(n)}`
+  const perMonth = (n) => fillT('{{amount}} / month', { amount: formatMoney(n) })
 
   const saveDoctorPay = async () => {
     if (!doctorOptions.length) {
-      toast.warn(t('No doctors in the system'))
+      notify.warning(t('No doctors in the system'))
       return
     }
     if (!payDocId) {
-      toast.warn(t('Choose a doctor'))
+      notify.warning(t('Choose a doctor'))
+      return
+    }
+    const pct = Math.min(100, Math.max(0, Math.round(Number(payPercentage)) || 0))
+    const fix = Math.max(0, Math.round(Number(payFixed)) || 0)
+    if (payMode === 'hybrid' && pct <= 0 && fix <= 0) {
+      notify.warning(t('Hybrid pay needs a percentage above 0 and/or a fixed monthly amount'))
       return
     }
     setSavingPay(true)
     try {
-      const pct = Math.min(100, Math.max(0, Math.round(Number(payPercentage)) || 0))
-      const fix = Math.max(0, Math.round(Number(payFixed)) || 0)
-      if (payMode === 'hybrid' && pct <= 0 && fix <= 0) {
-        toast.warn(t('Hybrid pay needs a percentage above 0 and/or a fixed monthly amount'))
-        setSavingPay(false)
-        return
-      }
       let compPayload
       if (payMode === 'fixed') {
         compPayload = { mode: 'fixed', percentage: 0, fixedSalary: fix, percentageEnabled: false }
@@ -198,502 +285,447 @@ const AdminFinancialAnalytics = () => {
       } else {
         compPayload = { mode: 'percentage', percentage: pct, fixedSalary: 0, percentageEnabled: pct > 0 }
       }
+      const saved = normalizeFinancialCompensation(compPayload)
       const formData = new FormData()
       formData.append('docId', payDocId)
-      formData.append('financialCompensation', JSON.stringify(normalizeFinancialCompensation(compPayload)))
+      formData.append('financialCompensation', JSON.stringify(saved))
       const { data } = await axios.post(`${backendUrl}/api/admin/update-doctor`, formData, {
-        headers: { aToken, 'Content-Type': 'multipart/form-data' }
+        headers: { aToken }
       })
       if (!data.success) {
-        toast.error(data.message || t('Save failed'))
+        notify.error(data.message ? t(data.message) : t('Save failed'))
         return
       }
-      toast.success(data.message || t('Pay settings saved'))
+      /* The form now shows what was stored, including the rounding above */
+      setPayPercentage(saved.percentage)
+      setPayFixed(saved.fixedSalary)
+      notify.success(t('Pay settings saved'))
       await getAllDoctors()
       await load()
     } catch (e) {
-      toast.error(e.message)
+      notify.error(e.response?.data?.message ? t(e.response.data.message) : t('Save failed'))
     } finally {
       setSavingPay(false)
     }
   }
 
-  const estClinicRetains = useMemo(() => {
-    if (!totals) return 0
-    return Math.max(0, (totals.paidRevenue || 0) - (totals.revenueShareToDoctors || 0))
-  }, [totals])
+  const estClinicRetains = Math.max(0, (totals.paidRevenue || 0) - (totals.revenueShareToDoctors || 0))
+
+  const exportBreakdown = () => {
+    downloadCsv(
+      'financial-breakdown',
+      [
+        { label: t('Doctor'), value: rowName },
+        { label: t('Email'), value: (r) => r.email },
+        { label: t('Speciality'), value: rowSpeciality },
+        { label: t('Paid revenue'), value: (r) => Number(r.paidRevenue || 0) },
+        { label: t('Outstanding'), value: (r) => Number(r.outstandingAmount || 0) },
+        { label: t('Paid visits'), value: (r) => Number(r.paidVisitCount || 0) },
+        { label: t('All appts'), value: (r) => Number(r.totalAppointments || 0) },
+        { label: t('Revenue share %'), value: (r) => r.percentageApplied ?? '' },
+        { label: t('Fixed / month'), value: (r) => Number(r.fixedMonthlyPart || 0) },
+        {
+          label: t('Pay model'),
+          value: (r) =>
+            describeCompensationAttribution(r.paidRevenue, r.financialCompensation, { paidVisitCount: r.paidVisitCount, t }).label
+        },
+        { label: t('Doctor earns (est.)'), value: (r) => Number(r.doctorAttributed || 0) },
+        { label: t('Clinic after %'), value: (r) => (r.clinicAttributed == null ? '' : Number(r.clinicAttributed)) }
+      ],
+      displayRows
+    )
+  }
+
+  const payModes = [
+    { value: 'percentage', icon: <Percent aria-hidden='true' className='size-4 shrink-0 text-brand' />, title: t('% of paid visit revenue'), body: t('Doctor earns a share of money from visits marked paid.') },
+    { value: 'fixed', icon: <PiggyBank aria-hidden='true' className='size-4 shrink-0 text-brand' />, title: t('Fixed monthly'), body: t('Same amount each month, regardless of visit count.') },
+    { value: 'hybrid', icon: <Layers aria-hidden='true' className='size-4 shrink-0 text-brand' />, title: t('% + fixed together'), body: t('Revenue share on paid visits plus a guaranteed monthly amount.') }
+  ]
+
+  const monthlyLabel = fillT('Monthly fixed amount ({{currency}})', { currency: currency.trim() })
+
+  const rateCell = (r) => {
+    if (r.isFixedMonthly) {
+      return (
+        <div className='flex flex-col items-center gap-1'>
+          <Badge tone='info'>{t('Fixed')}</Badge>
+          <span className='text-caption font-semibold text-ink-2'>{perMonth(r.doctorAttributed)}</span>
+        </div>
+      )
+    }
+    if (r.isHybrid) {
+      const hasShare = (r.percentageApplied ?? 0) > 0
+      const hasFixed = (r.fixedMonthlyPart || 0) > 0
+      return (
+        <div className='flex flex-col items-center gap-1'>
+          <Badge tone='brand'>{t('Hybrid')}</Badge>
+          {hasShare && <span className='font-bold tabular-nums text-brand'>{`${formatNumber(r.percentageApplied)}%`}</span>}
+          {hasFixed && <span className='text-caption font-semibold text-ink-2'>{`+ ${perMonth(r.fixedMonthlyPart)}`}</span>}
+          {!hasShare && !hasFixed && <span className='text-caption text-ink-3'>{t('Not set')}</span>}
+        </div>
+      )
+    }
+    if (r.percentageApplied != null && r.percentageApplied > 0) {
+      return <span className='font-bold tabular-nums text-brand'>{`${formatNumber(r.percentageApplied)}%`}</span>
+    }
+    return <span className='text-ink-3'>—</span>
+  }
+
+  const earned = (r) => (r.isFixedMonthly ? perMonth(r.doctorAttributed) : formatMoney(r.doctorAttributed))
+  const clinicAfter = (r) => (r.clinicAttributed == null ? '—' : formatMoney(r.clinicAttributed))
+  const compensationFor = (r) =>
+    describeCompensationAttribution(r.paidRevenue, r.financialCompensation, { paidVisitCount: r.paidVisitCount, t })
+
+  const thClass = 'px-4 py-3 font-semibold'
 
   return (
-    <div className='min-h-full w-full bg-[#f4f6fb] p-3 sm:p-5 md:p-8'>
-      <div className='mx-auto max-w-7xl space-y-8'>
-        <header className='relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8'>
-          <div className='pointer-events-none absolute -end-20 -top-20 h-64 w-64 rounded-full bg-indigo-100/80 blur-3xl' />
-          <div className='pointer-events-none absolute -bottom-16 -start-16 h-48 w-48 rounded-full bg-emerald-100/70 blur-3xl' />
-          <div className='relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between'>
-            <div>
-              <div className='mb-3 inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white'>
-                <Building2 className='h-3.5 w-3.5' />
-                {t('Admin · Financial control')}
+    <AdminPage
+      title={t('Financial analytics')}
+      description={t('Financial analytics intro')}
+      icon={BarChart3}
+      actions={
+        <>
+          <ExportButton onExport={exportBreakdown} disabled={!displayRows.length} />
+          <Button
+            variant='secondary'
+            size='sm'
+            loading={loading}
+            onClick={load}
+            leadingIcon={<RefreshCw aria-hidden='true' className='size-4' />}
+          >
+            {t('Refresh')}
+          </Button>
+        </>
+      }
+    >
+      {loading && !payload ? (
+        <SkeletonGroup label={t('Loading analytics…')} className='grid grid-cols-2 gap-3 lg:grid-cols-3'>
+          {[0, 1, 2, 3, 4, 5].map((item) => (
+            <Skeleton key={item} className='h-28 rounded-card!' />
+          ))}
+        </SkeletonGroup>
+      ) : !payload ? (
+        /* Without this a failed load showed zero revenue, as if that were the real figure */
+        <div className='rounded-card border border-line bg-surface shadow-e1'>
+          <EmptyState
+            icon={<AlertCircle />}
+            title={t('Failed to load analytics')}
+            description={loadError?.message ? t(loadError.message) : t('Check your connection and try again.')}
+            action={
+              <Button variant='secondary' loading={loading} onClick={load}>
+                {t('Try again')}
+              </Button>
+            }
+          />
+        </div>
+      ) : (
+        <div className='space-y-6'>
+          {loadError && (
+            <p role='alert' className='flex items-start gap-2 rounded-card bg-warning-soft p-4 text-body-sm text-warning-ink'>
+              <AlertCircle aria-hidden='true' className='mt-0.5 size-4 shrink-0' />
+              {t('Could not refresh. These figures are from the last successful load.')}
+            </p>
+          )}
+
+          <Field label={t('Table filter')} className='w-full sm:max-w-xs'>
+            <Select value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
+              <option value=''>{t('All doctors')}</option>
+              {tableOptions.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <section aria-label={t('Financial analytics')}>
+            <div className='grid grid-cols-2 gap-3 lg:grid-cols-3'>
+              <StatCard
+                label={t('Paid revenue')}
+                value={formatMoney(totals.paidRevenue)}
+                hint={t('Paid / completed visits')}
+                icon={ArrowUpRight}
+                tone='text-success-ink rtl:-scale-x-100'
+              />
+              <StatCard
+                label={t('Outstanding')}
+                value={formatMoney(totals.outstandingAmount)}
+                hint={t('Unpaid active visits')}
+                icon={ArrowDownRight}
+                tone='text-warning-ink rtl:-scale-x-100'
+              />
+              <StatCard
+                label={t('Paid visits')}
+                value={formatNumber(totals.paidVisitCount)}
+                hint={t('Visits counted in paid revenue')}
+                icon={Users}
+                tone='text-ink-3'
+              />
+              <StatCard
+                label={t('% share to doctors')}
+                value={formatMoney(totals.revenueShareToDoctors)}
+                hint={t('Share of paid visit revenue (% doctors)')}
+                icon={Percent}
+              />
+              <StatCard
+                label={t('Fixed / month')}
+                value={formatMoney(totals.fixedMonthlySalarySum)}
+                hint={t('Sum of monthly fixed')}
+                icon={PiggyBank}
+              />
+              <StatCard
+                label={t('Total doctor pay (est.)')}
+                value={formatMoney(totals.totalDoctorCompensationEstimate)}
+                hint={
+                  <>
+                    {t('% share + fixed salaries')}
+                    <span className='mt-2 block border-t border-line pt-2'>
+                      {`${t('Clinic from paid revenue (after % only):')} ${formatMoney(estClinicRetains)}`}
+                    </span>
+                  </>
+                }
+                icon={Wallet}
+              />
+            </div>
+            <p className='mt-2 text-caption text-ink-3'>{t('Refunded visits are not counted in revenue or outstanding amounts.')}</p>
+          </section>
+
+          <section className='rounded-card rounded-se-signature border border-line bg-surface p-4 shadow-e1 sm:p-6'>
+            <div className='grid gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]'>
+              <div className='lg:border-e lg:border-line lg:pe-6'>
+                <p className='mb-2 inline-flex items-center gap-2 text-caption font-semibold text-brand'>
+                  <PiggyBank aria-hidden='true' className='size-4' />
+                  {t('Pay doctor')}
+                </p>
+                <h2 className='text-title font-semibold text-ink'>{t('How this doctor is paid')}</h2>
+                <p className='mt-2 text-body-sm text-ink-2'>{t('Pay doctor intro')}</p>
+                <ul className='mt-4 space-y-2 text-caption text-ink-3'>
+                  <li className='flex gap-2'>
+                    <Percent aria-hidden='true' className='mt-0.5 size-4 shrink-0 text-brand' />
+                    {t('Percent / hybrid share uses only paid / completed visit amounts, not unpaid bookings.')}
+                  </li>
+                  <li className='flex gap-2'>
+                    <Users aria-hidden='true' className='mt-0.5 size-4 shrink-0 text-brand' />
+                    {t('Preview always uses this doctor’s real paid visit count and revenue, even when the table is filtered.')}
+                  </li>
+                </ul>
               </div>
-              <h1 className='flex flex-wrap items-center gap-3 text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl'>
-                <span className='flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30'>
-                  <BarChart3 className='h-7 w-7' />
+
+              <div className='flex min-w-0 flex-col gap-5'>
+                <div className='grid gap-3 sm:grid-cols-3'>
+                  <StatCard label={t('Paid visits')} value={formatNumber(previewPaidVisits)} hint={t('For selected doctor')} />
+                  <StatCard label={t('Paid visit revenue')} value={formatMoney(previewRevenue)} hint={t('Basis for % mode')} />
+                  <StatCard
+                    label={t('Live estimate')}
+                    value={formatMoney(previewAttr.doctorAttributed)}
+                    hint={
+                      payMode === 'fixed'
+                        ? t('Per month')
+                        : payMode === 'hybrid'
+                          ? t('% share + fixed (combined)')
+                          : t('From current %')
+                    }
+                  />
+                </div>
+
+                <Field label={t('Doctor')}>
+                  <Select value={payDocId} onChange={(e) => setPayDocId(e.target.value)} disabled={!doctorOptions.length}>
+                    {!doctorOptions.length ? (
+                      <option value=''>{t('No doctors yet')}</option>
+                    ) : (
+                      doctorOptions.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))
+                    )}
+                  </Select>
+                </Field>
+
+                <div role='group' aria-label={t('Pay type')}>
+                  <p aria-hidden='true' className='mb-1.5 text-body-sm font-medium text-ink'>{t('Pay type')}</p>
+                  <div className='grid gap-3 sm:grid-cols-3'>
+                    {payModes.map(({ value, icon, title, body }) => (
+                      <button
+                        key={value}
+                        type='button'
+                        aria-pressed={payMode === value}
+                        onClick={() => setPayMode(value)}
+                        className={`cursor-pointer rounded-card border-2 p-4 text-start transition duration-(--duration-fast) ease-standard ${
+                          payMode === value ? 'border-primary bg-primary-soft' : 'border-line bg-surface hover:border-line-strong'
+                        }`}
+                      >
+                        <span className='flex items-center gap-2 text-body-sm font-semibold text-ink'>
+                          {icon}
+                          {title}
+                        </span>
+                        <span className='mt-1 block text-caption text-ink-2'>{body}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {payMode === 'percentage' && (
+                  <ShareControl value={payPercentage} onChange={setPayPercentage} note={t('of this doctor’s paid visit revenue (see table).')} />
+                )}
+
+                {payMode === 'fixed' && (
+                  <FixedControl value={payFixed} onChange={setPayFixed} label={monthlyLabel} note={t('Shown to the doctor as their fixed monthly pay.')} />
+                )}
+
+                {payMode === 'hybrid' && (
+                  <div className='space-y-5'>
+                    <ShareControl value={payPercentage} onChange={setPayPercentage} note={t('of paid visit revenue (this view).')} />
+                    <FixedControl value={payFixed} onChange={setPayFixed} label={monthlyLabel} note={t('Paid on top of the percentage share from visits.')} />
+                  </div>
+                )}
+
+                <div className='flex flex-col gap-4 rounded-card bg-primary-soft p-4 sm:flex-row sm:items-center sm:justify-between'>
+                  <div className='flex min-w-0 items-start gap-3'>
+                    <Calculator aria-hidden='true' className='mt-0.5 size-5 shrink-0 text-brand' />
+                    <div className='min-w-0'>
+                      <p className='text-caption font-semibold text-brand'>{t('Doctor will see')}</p>
+                      <p className='mt-1 break-words text-body-sm font-semibold text-ink'>
+                        {formatMoney(previewAttr.doctorAttributed)}
+                        {payMode === 'fixed' ? t(' / month') : ` · ${previewAttr.label}`}
+                      </p>
+                      <p className='mt-1 text-caption text-ink-2'>{previewAttr.detail}</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={saveDoctorPay}
+                    loading={savingPay}
+                    disabled={!doctorOptions.length}
+                    leadingIcon={<Save aria-hidden='true' className='size-4' />}
+                  >
+                    {savingPay ? t('Saving…') : t('Save pay settings')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className='overflow-hidden rounded-card border border-line bg-surface shadow-e1'>
+            <div className='flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-4 sm:px-5'>
+              <div className='flex min-w-0 items-center gap-3'>
+                <span aria-hidden='true' className='flex size-10 shrink-0 items-center justify-center rounded-control bg-primary-soft text-brand'>
+                  <LineChart className='size-5' />
                 </span>
-                {t('Financial analytics')}
-              </h1>
-              <p className='mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 md:text-base'>
-                {t('Financial analytics intro')}
+                <div className='min-w-0'>
+                  <h2 className='text-subtitle font-semibold text-ink'>{t('Doctor breakdown')}</h2>
+                  <p className='text-caption text-ink-3'>
+                    {fillT(displayRows.length === 1 ? '{{scope}} · {{rows}} row · {{appts}} appointments in view' : '{{scope}} · {{rows}} rows · {{appts}} appointments in view', {
+                      scope: doctorId.trim() ? t('Filtered to one doctor') : t('All doctors'),
+                      rows: formatNumber(displayRows.length),
+                      appts: formatNumber(totals.totalAppointments)
+                    })}
+                  </p>
+                </div>
+              </div>
+              <p className='flex items-center gap-2 text-caption text-ink-3'>
+                <Sparkles aria-hidden='true' className='size-4 shrink-0 text-accent-ink' />
+                {t('Full profile: Doctors → select doctor → Edit')}
               </p>
             </div>
-            <div className='flex flex-wrap items-end gap-3'>
-              <div className='min-w-[220px]'>
-                <label className='mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500'>
-                  <Filter className='h-3.5 w-3.5' />
-                  {t('Table filter')}
-                </label>
-                <select
-                  value={doctorId}
-                  onChange={(e) => setDoctorId(e.target.value)}
-                  className='w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-inner outline-none ring-slate-200 transition focus:bg-white focus:ring-2 focus:ring-indigo-500'
-                >
-                  <option value=''>{t('All doctors')}</option>
-                  {doctorOptions.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type='button'
-                onClick={() => load()}
-                disabled={loading}
-                className='inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-50'
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                {t('Refresh')}
-              </button>
-            </div>
-          </div>
-        </header>
 
-        {loading && !payload ? (
-          <div className='rounded-3xl border border-slate-200 bg-white p-16 text-center font-medium text-slate-500 shadow-sm'>
-            {t('Loading analytics…')}
-          </div>
-        ) : (
-          <>
-            <section className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6'>
-              <div className='rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-white to-emerald-50/90 p-5 shadow-sm xl:col-span-1'>
-                <p className='text-[11px] font-bold uppercase tracking-wide text-emerald-800'>{t('Paid revenue')}</p>
-                <p className='mt-2 text-2xl font-black text-emerald-950'>{formatMoney(totals?.paidRevenue)}</p>
-                <p className='mt-2 flex items-center gap-1 text-xs font-medium text-emerald-800/80'>
-                  <ArrowUpRight className='h-3.5 w-3.5 shrink-0' />
-                  {t('Paid / completed visits')}
-                </p>
-              </div>
-              <div className='rounded-2xl border border-amber-200/60 bg-gradient-to-br from-white to-amber-50/90 p-5 shadow-sm xl:col-span-1'>
-                <p className='text-[11px] font-bold uppercase tracking-wide text-amber-900'>{t('Outstanding')}</p>
-                <p className='mt-2 text-2xl font-black text-amber-950'>{formatMoney(totals?.outstandingAmount)}</p>
-                <p className='mt-2 flex items-center gap-1 text-xs font-medium text-amber-900/80'>
-                  <ArrowDownRight className='h-3.5 w-3.5 shrink-0' />
-                  {t('Unpaid active visits')}
-                </p>
-              </div>
-              <div className='rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-1'>
-                <p className='text-[11px] font-bold uppercase tracking-wide text-slate-500'>{t('Paid visits')}</p>
-                <p className='mt-2 text-2xl font-black text-slate-900'>{totals?.paidVisitCount ?? 0}</p>
-                <p className='mt-2 text-xs text-slate-500'>{t('Visits counted in paid revenue')}</p>
-              </div>
-              <div className='rounded-2xl border border-indigo-200/60 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm xl:col-span-1'>
-                <p className='text-[11px] font-bold uppercase tracking-wide text-indigo-900'>{t('% share to doctors')}</p>
-                <p className='mt-2 text-2xl font-black text-indigo-950'>{formatMoney(totals?.revenueShareToDoctors)}</p>
-                <p className='mt-2 text-xs text-indigo-800/80'>{t('Share of paid visit revenue (% doctors)')}</p>
-              </div>
-              <div className='rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50 to-white p-5 shadow-sm xl:col-span-1'>
-                <p className='text-[11px] font-bold uppercase tracking-wide text-violet-900'>{t('Fixed / month')}</p>
-                <p className='mt-2 text-2xl font-black text-violet-950'>{formatMoney(totals?.fixedMonthlySalarySum)}</p>
-                <p className='mt-2 text-xs text-violet-800/80'>{t('Sum of monthly fixed')}</p>
-              </div>
-              <div className='rounded-2xl border border-slate-900/10 bg-slate-900 p-5 text-white shadow-lg xl:col-span-1'>
-                <p className='text-[11px] font-bold uppercase tracking-wide text-white/70'>{t('Total doctor pay (est.)')}</p>
-                <p className='mt-2 text-2xl font-black'>{formatMoney(totals?.totalDoctorCompensationEstimate)}</p>
-                <p className='mt-2 text-xs text-white/65'>{t('% share + fixed salaries')}</p>
-                <p className='mt-3 border-t border-white/10 pt-3 text-[11px] text-white/60'>
-                  {t('Clinic from paid revenue (after % only):')} {formatMoney(estClinicRetains)}
-                </p>
-              </div>
-            </section>
-
-            <section className='overflow-hidden rounded-3xl border border-indigo-200/50 bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 p-[1px] shadow-xl shadow-indigo-500/15'>
-              <div className='rounded-[23px] bg-white p-5 sm:p-7'>
-                <div className='flex flex-col gap-8 lg:flex-row lg:items-stretch lg:justify-between'>
-                  <div className='max-w-md shrink-0 lg:border-e lg:border-slate-100 lg:pe-8'>
-                    <div className='mb-2 inline-flex items-center gap-2 text-indigo-700'>
-                      <PiggyBank className='h-5 w-5' />
-                      <span className='text-xs font-bold uppercase tracking-wider'>{t('Pay doctor')}</span>
-                    </div>
-                    <h2 className='text-xl font-bold text-slate-900 sm:text-2xl'>{t('How this doctor is paid')}</h2>
-                    <p className='mt-3 text-sm leading-relaxed text-slate-600'>{t('Pay doctor intro')}</p>
-                    <ul className='mt-4 space-y-2 text-xs font-medium text-slate-500'>
-                      <li className='flex gap-2'>
-                        <Percent className='mt-0.5 h-4 w-4 shrink-0 text-indigo-500' />
-                        {t('Percent / hybrid share uses only paid / completed visit amounts, not unpaid bookings.')}
-                      </li>
-                      <li className='flex gap-2'>
-                        <Users className='mt-0.5 h-4 w-4 shrink-0 text-indigo-500' />
-                        {t('Preview always uses this doctor’s real paid visit count and revenue, even when the table is filtered.')}
-                      </li>
-                    </ul>
-                  </div>
-                  <div className='flex min-w-0 flex-1 flex-col gap-5'>
-                    <div className='grid gap-4 sm:grid-cols-3'>
-                      <div className='rounded-2xl border border-slate-200 bg-slate-50/90 p-4 text-center shadow-inner'>
-                        <p className='text-[10px] font-bold uppercase tracking-wide text-slate-500'>{t('Paid visits')}</p>
-                        <p className='mt-1 text-2xl font-black text-slate-900'>{previewPaidVisits}</p>
-                        <p className='mt-1 text-[11px] text-slate-500'>{t('For selected doctor')}</p>
-                      </div>
-                      <div className='rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 text-center shadow-inner'>
-                        <p className='text-[10px] font-bold uppercase tracking-wide text-emerald-800'>{t('Paid visit revenue')}</p>
-                        <p className='mt-1 text-lg font-black text-emerald-950'>{formatMoney(previewRevenue)}</p>
-                        <p className='mt-1 text-[11px] text-emerald-800/80'>{t('Basis for % mode')}</p>
-                      </div>
-                      <div className='rounded-2xl border border-indigo-100 bg-indigo-50/80 p-4 text-center shadow-inner'>
-                        <p className='text-[10px] font-bold uppercase tracking-wide text-indigo-900'>{t('Live estimate')}</p>
-                        <p className='mt-1 text-lg font-black text-indigo-950'>{formatMoney(previewAttr.doctorAttributed)}</p>
-                        <p className='mt-1 text-[11px] text-indigo-800/80'>
-                          {payMode === 'fixed'
-                            ? t('Per month')
-                            : payMode === 'hybrid'
-                              ? t('% share + fixed (combined)')
-                              : t('From current %')}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className='rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5'>
-                      <label className='mb-2 block text-xs font-bold uppercase text-slate-500'>{t('Doctor')}</label>
-                      <select
-                        value={payDocId}
-                        onChange={(e) => setPayDocId(e.target.value)}
-                        disabled={!doctorOptions.length}
-                        className='w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-100'
-                      >
-                        {!doctorOptions.length ? (
-                          <option value=''>{t('No doctors yet')}</option>
-                        ) : (
-                          doctorOptions.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.name}
-                            </option>
-                          ))
-                        )}
-                      </select>
-
-                      <p className='mt-4 text-xs font-bold uppercase text-slate-500'>{t('Pay type')}</p>
-                      <div className='mt-2 grid gap-3 sm:grid-cols-3'>
-                        <button
-                          type='button'
-                          onClick={() => setPayMode('percentage')}
-                          className={`rounded-2xl border-2 px-4 py-4 text-start transition ${
-                            payMode === 'percentage'
-                              ? 'border-indigo-500 bg-indigo-50/90 shadow-md ring-1 ring-indigo-200'
-                              : 'border-slate-200 bg-white hover:border-slate-300'
-                          }`}
-                        >
-                          <div className='flex items-center gap-2 text-sm font-bold text-slate-900'>
-                            <Percent className='h-4 w-4 text-indigo-600' />
-                            {t('% of paid visit revenue')}
-                          </div>
-                          <p className='mt-1 text-xs leading-relaxed text-slate-600'>
-                            {t('Doctor earns a share of money from visits marked paid.')}
-                          </p>
-                        </button>
-                        <button
-                          type='button'
-                          onClick={() => setPayMode('fixed')}
-                          className={`rounded-2xl border-2 px-4 py-4 text-start transition ${
-                            payMode === 'fixed'
-                              ? 'border-violet-500 bg-violet-50/90 shadow-md ring-1 ring-violet-200'
-                              : 'border-slate-200 bg-white hover:border-slate-300'
-                          }`}
-                        >
-                          <div className='flex items-center gap-2 text-sm font-bold text-slate-900'>
-                            <PiggyBank className='h-4 w-4 text-violet-600' />
-                            {t('Fixed monthly')}
-                          </div>
-                          <p className='mt-1 text-xs leading-relaxed text-slate-600'>
-                            {t('Same amount each month, regardless of visit count.')}
-                          </p>
-                        </button>
-                        <button
-                          type='button'
-                          onClick={() => setPayMode('hybrid')}
-                          className={`rounded-2xl border-2 px-4 py-4 text-start transition sm:col-span-1 ${
-                            payMode === 'hybrid'
-                              ? 'border-fuchsia-500 bg-fuchsia-50/90 shadow-md ring-1 ring-fuchsia-200'
-                              : 'border-slate-200 bg-white hover:border-slate-300'
-                          }`}
-                        >
-                          <div className='flex items-center gap-2 text-sm font-bold text-slate-900'>
-                            <Layers className='h-4 w-4 text-fuchsia-600' />
-                            {t('% + fixed together')}
-                          </div>
-                          <p className='mt-1 text-xs leading-relaxed text-slate-600'>
-                            {t('Revenue share on paid visits plus a guaranteed monthly amount.')}
-                          </p>
-                        </button>
-                      </div>
-
-                      {payMode === 'percentage' && (
-                        <div className='mt-5'>
-                          <div className='mb-2 flex flex-wrap items-end justify-between gap-2'>
-                            <label className='text-xs font-bold uppercase text-slate-500'>{t('Revenue share (0–100%)')}</label>
-                            <span className='text-sm font-black text-indigo-700'>{Number.isFinite(payPercentage) ? payPercentage : 0}%</span>
-                          </div>
-                          <input
-                            type='range'
-                            min={0}
-                            max={100}
-                            value={Number.isFinite(payPercentage) ? payPercentage : 0}
-                            onChange={(e) => setPayPercentage(Number(e.target.value))}
-                            className='mb-3 h-2 w-full cursor-pointer accent-indigo-600'
-                          />
-                          <div className='flex flex-wrap items-center gap-3'>
-                            <input
-                              type='number'
-                              min={0}
-                              max={100}
-                              value={Number.isFinite(payPercentage) ? payPercentage : 0}
-                              onChange={(e) => {
-                                const raw = e.target.value
-                                const n = raw === '' ? 0 : Number(raw)
-                                setPayPercentage(Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0)
-                              }}
-                              className='w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-lg font-black text-indigo-900 outline-none focus:ring-2 focus:ring-indigo-500'
-                            />
-                            <span className='text-sm text-slate-600'>{t('of this doctor’s paid visit revenue (see table).')}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {payMode === 'fixed' && (
-                        <div className='mt-5'>
-                          <label className='mb-2 block text-xs font-bold uppercase text-slate-500'>
-                            {fillT('Monthly fixed amount ({{currency}})', { currency: currency.trim() })}
-                          </label>
-                          <input
-                            type='number'
-                            min={0}
-                            value={Number.isFinite(payFixed) ? payFixed : 0}
-                            onChange={(e) => {
-                              const raw = e.target.value
-                              const n = raw === '' ? 0 : Number(raw)
-                              setPayFixed(Number.isFinite(n) ? Math.max(0, n) : 0)
-                            }}
-                            className='w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-lg font-bold text-slate-900 outline-none focus:ring-2 focus:ring-violet-500'
-                          />
-                          <p className='mt-2 text-xs text-slate-500'>{t('Shown to the doctor as their fixed monthly pay.')}</p>
-                        </div>
-                      )}
-
-                      {payMode === 'hybrid' && (
-                        <div className='mt-5 space-y-5'>
+            {displayRows.length === 0 ? (
+              <p className='px-6 py-14 text-center text-body-sm text-ink-3'>{t('No rows for this filter.')}</p>
+            ) : (
+              <>
+                {/* Phones and small tablets: one card per doctor, so nothing needs sideways scrolling */}
+                <ul className='lg:hidden'>
+                  {displayRows.map((r) => {
+                    const comp = compensationFor(r)
+                    const speciality = rowSpeciality(r)
+                    return (
+                      <li key={r.docId} className='border-b border-line p-4 last:border-b-0'>
+                        <p className='break-words font-semibold text-ink'>{rowName(r)}</p>
+                        {r.email && <p dir='ltr' className='break-all text-start text-caption text-ink-3 rtl:text-end'>{r.email}</p>}
+                        {speciality && <p className='text-caption text-ink-3'>{speciality}</p>}
+                        <dl className='mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-body-sm'>
                           <div>
-                            <div className='mb-2 flex flex-wrap items-end justify-between gap-2'>
-                              <label className='text-xs font-bold uppercase text-slate-500'>{t('Revenue share (0–100%)')}</label>
-                              <span className='text-sm font-black text-indigo-700'>{Number.isFinite(payPercentage) ? payPercentage : 0}%</span>
-                            </div>
-                            <input
-                              type='range'
-                              min={0}
-                              max={100}
-                              value={Number.isFinite(payPercentage) ? payPercentage : 0}
-                              onChange={(e) => setPayPercentage(Number(e.target.value))}
-                              className='mb-3 h-2 w-full cursor-pointer accent-indigo-600'
-                            />
-                            <div className='flex flex-wrap items-center gap-3'>
-                              <input
-                                type='number'
-                                min={0}
-                                max={100}
-                                value={Number.isFinite(payPercentage) ? payPercentage : 0}
-                                onChange={(e) => {
-                                  const raw = e.target.value
-                                  const n = raw === '' ? 0 : Number(raw)
-                                  setPayPercentage(Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0)
-                                }}
-                                className='w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-lg font-black text-indigo-900 outline-none focus:ring-2 focus:ring-indigo-500'
-                              />
-                              <span className='text-sm text-slate-600'>{t('of paid visit revenue (this view).')}</span>
-                            </div>
+                            <dt className='text-caption text-ink-3'>{t('Paid revenue')}</dt>
+                            <dd className='font-semibold text-success-ink'>{formatMoney(r.paidRevenue)}</dd>
                           </div>
                           <div>
-                            <label className='mb-2 block text-xs font-bold uppercase text-slate-500'>
-                              Monthly fixed amount ({currency.trim()})
-                            </label>
-                            <input
-                              type='number'
-                              min={0}
-                              value={Number.isFinite(payFixed) ? payFixed : 0}
-                              onChange={(e) => {
-                                const raw = e.target.value
-                                const n = raw === '' ? 0 : Number(raw)
-                                setPayFixed(Number.isFinite(n) ? Math.max(0, n) : 0)
-                              }}
-                              className='w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-lg font-bold text-slate-900 outline-none focus:ring-2 focus:ring-fuchsia-500'
-                            />
-                            <p className='mt-2 text-xs text-slate-500'>{t('Paid on top of the percentage share from visits.')}</p>
+                            <dt className='text-caption text-ink-3'>{t('Outstanding')}</dt>
+                            <dd className='font-medium text-warning-ink'>{formatMoney(r.outstandingAmount)}</dd>
                           </div>
-                        </div>
-                      )}
-
-                      <div className='mt-6 flex flex-col gap-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 to-white p-4 sm:flex-row sm:items-center sm:justify-between'>
-                        <div className='flex min-w-0 items-start gap-3'>
-                          <Calculator className='mt-0.5 h-5 w-5 shrink-0 text-indigo-600' />
-                          <div className='min-w-0'>
-                            <p className='text-xs font-bold uppercase text-indigo-900'>{t('Doctor will see')}</p>
-                            <p className='mt-1 text-sm font-semibold text-indigo-950'>
-                              <strong>{formatMoney(previewAttr.doctorAttributed)}</strong>
-                              {payMode === 'fixed' ? t(' / month') : ` · ${previewAttr.label}`}
-                            </p>
-                            <p className='mt-1 text-xs leading-relaxed text-indigo-900/80'>{previewAttr.detail}</p>
+                          <div>
+                            <dt className='text-caption text-ink-3'>{t('Paid visits')}</dt>
+                            <dd className='font-medium text-ink'>{formatNumber(r.paidVisitCount)}</dd>
                           </div>
+                          <div>
+                            <dt className='text-caption text-ink-3'>{t('All appts')}</dt>
+                            <dd className='text-ink-2'>{formatNumber(r.totalAppointments)}</dd>
+                          </div>
+                          <div>
+                            <dt className='text-caption text-ink-3'>{t('Doctor earns (est.)')}</dt>
+                            <dd className='font-semibold text-brand'>{earned(r)}</dd>
+                          </div>
+                          <div>
+                            <dt className='text-caption text-ink-3'>{t('Clinic after %')}</dt>
+                            <dd className='text-ink-2'>{clinicAfter(r)}</dd>
+                          </div>
+                        </dl>
+                        <div className='mt-3'>
+                          <span className='text-caption font-semibold text-ink-2'>{comp.label}</span>
+                          <p className='mt-0.5 text-caption text-ink-3'>{comp.detail}</p>
                         </div>
-                        <button
-                          type='button'
-                          onClick={saveDoctorPay}
-                          disabled={savingPay || !doctorOptions.length}
-                          className='inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50'
-                        >
-                          <Save className='h-4 w-4' />
-                          {savingPay ? t('Saving…') : t('Save pay settings')}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
+                      </li>
+                    )
+                  })}
+                </ul>
 
-            <section className='overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm'>
-              <div className='flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-5 py-4 sm:px-6'>
-                <div className='flex items-center gap-3'>
-                  <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow ring-1 ring-slate-200'>
-                    <LineChart className='h-5 w-5 text-indigo-600' />
-                  </div>
-                  <div>
-                    <h2 className='text-lg font-bold text-slate-900'>{t('Doctor breakdown')}</h2>
-                    <p className='text-xs font-medium text-slate-500'>
-                      {fillT(displayRows.length === 1 ? '{{scope}} · {{rows}} row · {{appts}} appointments in view' : '{{scope}} · {{rows}} rows · {{appts}} appointments in view', {
-                        scope: doctorId.trim() ? t('Filtered to one doctor') : t('All doctors'),
-                        rows: displayRows.length,
-                        appts: totals?.totalAppointments ?? 0
-                      })}
-                    </p>
-                  </div>
-                </div>
-                <p className='flex items-center gap-2 text-xs font-medium text-slate-500'>
-                  <Sparkles className='h-4 w-4 text-amber-500' />
-                  {t('Full profile: Doctors → select doctor → Edit')}
-                </p>
-              </div>
-              <div className='overflow-x-auto'>
-                <table className='min-w-[980px] w-full text-sm'>
-                  <thead>
-                    <tr className='border-b border-slate-200 bg-slate-50 text-start text-xs font-bold uppercase tracking-wide text-slate-500'>
-                      <th className='px-5 py-3 sm:px-6'>{t('Doctor')}</th>
-                      <th className='px-4 py-3'>{t('Speciality')}</th>
-                      <th className='px-4 py-3 text-end'>{t('Paid revenue')}</th>
-                      <th className='px-4 py-3 text-end'>{t('Outstanding')}</th>
-                      <th className='px-4 py-3 text-center'>{t('Paid visits')}</th>
-                      <th className='px-4 py-3 text-center'>{t('All appts')}</th>
-                      <th className='px-4 py-3 text-center'>{t('Rate')}</th>
-                      <th className='px-4 py-3'>{t('Pay model')}</th>
-                      <th className='px-4 py-3 text-end'>{t('Doctor earns (est.)')}</th>
-                      <th className='px-5 py-3 text-end sm:px-6'>{t('Clinic after %')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={10} className='px-6 py-14 text-center text-slate-500'>
-                          {t('No rows for this filter.')}
-                        </td>
+                <div className='hidden overflow-x-auto lg:block'>
+                  <table className='w-full min-w-[980px] text-body-sm'>
+                    <thead>
+                      <tr className='border-b border-line bg-surface-sunken text-caption text-ink-3'>
+                        <th className={`${thClass} text-start`}>{t('Doctor')}</th>
+                        <th className={`${thClass} text-start`}>{t('Speciality')}</th>
+                        <th className={`${thClass} text-end`}>{t('Paid revenue')}</th>
+                        <th className={`${thClass} text-end`}>{t('Outstanding')}</th>
+                        <th className={`${thClass} text-center`}>{t('Paid visits')}</th>
+                        <th className={`${thClass} text-center`}>{t('All appts')}</th>
+                        <th className={`${thClass} text-center`}>{t('Rate')}</th>
+                        <th className={`${thClass} text-start`}>{t('Pay model')}</th>
+                        <th className={`${thClass} text-end`}>{t('Doctor earns (est.)')}</th>
+                        <th className={`${thClass} text-end`}>{t('Clinic after %')}</th>
                       </tr>
-                    ) : (
-                      displayRows.map((r, idx) => {
-                        const rowComp = describeCompensationAttribution(r.paidRevenue, r.financialCompensation, {
-                          paidVisitCount: r.paidVisitCount,
-                          t
-                        })
+                    </thead>
+                    <tbody>
+                      {displayRows.map((r) => {
+                        const comp = compensationFor(r)
                         return (
-                        <tr
-                          key={r.docId}
-                          className={`border-b border-slate-100 transition hover:bg-indigo-50/40 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}
-                        >
-                          <td className='px-5 py-3 sm:px-6'>
-                            <div className='font-bold text-slate-900'>{r.doctorName}</div>
-                            <div className='text-xs text-slate-500'>{r.email || '—'}</div>
-                          </td>
-                          <td className='px-4 py-3 text-slate-600'>{r.speciality ? t(r.speciality) : '—'}</td>
-                          <td className='px-4 py-3 text-end font-bold text-emerald-800'>{formatMoney(r.paidRevenue)}</td>
-                          <td className='px-4 py-3 text-end font-medium text-amber-800'>{formatMoney(r.outstandingAmount)}</td>
-                          <td className='px-4 py-3 text-center font-semibold text-slate-800'>{r.paidVisitCount ?? 0}</td>
-                          <td className='px-4 py-3 text-center text-slate-600'>{r.totalAppointments}</td>
-                          <td className='px-4 py-3 text-center align-middle'>
-                            {r.isFixedMonthly ? (
-                              <div>
-                                <span className='inline-flex rounded-lg bg-violet-100 px-2 py-0.5 text-xs font-black text-violet-900'>
-                                  {t('Fixed')}
-                                </span>
-                                <p className='mt-1 text-[11px] font-semibold text-violet-800'>{formatMoney(r.doctorAttributed)}/mo</p>
-                              </div>
-                            ) : r.isHybrid ? (
-                              <div className='flex flex-col items-center gap-1'>
-                                <span className='inline-flex rounded-lg bg-fuchsia-100 px-2 py-0.5 text-[10px] font-black uppercase text-fuchsia-900'>
-                                  {t('Hybrid')}
-                                </span>
-                                {(r.percentageApplied ?? 0) > 0 ? (
-                                  <span className='text-lg font-black tabular-nums text-indigo-800'>{r.percentageApplied}%</span>
-                                ) : null}
-                                {(r.fixedMonthlyPart || 0) > 0 ? (
-                                  <span className='text-[11px] font-bold text-fuchsia-900'>+ {formatMoney(r.fixedMonthlyPart)}/mo</span>
-                                ) : null}
-                                {(r.percentageApplied ?? 0) <= 0 && (r.fixedMonthlyPart || 0) <= 0 ? (
-                                  <span className='text-xs text-slate-400'>{t('Not set')}</span>
-                                ) : null}
-                              </div>
-                            ) : r.percentageApplied != null && r.percentageApplied > 0 ? (
-                              <span className='text-lg font-black tabular-nums text-indigo-800'>{r.percentageApplied}%</span>
-                            ) : (
-                              <span className='text-slate-400'>—</span>
-                            )}
-                          </td>
-                          <td className='max-w-[220px] px-4 py-3'>
-                            <span className='inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-800'>
-                              {rowComp.label}
-                            </span>
-                            <p className='mt-1 text-[11px] leading-snug text-slate-500'>{rowComp.detail}</p>
-                          </td>
-                          <td className='px-4 py-3 text-end text-base font-black text-indigo-900'>
-                            {r.isFixedMonthly ? `${formatMoney(r.doctorAttributed)}/mo` : formatMoney(r.doctorAttributed)}
-                          </td>
-                          <td className='px-5 py-3 text-end text-slate-600 sm:px-6'>
-                            {r.clinicAttributed == null ? '—' : formatMoney(r.clinicAttributed)}
-                          </td>
-                        </tr>
+                          <tr key={r.docId} className='border-b border-line transition last:border-b-0 hover:bg-primary-soft'>
+                            <td className='px-4 py-3'>
+                              <div className='font-semibold text-ink'>{rowName(r)}</div>
+                              <div dir='ltr' className='text-start text-caption text-ink-3 rtl:text-end'>{r.email || '—'}</div>
+                            </td>
+                            <td className='px-4 py-3 text-ink-2'>{rowSpeciality(r) || '—'}</td>
+                            <td className='px-4 py-3 text-end font-semibold text-success-ink'>{formatMoney(r.paidRevenue)}</td>
+                            <td className='px-4 py-3 text-end font-medium text-warning-ink'>{formatMoney(r.outstandingAmount)}</td>
+                            <td className='px-4 py-3 text-center font-medium text-ink'>{formatNumber(r.paidVisitCount)}</td>
+                            <td className='px-4 py-3 text-center text-ink-2'>{formatNumber(r.totalAppointments)}</td>
+                            <td className='px-4 py-3 text-center align-middle'>{rateCell(r)}</td>
+                            <td className='max-w-[220px] px-4 py-3'>
+                              <Badge className='whitespace-normal!'>{comp.label}</Badge>
+                              <p className='mt-1 text-caption text-ink-3'>{comp.detail}</p>
+                            </td>
+                            <td className='px-4 py-3 text-end font-bold text-brand'>{earned(r)}</td>
+                            <td className='px-4 py-3 text-end text-ink-2'>{clinicAfter(r)}</td>
+                          </tr>
                         )
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </>
-        )}
-      </div>
-    </div>
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      )}
+    </AdminPage>
   )
 }
 

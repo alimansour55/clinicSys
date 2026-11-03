@@ -6,7 +6,8 @@ import { DoctorContext } from '../context/DoctorContext'
 import { ReceptionistContext } from '../context/ReceptionistContext'
 import { LanguageToggle, useLanguage } from '../i18n'
 import { ThemeToggle } from './ui/ThemeToggle'
-import { ChevronDown, LogOut, ShieldCheck, UserRound } from 'lucide-react'
+import { ChevronDown, LogOut, Search, ShieldCheck, UserRound } from 'lucide-react'
+import { openCommandPalette } from './admin/CommandPalette'
 import NotificationBell from './NotificationBell'
 import { staffHeaderLogoClassName } from '../utils/brandingLogo'
 import { DEFAULT_APP_DISPLAY_NAME } from '../utils/appDisplayName'
@@ -82,24 +83,37 @@ const Navbar = () => {
   }
 
   return (
-    <div className='fixed top-0 start-0 end-0 z-50 flex h-[4.5rem] justify-between items-center border-b bg-white px-4 py-2 shadow-sm md:px-6'>
+    <div className='fixed top-0 start-0 end-0 z-50 flex h-[4.5rem] justify-between items-center gap-2 border-b border-line bg-surface px-3 py-2 shadow-e1 md:px-6'>
       <div className='flex items-center gap-2 md:gap-3 min-w-0 overflow-hidden'>
         <button
           type='button'
           onClick={goHomeFromLogo}
-          className='flex shrink-0 cursor-pointer items-center justify-start border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded'
+          className='flex min-w-0 cursor-pointer items-center justify-start rounded border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
           aria-label={logoAltText}
         >
           <img
-            className={logoImgClassName}
+            className={`${logoImgClassName} min-w-0 !shrink`}
             src={headerLogoSrc}
             alt={logoAltText}
           />
         </button>
-        <p className='border px-2 sm:px-2.5 py-0.5 rounded-full border-gray-500 text-gray-600 text-[10px] sm:text-xs md:text-sm font-medium whitespace-nowrap shrink-0'>
+        <p className='hidden shrink-0 whitespace-nowrap rounded-full border border-line-strong px-2.5 py-0.5 text-caption font-medium text-ink-2 sm:block'>
           {aToken ? t('Admin') : dToken ? t('Doctor') : t('Receptionist')}
         </p>
       </div>
+
+      {aToken && (
+        <button
+          type='button'
+          onClick={openCommandPalette}
+          aria-keyshortcuts='Control+K Meta+K'
+          className='hidden min-h-10 w-full max-w-sm cursor-pointer items-center gap-2 rounded-control border border-line bg-surface-sunken px-3 text-start text-body-sm text-ink-3 transition duration-(--duration-fast) ease-standard hover:border-primary md:flex'
+        >
+          <Search aria-hidden='true' className='size-4 shrink-0' />
+          <span className='min-w-0 flex-1 truncate'>{t('Search everything')}</span>
+          <kbd dir='ltr' className='rounded border border-line bg-surface px-1.5 py-0.5 font-sans text-caption'>Ctrl K</kbd>
+        </button>
+      )}
 
       <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
         <LanguageToggle compact />
@@ -164,12 +178,12 @@ const Navbar = () => {
             <button
               type='button'
               onClick={() => setDoctorMenuOpen((o) => !o)}
-              className='flex items-center gap-1.5 rounded-full border border-slate-200 bg-white py-1 ps-1 pe-2 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/25'
+              className='flex items-center gap-1.5 rounded-full border border-gray-200 bg-white py-1 ps-1 pe-2 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/30'
               aria-expanded={doctorMenuOpen}
               aria-haspopup='menu'
               aria-label={t('My Profile')}
             >
-              <span className='relative flex h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 ring-2 ring-white'>
+              <span className='relative flex h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary/90 to-primary ring-2 ring-white'>
                 {doctorNavSummary?.image ? (
                   <img src={doctorNavSummary.image} alt='' className='h-full w-full object-cover' />
                 ) : (
@@ -194,7 +208,7 @@ const Navbar = () => {
                   onClick={() => setDoctorMenuOpen(false)}
                   className='flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm font-medium text-slate-700 transition hover:bg-slate-50'
                 >
-                  <UserRound className='h-4 w-4 shrink-0 text-indigo-600' />
+                  <UserRound className='h-4 w-4 shrink-0 text-primary' />
                   {t('My Profile')}
                 </Link>
                 <button
@@ -216,16 +230,16 @@ const Navbar = () => {
             <button
               type='button'
               onClick={() => setAdminMenuOpen((o) => !o)}
-              className='flex items-center gap-1.5 rounded-full border border-blue-200 bg-white py-1 ps-1 pe-2 shadow-sm transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary/30'
+              className='flex items-center gap-1.5 rounded-full border border-line bg-surface py-1 ps-1 pe-2 shadow-e1 transition hover:bg-surface-sunken'
               aria-expanded={adminMenuOpen}
               aria-haspopup='menu'
               aria-label={t('My account')}
             >
-              <span className='relative flex h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 ring-2 ring-white'>
+              <span className='relative flex h-9 w-9 shrink-0 overflow-hidden rounded-full bg-primary ring-2 ring-surface'>
                 {adminNavSummary?.image ? (
                   <img src={adminNavSummary.image} alt='' className='h-full w-full object-cover' />
                 ) : (
-                  <span className='flex h-full w-full items-center justify-center text-sm font-bold text-white'>{adminInitial}</span>
+                  <span className='flex h-full w-full items-center justify-center text-sm font-bold text-on-primary'>{adminInitial}</span>
                 )}
               </span>
               <ChevronDown className={`hidden h-4 w-4 text-gray-600 transition sm:block ${adminMenuOpen ? 'rotate-180' : ''}`} />

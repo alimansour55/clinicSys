@@ -31,8 +31,7 @@ describe('MFA secrets stay private', () => {
     const res = await api().get('/api/user/site-settings')
     expect(res.body.success).toBe(true)
     expect(JSON.stringify(res.body)).not.toContain('ADMINSECRET')
-    expect(res.body.settings.security.adminMfa).toBeUndefined()
-    expect(res.body.settings.security).toHaveProperty('passwordMinLength')
+    expect(res.body.settings.security).toBeUndefined()
   })
 
   it('still verifies doctor MFA at login', async () => {

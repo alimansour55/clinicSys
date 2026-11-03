@@ -1,5 +1,11 @@
 import { v2 as cloudinary } from 'cloudinary'
-import siteSettingModel from '../models/siteSettingModel.js'
+import siteSettingModel, {
+  footerBilingualFields,
+  homeBannerBilingualFields,
+  homeHeroBilingualFields,
+  homeServiceCardsBilingualFields
+} from '../models/siteSettingModel.js'
+import { primaryOf, resolveBilingualFields, resolveBilingualValue } from '../services/bilingualContentService.js'
 import { logAudit } from '../services/auditService.js'
 import { normalizeSecuritySettings, purgeExpiredAuditLogs } from '../services/securityPolicyService.js'
 import { getResolvedInsuranceProviders } from '../services/insuranceProvidersService.js'
@@ -77,18 +83,52 @@ const sanitizeLegacyPrescriptoInPayload = (payload) => {
   }
 }
 
+const plainSettings = (settings) => (settings.toObject ? settings.toObject({ flattenMaps: true }) : { ...settings })
+
+/** The MFA secret is only ever read on the server. An admin's own screens do not need it either. */
+const forAdmin = (settings) => {
+  const payload = plainSettings(settings)
+  if (payload.security?.adminMfa) delete payload.security.adminMfa.secret
+  return payload
+}
+
+/** One entry per active provider, in order: `{ name, en, ar, status }`. Built-in defaults have no stored text. */
+const providerLabels = (names, stored = []) => {
+  const list = Array.isArray(stored) ? stored : []
+  return names.map((name) => {
+    const match = list.find((item) => item?.en === name || item?.ar === name)
+    return { name, en: match?.en || name, ar: match?.ar || '', source: match?.source || 'en', manual: match?.manual === true, status: match?.status === 'pending' ? 'pending' : 'complete' }
+  })
+}
+
+const buildSettingsPayload = async (payload) => {
+  sanitizeLegacyPrescriptoInPayload(payload)
+  payload.homeVisitPricing = normalizeHomeVisitPricing(payload.homeVisitPricing)
+  payload.globalVisitFees = normalizeGlobalVisitFees(payload.globalVisitFees)
+  payload.insuranceProviders = await getResolvedInsuranceProviders()
+  payload.insuranceProvidersI18n = providerLabels(payload.insuranceProviders, payload.insuranceProvidersI18n)
+  payload.languagePolicies = normalizeLanguagePolicies(payload.languagePolicies, payload.languageAvailability)
+  return payload
+}
+
+/** Anyone can read this route, so it must not carry security policy or the admin's own details. */
 const getPublicSiteSettings = async (req, res) => {
   try {
     const settings = await getSettingsDocument()
-    const payload = settings.toObject ? settings.toObject() : { ...settings }
-    sanitizeLegacyPrescriptoInPayload(payload)
-    payload.homeVisitPricing = normalizeHomeVisitPricing(payload.homeVisitPricing)
-    payload.globalVisitFees = normalizeGlobalVisitFees(payload.globalVisitFees)
-    payload.insuranceProviders = await getResolvedInsuranceProviders()
-    payload.languagePolicies = normalizeLanguagePolicies(payload.languagePolicies, payload.languageAvailability)
-    const { adminMfa, ...publicSecurity } = payload.security || {}
-    payload.security = publicSecurity
+    const payload = await buildSettingsPayload(plainSettings(settings))
+    delete payload.security
+    delete payload.adminProfile
     res.json({ success: true, settings: payload })
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: error.message })
+  }
+}
+
+const getAdminSiteSettings = async (req, res) => {
+  try {
+    const settings = await getSettingsDocument()
+    res.json({ success: true, settings: await buildSettingsPayload(forAdmin(settings)) })
   } catch (error) {
     console.log(error)
     res.json({ success: false, message: error.message })
@@ -98,15 +138,16 @@ const getPublicSiteSettings = async (req, res) => {
 const listInsuranceProviders = async (req, res) => {
   try {
     const providers = await getResolvedInsuranceProviders()
-    res.json({ success: true, providers })
+    const settings = await siteSettingModel.findOne({ key: SETTING_KEY }).select('insuranceProvidersI18n').lean()
+    res.json({ success: true, providers, providersI18n: providerLabels(providers, settings?.insuranceProvidersI18n) })
   } catch (error) {
     console.log(error)
     res.json({ success: false, message: error.message })
   }
 }
 
-const normalizeInsuranceProvidersBody = (body) => {
-  let list = body?.providers
+const parseJsonList = (value) => {
+  let list = value
   if (typeof list === 'string') {
     try {
       list = JSON.parse(list)
@@ -114,20 +155,40 @@ const normalizeInsuranceProvidersBody = (body) => {
       list = []
     }
   }
-  if (!Array.isArray(list)) list = []
-  return [...new Set(list.map((p) => String(p || '').trim()).filter(Boolean))]
+  return Array.isArray(list) ? list : []
+}
+
+const providerText = (row) => (typeof row === 'string' ? row.trim() : String(row?.en || row?.ar || '').trim())
+
+/** `providersI18n` from the form, or the older `providers` list of plain names. */
+const readInsuranceProviderInputs = (body = {}) => {
+  const seen = new Set()
+  return parseJsonList(body.providersI18n ?? body.providers).filter((row) => {
+    const text = providerText(row)
+    if (!text || seen.has(text)) return false
+    seen.add(text)
+    return true
+  })
 }
 
 const updateInsuranceProviders = async (req, res) => {
   try {
-    const next = normalizeInsuranceProvidersBody(req.body || {})
-    if (next.length < 1) {
+    const inputs = readInsuranceProviderInputs(req.body || {})
+    if (inputs.length < 1) {
       return res.json({ success: false, message: 'At least one insurance provider is required' })
     }
 
+    const current = await getSettingsDocument()
+    const stored = plainSettings(current).insuranceProvidersI18n || []
+    const previousFor = (input) => stored.find((item) => item?.en === providerText(input) || item?.ar === providerText(input))
+    const values = await Promise.all(
+      inputs.map((input) => resolveBilingualValue({ previous: previousFor(input), input, kind: 'label' }))
+    )
+    const next = values.map(primaryOf)
+
     const settings = await siteSettingModel.findOneAndUpdate(
       { key: SETTING_KEY },
-      { $set: { insuranceProviders: next } },
+      { $set: { insuranceProviders: next, insuranceProvidersI18n: values } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     )
 
@@ -140,9 +201,7 @@ const updateInsuranceProviders = async (req, res) => {
       req
     })
 
-    const payload = settings.toObject ? settings.toObject() : { ...settings }
-    payload.insuranceProviders = await getResolvedInsuranceProviders()
-    res.json({ success: true, message: 'Insurance providers updated', settings: payload })
+    res.json({ success: true, message: 'Insurance providers updated', settings: await buildSettingsPayload(forAdmin(settings)) })
   } catch (error) {
     console.log(error)
     await logAudit({
@@ -156,6 +215,21 @@ const updateInsuranceProviders = async (req, res) => {
   }
 }
 
+/**
+ * Both languages for one section's text. A box left empty keeps what was saved, as before.
+ * `plain` holds the old plain fields, `stored` what goes under `<section>.i18n`.
+ */
+const resolveSectionText = async (section, fields, body) => {
+  const current = section?.toObject?.() || section || {}
+  const previous = current.i18n || {}
+  const resolved = await resolveBilingualFields({ previous, fields, body, keepBlank: true })
+  const stored = { ...previous, ...resolved }
+  const plain = Object.fromEntries(
+    Object.keys(fields).map((field) => [field, resolved[field] ? primaryOf(resolved[field]) : current[field]])
+  )
+  return { plain, stored }
+}
+
 const updateHomeHeroSettings = async (req, res) => {
   try {
     const currentSettings = await getSettingsDocument()
@@ -165,15 +239,15 @@ const updateHomeHeroSettings = async (req, res) => {
       return acc
     }, {})
 
+    const text = await resolveSectionText(currentHero, homeHeroBilingualFields, req.body)
+
     const nextHero = {
-      title: req.body.title?.trim() || currentHero.title,
-      subtitle: req.body.subtitle?.trim() || currentHero.subtitle,
+      ...text.plain,
+      i18n: text.stored,
       backgroundColor: req.body.backgroundColor?.trim() || currentHero.backgroundColor,
       showGroupImage: booleanFromBody(req.body.showGroupImage, currentHero.showGroupImage),
       showBookButton: booleanFromBody(req.body.showBookButton, currentHero.showBookButton),
-      bookButtonText: req.body.bookButtonText?.trim() || currentHero.bookButtonText,
       showAppointmentsButton: booleanFromBody(req.body.showAppointmentsButton, currentHero.showAppointmentsButton),
-      appointmentsButtonText: req.body.appointmentsButtonText?.trim() || currentHero.appointmentsButtonText,
       heroImage: currentHero.heroImage,
       groupImage: currentHero.groupImage
     }
@@ -205,7 +279,7 @@ const updateHomeHeroSettings = async (req, res) => {
       req
     })
 
-    res.json({ success: true, message: 'Home hero settings updated', settings })
+    res.json({ success: true, message: 'Home hero settings updated', settings: forAdmin(settings) })
   } catch (error) {
     console.log(error)
     await logAudit({
@@ -226,14 +300,16 @@ const updateHomeBannerSettings = async (req, res) => {
     const bannerImageFile = req.files?.bannerImage?.[0]
     const fallbackTitle = [currentBanner.titleLineOne, currentBanner.titleLineTwo].filter(Boolean).join('\n')
 
+    const text = await resolveSectionText(currentBanner, homeBannerBilingualFields, req.body)
+
     const nextBanner = {
-      title: req.body.title?.trim() || currentBanner.title || fallbackTitle,
+      ...text.plain,
+      title: text.plain.title || fallbackTitle,
+      i18n: text.stored,
       backgroundColor: req.body.backgroundColor?.trim() || currentBanner.backgroundColor,
       showImage: booleanFromBody(req.body.showImage, currentBanner.showImage),
       showAppointmentsButton: booleanFromBody(req.body.showAppointmentsButton, currentBanner.showAppointmentsButton),
-      appointmentsButtonText: req.body.appointmentsButtonText?.trim() || currentBanner.appointmentsButtonText,
       showProfileButton: booleanFromBody(req.body.showProfileButton, currentBanner.showProfileButton),
-      profileButtonText: req.body.profileButtonText?.trim() || currentBanner.profileButtonText,
       bannerImage: currentBanner.bannerImage
     }
 
@@ -259,7 +335,7 @@ const updateHomeBannerSettings = async (req, res) => {
       req
     })
 
-    res.json({ success: true, message: 'Home banner settings updated', settings })
+    res.json({ success: true, message: 'Home banner settings updated', settings: forAdmin(settings) })
   } catch (error) {
     console.log(error)
     await logAudit({
@@ -282,15 +358,13 @@ const updateHomeServiceCardsSettings = async (req, res) => {
       return acc
     }, {})
 
+    const text = await resolveSectionText(currentCards, homeServiceCardsBilingualFields, req.body)
+
     const nextCards = {
-      teleconsultationTitle: req.body.teleconsultationTitle?.trim() || currentCards.teleconsultationTitle,
-      teleconsultationDescription: req.body.teleconsultationDescription?.trim() || currentCards.teleconsultationDescription,
-      teleconsultationButtonText: req.body.teleconsultationButtonText?.trim() || currentCards.teleconsultationButtonText,
+      ...text.plain,
+      i18n: text.stored,
       showTeleconsultation: booleanFromBody(req.body.showTeleconsultation, currentCards.showTeleconsultation),
       teleconsultationImage: currentCards.teleconsultationImage,
-      homeVisitTitle: req.body.homeVisitTitle?.trim() || currentCards.homeVisitTitle,
-      homeVisitDescription: req.body.homeVisitDescription?.trim() || currentCards.homeVisitDescription,
-      homeVisitButtonText: req.body.homeVisitButtonText?.trim() || currentCards.homeVisitButtonText,
       showHomeVisit: booleanFromBody(req.body.showHomeVisit, currentCards.showHomeVisit),
       homeVisitImage: currentCards.homeVisitImage
     }
@@ -320,7 +394,7 @@ const updateHomeServiceCardsSettings = async (req, res) => {
       req
     })
 
-    res.json({ success: true, message: 'Home service cards updated', settings })
+    res.json({ success: true, message: 'Home service cards updated', settings: forAdmin(settings) })
   } catch (error) {
     console.log(error)
     await logAudit({
@@ -339,23 +413,8 @@ const updateFooterSettings = async (req, res) => {
     const currentSettings = await getSettingsDocument()
     const currentFooter = { ...DEFAULT_FOOTER, ...(currentSettings.footer?.toObject?.() || currentSettings.footer || {}) }
 
-    const textFields = [
-      'description',
-      'companyTitle',
-      'contactTitle',
-      'homeLabel',
-      'aboutLabel',
-      'doctorsLabel',
-      'contactLabel',
-      'appointmentsLabel',
-      'profileLabel',
-      'privacyLabel',
-      'phoneLabel',
-      'phoneNumber',
-      'emailLabel',
-      'email',
-      'copyrightText'
-    ]
+    /* A phone number and an email address read the same in both languages */
+    const untranslatedFields = ['phoneNumber', 'email']
 
     const booleanFields = [
       'showHomeLink',
@@ -366,9 +425,11 @@ const updateFooterSettings = async (req, res) => {
       'showPrivacyLink'
     ]
 
-    const nextFooter = {}
-    textFields.forEach((field) => {
-      nextFooter[field] = req.body[field]?.trim() || currentFooter[field]
+    const text = await resolveSectionText(currentFooter, footerBilingualFields, req.body)
+    const nextFooter = { ...text.plain, i18n: text.stored }
+    untranslatedFields.forEach((field) => {
+      const value = req.body[field]
+      nextFooter[field] = (typeof value === 'string' && value.trim()) || currentFooter[field]
     })
     booleanFields.forEach((field) => {
       nextFooter[field] = booleanFromBody(req.body[field], currentFooter[field])
@@ -391,7 +452,7 @@ const updateFooterSettings = async (req, res) => {
       req
     })
 
-    res.json({ success: true, message: 'Footer settings updated', settings })
+    res.json({ success: true, message: 'Footer settings updated', settings: forAdmin(settings) })
   } catch (error) {
     console.log(error)
     await logAudit({
@@ -441,8 +502,7 @@ const updateBrandingLogo = async (req, res) => {
       req
     })
 
-    const settingsPlain = settings.toObject ? settings.toObject({ flattenMaps: true }) : { ...settings }
-    res.json({ success: true, message: 'Site logo updated', settings: settingsPlain })
+    res.json({ success: true, message: 'Site logo updated', settings: forAdmin(settings) })
   } catch (error) {
     console.log(error)
     await logAudit({
@@ -495,7 +555,7 @@ const updateGlobalVisitFeesSettings = async (req, res) => {
       req
     })
 
-    const payload = settings.toObject ? settings.toObject() : { ...settings }
+    const payload = forAdmin(settings)
     payload.globalVisitFees = normalizeGlobalVisitFees(payload.globalVisitFees)
     payload.homeVisitPricing = normalizeHomeVisitPricing(payload.homeVisitPricing)
 
@@ -541,7 +601,7 @@ const updateHomeVisitPricingSettings = async (req, res) => {
       req
     })
 
-    const payload = settings.toObject ? settings.toObject() : { ...settings }
+    const payload = forAdmin(settings)
     payload.homeVisitPricing = normalizeHomeVisitPricing(payload.homeVisitPricing)
 
     res.json({ success: true, message: 'Home visit pricing updated', settings: payload })
@@ -579,7 +639,7 @@ const updateLanguagePoliciesSettings = async (req, res) => {
       req
     })
 
-    const payload = settings.toObject ? settings.toObject() : { ...settings }
+    const payload = forAdmin(settings)
     payload.languagePolicies = normalizeLanguagePolicies(payload.languagePolicies, payload.languageAvailability)
     res.json({ success: true, message: 'Language settings updated', settings: payload })
   } catch (error) {
@@ -599,7 +659,9 @@ const updateSecuritySettings = async (req, res) => {
   try {
     const currentSettings = await getSettingsDocument()
     const currentSecurity = currentSettings.security?.toObject?.() || currentSettings.security || {}
-    const nextSecurity = normalizeSecuritySettings({ ...currentSecurity, ...(req.body || {}) })
+    /* The admin's MFA has its own routes. A settings form must never be able to replace the secret. */
+    const { adminMfa: _ignoredAdminMfa, ...incoming } = req.body || {}
+    const nextSecurity = normalizeSecuritySettings({ ...currentSecurity, ...incoming })
 
     const settings = await siteSettingModel.findOneAndUpdate(
       { key: SETTING_KEY },
@@ -623,7 +685,7 @@ const updateSecuritySettings = async (req, res) => {
       req
     })
 
-    res.json({ success: true, message: 'Security settings updated', settings, purgeResult })
+    res.json({ success: true, message: 'Security settings updated', settings: forAdmin(settings), purgeResult })
   } catch (error) {
     console.log(error)
     await logAudit({
@@ -639,6 +701,7 @@ const updateSecuritySettings = async (req, res) => {
 
 export {
   getPublicSiteSettings,
+  getAdminSiteSettings,
   listInsuranceProviders,
   updateInsuranceProviders,
   updateHomeHeroSettings,

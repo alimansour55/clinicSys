@@ -13,7 +13,7 @@ const Sidebar = () => {
   const { aToken } = useContext(AdminContext)
   const { dToken } = useContext(DoctorContext)
   const { rToken } = useContext(ReceptionistContext)
-  const { isRtl, t } = useLanguage()
+  const { t } = useLanguage()
   const location = useLocation()
   const [openAdminSections, setOpenAdminSections] = useState({})
 
@@ -37,32 +37,26 @@ const Sidebar = () => {
   }
 
   const adminNavInactiveClass =
-    'flex w-full items-center gap-3 rounded-lg py-2.5 px-3 text-start transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-950'
+    'flex w-full items-center gap-3 rounded-control py-2.5 px-3 text-start transition-colors text-ink-2 hover:bg-surface-sunken hover:text-ink'
   const adminNavActiveClass =
-    'flex w-full items-center gap-3 rounded-lg bg-primary py-2.5 px-3 text-start text-white shadow-sm transition-colors'
+    'flex w-full items-center gap-3 rounded-control bg-primary py-2.5 px-3 text-start text-on-primary shadow-e1 transition-colors'
 
   const staffRowInactiveClass =
     'flex w-full cursor-pointer items-center justify-center gap-2 py-3 text-start text-[#515151] transition-colors hover:bg-gray-50 md:justify-start md:gap-3 md:py-3.5 md:px-6'
-  const staffRowActiveClass = `${staffRowInactiveClass} bg-[#F2F3FF] border-e-4 border-primary`
+  const staffRowActiveClass = `${staffRowInactiveClass} bg-primary-soft border-e-4 border-primary`
 
   const sidebarPosition = 'start-0 border-e'
-  const adminWidthClass = 'w-64'
   const staffWidthClass = 'w-14 sm:w-16 md:w-64'
 
   const renderAdminLinkIcon = (link) => {
     const LinkIcon = link.icon
-    if (link.path === '/admin-dashboard') {
-      return <img className='h-5 w-5 shrink-0' src={assets.home_icon} alt='' />
-    }
-    return <LinkIcon className={ADMIN_ICON_CLASS} />
+    return <LinkIcon aria-hidden='true' className={ADMIN_ICON_CLASS} />
   }
 
   return (
     <>
       <div
-        className={`fixed ${sidebarPosition} top-[4.5rem] bottom-0 z-40 overflow-hidden border-gray-200 bg-white ${
-          aToken ? `${adminWidthClass} block` : `hidden md:block ${staffWidthClass}`
-        }`}
+        className={`fixed ${sidebarPosition} top-[4.5rem] bottom-0 z-40 hidden overflow-hidden border-line bg-surface md:block ${staffWidthClass}`}
       >
         {aToken && (
           <div className='flex h-full flex-col'>
@@ -78,10 +72,11 @@ const Sidebar = () => {
                       <button
                         type='button'
                         onClick={() => toggleSection(section.title)}
-                        className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-start transition ${
+                        aria-expanded={openSection}
+                        className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-control px-3 py-2.5 text-start transition ${
                           activeSection
-                            ? 'bg-[#F2F3FF] text-primary'
-                            : 'text-gray-700 hover:bg-gray-50 hover:text-gray-950'
+                            ? 'bg-primary-soft text-brand'
+                            : 'text-ink-2 hover:bg-surface-sunken hover:text-ink'
                         }`}
                       >
                         <span className='flex min-w-0 items-center gap-2'>
@@ -91,7 +86,7 @@ const Sidebar = () => {
                         <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${openSection ? 'rotate-180' : ''}`} />
                       </button>
                       {openSection && (
-                        <ul className='ms-5 space-y-1 border-s border-gray-100 ps-2'>
+                        <ul className='ms-5 space-y-1 border-s border-line ps-2'>
                           {section.links.map((link) => (
                             <li key={link.path}>
                               <StaffNavButton

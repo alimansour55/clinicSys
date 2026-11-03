@@ -1,7 +1,38 @@
 import mongoose, { Mongoose } from 'mongoose';
+import { bilingualFieldSchema } from './bilingualFieldSchema.js'
+
+const addressText = (doc) => {
+    const { line1, line2 } = doc.address || {}
+    return [line1, line2].map((line) => String(line || '').trim()).filter(Boolean).join(', ')
+}
+
+/**
+ * Doctors match clinics by the plain speciality, so keep it in English. The plain address is an
+ * object rather than text, so it only takes `addressI18n` and backfills from its lines.
+ */
+export const doctorBilingualFields = {
+    name: { kind: 'name' },
+    about: { kind: 'text' },
+    degree: { kind: 'label' },
+    speciality: { kind: 'label' },
+    address: { kind: 'place', i18nOnly: true, plain: addressText }
+}
+
+/* Serialised doctors reach public lists and appointment snapshots, so the MFA secret never leaves */
+const withoutMfaSecret = (doc, ret) => {
+    if (ret.mfa) delete ret.mfa.secret
+    return ret
+}
 
 const doctorSchema = new mongoose.Schema({
     name: {type: String, required:true},
+    i18n: {
+        name: { type: bilingualFieldSchema, default: undefined },
+        about: { type: bilingualFieldSchema, default: undefined },
+        degree: { type: bilingualFieldSchema, default: undefined },
+        speciality: { type: bilingualFieldSchema, default: undefined },
+        address: { type: bilingualFieldSchema, default: undefined }
+    },
     email: {type: String, required:true, unique:true},
     password: {type:String, required:true},
     image: {type:String, required:true},  
@@ -70,7 +101,7 @@ const doctorSchema = new mongoose.Schema({
     slots_booked: {type:Object,default:{}},
     home_visit_slots_booked: {type:Object,default:{}}
 
-},{minimize:false})
+},{minimize:false, toObject: { transform: withoutMfaSecret }, toJSON: { transform: withoutMfaSecret }})
 
 
 const doctorModel = mongoose.models.doctor || mongoose.model('doctor', doctorSchema)

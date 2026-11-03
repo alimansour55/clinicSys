@@ -1,24 +1,13 @@
-import React, { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
-import { toast } from 'react-toastify'
+import { Camera, Edit, KeyRound, Mail, Phone, Save, Shield, ShieldCheck, Trash2, Upload, UserRound, X } from 'lucide-react'
 import { AdminContext } from '../../context/AdminContext'
+import { useLanguage } from '../../i18n'
+import { AdminPage } from '../../components/admin/AdminPage'
 import MfaSetupBox from '../../components/MfaSetupBox'
-import { EGYPT_DIAL_CODE, parseEgyptLocalDigits, toEgyptLocalDigits } from '../../utils/egyptPhone'
-import {
-  Camera,
-  Edit,
-  KeyRound,
-  Loader2,
-  Mail,
-  Phone,
-  Save,
-  Shield,
-  ShieldCheck,
-  Sparkles,
-  UserRound,
-  X
-} from 'lucide-react'
+import { Badge, Button, Card, CardBody, CardHeader, Field, IconButton, Input, notify, Skeleton, SkeletonGroup, Textarea } from '../../components/ui'
+import { EGYPT_DIAL_CODE, isValidEgyptPhone, parseEgyptLocalDigits, toEgyptLocalDigits } from '../../utils/egyptPhone'
 
 const emptyForm = () => ({
   name: '',
@@ -29,100 +18,151 @@ const emptyForm = () => ({
   image: ''
 })
 
+const profileToForm = (profile) => ({
+  name: profile?.name || '',
+  email: profile?.email || '',
+  phoneLocal: toEgyptLocalDigits(profile?.phone || ''),
+  jobTitle: profile?.jobTitle || '',
+  bio: profile?.bio || '',
+  image: profile?.image || ''
+})
+
+/* An Arabic keyboard types ٠١٢, and the digit filters below would otherwise drop them. */
+const toWesternDigits = (value) => String(value ?? '').replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
+
+const cleanCode = (value) => toWesternDigits(value).replace(/\D/g, '').slice(0, 6)
+
+const PhoneInput = (props) => (
+  <div dir='ltr' className='flex items-stretch gap-2'>
+    <span className='flex shrink-0 items-center rounded-control bg-surface-sunken px-3 text-body-sm font-semibold text-ink-2'>{EGYPT_DIAL_CODE}</span>
+    <Input inputMode='numeric' autoComplete='tel-national' className='min-w-0 flex-1' {...props} />
+  </div>
+)
+
+const CodeInput = (props) => (
+  <Input
+    dir='ltr'
+    inputMode='numeric'
+    autoComplete='one-time-code'
+    className='text-center font-semibold tracking-[0.35em] sm:max-w-48'
+    {...props}
+  />
+)
+
 const AdminProfile = () => {
   const { aToken, backendUrl, refreshAdminNavSummary } = useContext(AdminContext)
+  const { t } = useLanguage()
   const [form, setForm] = useState(emptyForm())
+  const [savedForm, setSavedForm] = useState(emptyForm())
+  const [loadState, setLoadState] = useState('loading')
+  const [isEdit, setIsEdit] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [attempted, setAttempted] = useState(false)
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoPreview, setPhotoPreview] = useState('')
+  const [removeImage, setRemoveImage] = useState(false)
   const [mfaStatus, setMfaStatus] = useState(null)
+  const [mfaLoadFailed, setMfaLoadFailed] = useState(false)
   const [mfaSetup, setMfaSetup] = useState(null)
   const [mfaCode, setMfaCode] = useState('')
   const [disableCode, setDisableCode] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [isEdit, setIsEdit] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [photoFile, setPhotoFile] = useState(null)
-  const [photoPreview, setPhotoPreview] = useState(null)
-  const [removeImage, setRemoveImage] = useState(false)
+  const [mfaBusy, setMfaBusy] = useState(false)
+  const [mfaError, setMfaError] = useState('')
+  const photoInput = useRef(null)
+
+  const errorText = (error) => t(error.response?.data?.message || error.message)
 
   const applyProfile = (profile) => {
-    setForm({
-      name: profile?.name || 'Administrator',
-      email: profile?.email || '',
-      phoneLocal: toEgyptLocalDigits(profile?.phone || ''),
-      jobTitle: profile?.jobTitle || 'Clinic Administrator',
-      bio: profile?.bio || '',
-      image: profile?.image || ''
-    })
+    const next = profileToForm(profile)
+    setForm(next)
+    setSavedForm(next)
   }
 
   const loadProfile = async () => {
-    const { data } = await axios.get(`${backendUrl}/api/admin/profile`, { headers: { aToken } })
-    if (data.success) {
+    setLoadState('loading')
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/admin/profile`, { headers: { aToken } })
+      if (!data.success) throw new Error(data.message)
       applyProfile(data.profile)
       refreshAdminNavSummary?.()
-      return true
+      setLoadState('ready')
+    } catch {
+      setLoadState('failed')
     }
-    toast.error(data.message)
-    return false
   }
 
   const loadMfaStatus = async () => {
-    const { data } = await axios.get(`${backendUrl}/api/admin/mfa/status`, { headers: { aToken } })
-    if (data.success) setMfaStatus(data.mfa)
+    setMfaLoadFailed(false)
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/admin/mfa/status`, { headers: { aToken } })
+      if (!data.success) throw new Error(data.message)
+      setMfaStatus(data.mfa)
+    } catch {
+      /* Unknown is not the same as off: no MFA actions are offered until this is known. */
+      setMfaStatus(null)
+      setMfaLoadFailed(true)
+    }
   }
 
   useEffect(() => {
     if (!aToken) return
-    const load = async () => {
-      setLoading(true)
-      try {
-        await Promise.all([loadProfile(), loadMfaStatus()])
-      } catch (error) {
-        toast.error(error.response?.data?.message || error.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+    loadProfile()
+    loadMfaStatus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aToken])
 
+  /* One object URL per chosen photo, released when the photo changes or the page closes. */
   useEffect(() => {
-    return () => {
-      if (photoPreview) URL.revokeObjectURL(photoPreview)
+    if (!photoFile) {
+      setPhotoPreview('')
+      return undefined
     }
-  }, [photoPreview])
+    const url = URL.createObjectURL(photoFile)
+    setPhotoPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [photoFile])
 
-  const onPickPhoto = (e) => {
-    const file = e.target.files?.[0]
+  const updateField = (field, value) => setForm((previous) => ({ ...previous, [field]: value }))
+
+  const onPickPhoto = (event) => {
+    const file = event.target.files?.[0]
+    /* Cleared so choosing the same file again still fires a change. */
+    event.target.value = ''
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      toast.error('Please choose an image file')
+      notify.error(t('Please choose an image file'))
       return
     }
     setPhotoFile(file)
     setRemoveImage(false)
-    setPhotoPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev)
-      return URL.createObjectURL(file)
-    })
+  }
+
+  const onRemovePhoto = () => {
+    setPhotoFile(null)
+    setRemoveImage(Boolean(form.image))
+  }
+
+  const resetEditState = () => {
+    setIsEdit(false)
+    setAttempted(false)
+    setPhotoFile(null)
+    setRemoveImage(false)
   }
 
   const cancelEdit = () => {
-    setIsEdit(false)
-    setPhotoFile(null)
-    setRemoveImage(false)
-    setPhotoPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev)
-      return null
-    })
-    loadProfile()
+    setForm(savedForm)
+    resetEditState()
   }
 
-  const saveProfile = async () => {
-    if (!form.name.trim()) {
-      toast.error('Name is required')
-      return
-    }
+  const nameError = attempted && !form.name.trim() ? t('Name is required') : undefined
+  const phoneError = attempted && form.phoneLocal && !isValidEgyptPhone(form.phoneLocal)
+    ? t('Enter a valid Egyptian mobile number (01xxxxxxxxx)')
+    : undefined
+
+  const saveProfile = async (event) => {
+    event.preventDefault()
+    setAttempted(true)
+    if (!form.name.trim() || (form.phoneLocal && !isValidEgyptPhone(form.phoneLocal))) return
     setSaving(true)
     try {
       const fd = new FormData()
@@ -133,377 +173,329 @@ const AdminProfile = () => {
       if (removeImage) fd.append('removeImage', 'true')
       if (photoFile) fd.append('image', photoFile)
 
-      const { data } = await axios.post(`${backendUrl}/api/admin/update-profile`, fd, {
-        headers: { aToken }
-      })
+      const { data } = await axios.post(`${backendUrl}/api/admin/update-profile`, fd, { headers: { aToken } })
 
       if (data.success) {
-        toast.success(data.message)
+        notify.success(t(data.message))
         if (data.profile) applyProfile(data.profile)
-        setIsEdit(false)
-        setPhotoFile(null)
-        setRemoveImage(false)
-        setPhotoPreview((prev) => {
-          if (prev) URL.revokeObjectURL(prev)
-          return null
-        })
+        resetEditState()
         refreshAdminNavSummary?.()
       } else {
-        toast.error(data.message)
+        notify.error(t(data.message))
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message)
+      notify.error(errorText(error))
     } finally {
       setSaving(false)
     }
   }
 
   const startMfaSetup = async () => {
+    setMfaBusy(true)
+    setMfaError('')
     try {
       const { data } = await axios.post(`${backendUrl}/api/admin/mfa/setup`, {}, { headers: { aToken } })
       if (data.success) {
         setMfaSetup(data.setup)
         setMfaCode('')
       } else {
-        toast.error(data.message)
+        setMfaError(t(data.message))
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message)
+      setMfaError(errorText(error))
+    } finally {
+      setMfaBusy(false)
     }
   }
 
-  const enableMfa = async () => {
+  const enableMfa = async (event) => {
+    event.preventDefault()
+    if (mfaCode.length !== 6) {
+      setMfaError(t('Enter the 6-digit code'))
+      return
+    }
+    setMfaBusy(true)
+    setMfaError('')
     try {
-      const { data } = await axios.post(
-        `${backendUrl}/api/admin/mfa/enable`,
-        { code: mfaCode },
-        { headers: { aToken } }
-      )
+      const { data } = await axios.post(`${backendUrl}/api/admin/mfa/enable`, { code: mfaCode }, { headers: { aToken } })
       if (data.success) {
-        toast.success(data.message)
+        notify.success(t(data.message))
         setMfaSetup(null)
         setMfaCode('')
-        await loadProfile()
         await loadMfaStatus()
       } else {
-        toast.error(data.message)
+        setMfaError(t(data.message))
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message)
+      setMfaError(errorText(error))
+    } finally {
+      setMfaBusy(false)
     }
   }
 
-  const disableMfa = async () => {
+  const disableMfa = async (event) => {
+    event.preventDefault()
+    if (disableCode.length !== 6) {
+      setMfaError(t('Enter the 6-digit code'))
+      return
+    }
+    setMfaBusy(true)
+    setMfaError('')
     try {
-      const { data } = await axios.post(
-        `${backendUrl}/api/admin/mfa/disable`,
-        { code: disableCode },
-        { headers: { aToken } }
-      )
+      const { data } = await axios.post(`${backendUrl}/api/admin/mfa/disable`, { code: disableCode }, { headers: { aToken } })
       if (data.success) {
-        toast.success(data.message)
+        notify.success(t(data.message))
         setDisableCode('')
         setMfaSetup(null)
         await loadMfaStatus()
       } else {
-        toast.error(data.message)
+        setMfaError(t(data.message))
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message)
+      setMfaError(errorText(error))
+    } finally {
+      setMfaBusy(false)
     }
   }
 
-  const displayImage = photoPreview || (!removeImage && form.image) || ''
-  const adminInitial = (form.name || 'A').trim().charAt(0).toUpperCase()
-
-  if (loading) {
-    return (
-      <div className='flex min-h-[40vh] items-center justify-center p-8'>
-        <Loader2 className='h-10 w-10 animate-spin text-primary' />
-      </div>
-    )
+  const cancelMfaSetup = () => {
+    setMfaSetup(null)
+    setMfaCode('')
+    setMfaError('')
   }
 
+  const displayImage = photoPreview || (!removeImage && form.image) || ''
+  const displayName = savedForm.name || t('Administrator')
+  const adminInitial = displayName.trim().charAt(0).toUpperCase()
+
   return (
-    <div className='w-full bg-[#f4f6fb] p-3 sm:p-5 md:p-6 lg:p-8'>
-      <div className='mx-auto max-w-3xl space-y-6'>
-        <div className='overflow-hidden rounded-2xl border border-slate-700/20 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 px-6 py-8 shadow-xl sm:px-8'>
-          <div className='inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/90 ring-1 ring-white/20'>
-            <Sparkles className='h-3.5 w-3.5' />
-            My account
-          </div>
-          <div className='mt-5 flex flex-col gap-5 sm:flex-row sm:items-center'>
-            <div className='relative shrink-0'>
-              {displayImage ? (
-                <img
-                  src={displayImage}
-                  alt=''
-                  className='h-20 w-20 rounded-2xl object-cover shadow-lg ring-4 ring-white/20'
-                />
-              ) : (
-                <span className='flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-2xl font-bold text-white shadow-lg ring-4 ring-white/20'>
-                  {adminInitial}
-                </span>
-              )}
-              {isEdit && (
-                <label className='absolute -bottom-1 -end-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-primary shadow-md ring-2 ring-slate-900/20'>
-                  <Camera className='h-4 w-4' />
-                  <input type='file' accept='image/*' className='hidden' onChange={onPickPhoto} />
-                </label>
-              )}
-            </div>
-            <div className='min-w-0 flex-1 text-white'>
-              <h1 className='text-2xl font-bold tracking-tight sm:text-3xl'>{form.name}</h1>
-              <p className='mt-1 flex items-center gap-2 text-sm text-white/85'>
-                <Mail className='h-4 w-4 shrink-0' />
-                <span className='truncate'>{form.email}</span>
-              </p>
-              {form.phoneLocal && (
-                <p className='mt-1 flex items-center gap-2 text-sm text-white/80'>
-                  <Phone className='h-4 w-4 shrink-0' />
-                  {EGYPT_DIAL_CODE} {form.phoneLocal}
-                </p>
-              )}
-              <p className='mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/90'>
-                <Shield className='h-3.5 w-3.5' />
-                {form.jobTitle || 'Clinic administrator'}
-              </p>
-            </div>
-          </div>
+    <AdminPage title={t('My account')} description={t('Your details and how you sign in.')} icon={UserRound} width='max-w-3xl'>
+      {loadState === 'loading' && (
+        <SkeletonGroup className='space-y-5'>
+          <Skeleton className='h-36 w-full rounded-card!' />
+          <Skeleton className='h-72 w-full rounded-card!' />
+        </SkeletonGroup>
+      )}
+
+      {loadState === 'failed' && (
+        <div role='alert' className='mb-5 flex flex-wrap items-center justify-between gap-3 rounded-card bg-danger-soft px-4 py-3 text-body-sm text-danger-ink'>
+          <span className='min-w-0'>{t('Your profile could not be loaded.')}</span>
+          <Button variant='secondary' size='sm' onClick={loadProfile}>{t('Try again')}</Button>
         </div>
+      )}
 
-        <div className='rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6'>
-          <div className='mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-            <div>
-              <h2 className='text-base font-bold text-gray-900'>Profile details</h2>
-              <p className='mt-1 text-sm text-gray-600'>
-                Update how you appear in the app. Sign-in email and password are still managed on the server.
-              </p>
-            </div>
-            {!isEdit ? (
-              <button
-                type='button'
-                onClick={() => setIsEdit(true)}
-                className='inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:opacity-95'
-              >
-                <Edit className='h-4 w-4' />
-                Edit profile
-              </button>
-            ) : (
-              <div className='flex flex-wrap gap-2'>
-                <button
-                  type='button'
-                  onClick={cancelEdit}
-                  className='inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50'
-                >
-                  <X className='h-4 w-4' />
-                  Cancel
-                </button>
-                <button
-                  type='button'
-                  onClick={saveProfile}
-                  disabled={saving}
-                  className='inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60'
-                >
-                  {saving ? <Loader2 className='h-4 w-4 animate-spin' /> : <Save className='h-4 w-4' />}
-                  {saving ? 'Saving…' : 'Save changes'}
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className='grid gap-4 sm:grid-cols-2'>
-            <label className='block text-sm font-medium text-gray-700 sm:col-span-2'>
-              Profile photo
-              {isEdit && (
-                <div className='mt-2 flex flex-wrap items-center gap-3'>
-                  <label className='inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-primary hover:bg-gray-100'>
-                    <Camera className='h-4 w-4' />
-                    Upload photo
-                    <input type='file' accept='image/*' className='hidden' onChange={onPickPhoto} />
-                  </label>
-                  {form.image && !photoFile && (
-                    <button
-                      type='button'
-                      onClick={() => {
-                        setRemoveImage(true)
-                        setPhotoFile(null)
-                        setPhotoPreview((prev) => {
-                          if (prev) URL.revokeObjectURL(prev)
-                          return null
-                        })
-                      }}
-                      className='text-sm font-semibold text-red-600 hover:text-red-700'
-                    >
-                      Remove photo
-                    </button>
-                  )}
-                </div>
-              )}
-            </label>
-
-            <label className='block text-sm font-medium text-gray-700'>
-              Full name
-              <input
-                value={form.name}
-                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                disabled={!isEdit}
-                className='mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-gray-50'
-                maxLength={120}
-              />
-            </label>
-
-            <label className='block text-sm font-medium text-gray-700'>
-              Job title
-              <input
-                value={form.jobTitle}
-                onChange={(e) => setForm((prev) => ({ ...prev, jobTitle: e.target.value }))}
-                disabled={!isEdit}
-                className='mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-gray-50'
-                maxLength={80}
-              />
-            </label>
-
-            <label className='block text-sm font-medium text-gray-700 sm:col-span-2'>
-              Sign-in email
-              <input
-                value={form.email}
-                readOnly
-                className='mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-600'
-              />
-              <span className='mt-1 block text-xs text-gray-500'>Contact your technical team to change login email or password.</span>
-            </label>
-
-            <label className='block text-sm font-medium text-gray-700 sm:col-span-2'>
-              Mobile number
-              <div className='mt-1 flex overflow-hidden rounded-xl border border-gray-200 bg-white focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20'>
-                <span className='flex shrink-0 items-center border-e border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-600'>
-                  {EGYPT_DIAL_CODE}
-                </span>
-                <input
-                  value={form.phoneLocal}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, phoneLocal: parseEgyptLocalDigits(e.target.value) }))
-                  }
-                  disabled={!isEdit}
-                  placeholder='10 digits'
-                  className='min-w-0 flex-1 px-3 py-2.5 text-sm outline-none disabled:bg-gray-50'
-                  inputMode='numeric'
-                />
-              </div>
-            </label>
-
-            <label className='block text-sm font-medium text-gray-700 sm:col-span-2'>
-              Short bio
-              <textarea
-                value={form.bio}
-                onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
-                disabled={!isEdit}
-                rows={3}
-                maxLength={500}
-                placeholder='Optional note about your role'
-                className='mt-1 w-full resize-y rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-gray-50'
-              />
-            </label>
-          </div>
-
-          <Link
-            to='/security-settings'
-            className='mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80'
-          >
-            <ShieldCheck className='h-4 w-4' />
-            Open security & MFA policies
-          </Link>
-        </div>
-
-        <div className='rounded-2xl border border-blue-100 bg-blue-50/80 p-5 shadow-sm sm:p-6'>
-          <p className='flex items-center gap-2 text-base font-bold text-slate-900'>
-            <ShieldCheck className='h-5 w-5 text-blue-700' />
-            Authenticator MFA (your account)
-          </p>
-          <p className='mt-1 text-sm text-slate-600'>
-            Status:{' '}
-            <span className='font-semibold text-slate-900'>
-              {mfaStatus?.enabled ? 'Enabled' : 'Not enabled'}
-            </span>
-            {mfaStatus?.required && (
-              <span className='ms-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800'>
-                Required by policy
-              </span>
-            )}
-          </p>
-
-          {mfaSetup ? (
-            <div className='mt-4 space-y-3 rounded-xl bg-white p-4 shadow-inner'>
-              <MfaSetupBox mode='setup' setup={mfaSetup} />
-              <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
-                <input
-                  value={mfaCode}
-                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder='6-digit code'
-                  className='rounded-xl border border-slate-200 px-3 py-2 text-center font-semibold tracking-[0.35em] sm:max-w-[12rem]'
-                  inputMode='numeric'
-                  autoComplete='one-time-code'
-                />
-                <button
-                  type='button'
-                  onClick={enableMfa}
-                  className='rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700'
-                >
-                  Verify and enable
-                </button>
-                <button
-                  type='button'
-                  onClick={() => {
-                    setMfaSetup(null)
-                    setMfaCode('')
-                  }}
-                  className='rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50'
-                >
-                  Cancel setup
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className='mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap'>
-              {!mfaStatus?.enabled && (
-                <button
-                  type='button'
-                  onClick={startMfaSetup}
-                  className='inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700'
-                >
-                  <KeyRound className='h-4 w-4' />
-                  Set up MFA
-                </button>
-              )}
-              {mfaStatus?.enabled && !mfaStatus?.required && (
-                <div className='flex w-full flex-col gap-2 sm:flex-row sm:items-center'>
-                  <input
-                    value={disableCode}
-                    onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder='Code to disable'
-                    className='rounded-xl border border-slate-200 px-3 py-2 text-center font-semibold tracking-[0.35em] sm:max-w-[12rem]'
-                    inputMode='numeric'
-                  />
-                  <button
-                    type='button'
-                    onClick={disableMfa}
-                    className='rounded-xl border border-eed-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50'
+      {loadState === 'ready' && (
+        <div className='mb-5 space-y-5'>
+          <Card variant='signature'>
+            <CardBody className='flex flex-col gap-5 sm:flex-row sm:items-center'>
+              <div className='relative w-fit shrink-0'>
+                {displayImage ? (
+                  <img src={displayImage} alt='' className='size-20 rounded-card object-cover' />
+                ) : (
+                  <span aria-hidden='true' className='flex size-20 items-center justify-center rounded-card bg-primary text-title-lg font-bold text-on-primary'>
+                    {adminInitial}
+                  </span>
+                )}
+                {isEdit && (
+                  <IconButton
+                    label={t('Upload photo')}
+                    variant='secondary'
+                    size='sm'
+                    onClick={() => photoInput.current?.click()}
+                    className='absolute -bottom-2 -end-2 rounded-full! shadow-e1'
                   >
-                    Disable MFA
-                  </button>
-                </div>
-              )}
-              {mfaStatus?.enabled && mfaStatus?.required && (
-                <p className='text-sm text-blue-900'>
-                  MFA is required for admins. You cannot turn it off while the policy is active.
+                    <Camera aria-hidden='true' className='size-4' />
+                  </IconButton>
+                )}
+              </div>
+              <div className='min-w-0 flex-1'>
+                <h2 className='text-title-lg font-semibold text-ink'>{t(displayName)}</h2>
+                <p className='mt-1 flex min-w-0 items-center gap-2 text-body-sm text-ink-2'>
+                  <Mail aria-hidden='true' className='size-4 shrink-0 text-ink-3' />
+                  <span dir='ltr' className='truncate'>{savedForm.email}</span>
                 </p>
-              )}
+                {savedForm.phoneLocal && (
+                  <p className='mt-1 flex items-center gap-2 text-body-sm text-ink-2'>
+                    <Phone aria-hidden='true' className='size-4 shrink-0 text-ink-3' />
+                    <span dir='ltr'>{EGYPT_DIAL_CODE} {savedForm.phoneLocal}</span>
+                  </p>
+                )}
+                <Badge tone='brand' className='mt-2 max-w-full whitespace-normal!'>
+                  <Shield aria-hidden='true' className='size-3.5 shrink-0' />
+                  {t(savedForm.jobTitle || 'Clinic Administrator')}
+                </Badge>
+              </div>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader
+              headingLevel={2}
+              className='flex-wrap'
+              title={t('Profile details')}
+              description={t('Update how you appear in the app. Your sign-in email and password are managed on the server.')}
+              action={
+                !isEdit && (
+                  <Button onClick={() => setIsEdit(true)} leadingIcon={<Edit aria-hidden='true' className='size-4' />}>
+                    {t('Edit profile')}
+                  </Button>
+                )
+              }
+            />
+            <CardBody>
+              <form onSubmit={saveProfile} noValidate className='grid gap-4 sm:grid-cols-2'>
+                {isEdit && (
+                  <div className='sm:col-span-2'>
+                    <p className='text-body-sm font-medium text-ink'>{t('Profile photo')}</p>
+                    <input ref={photoInput} type='file' accept='image/*' className='hidden' onChange={onPickPhoto} />
+                    <div className='mt-1.5 flex flex-wrap items-center gap-2'>
+                      <Button variant='secondary' size='sm' onClick={() => photoInput.current?.click()} leadingIcon={<Upload aria-hidden='true' className='size-4' />}>
+                        {t('Upload photo')}
+                      </Button>
+                      {displayImage && (
+                        <Button variant='ghost' size='sm' onClick={onRemovePhoto} className='text-danger-ink!' leadingIcon={<Trash2 aria-hidden='true' className='size-4' />}>
+                          {t('Remove photo')}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <Field label={t('Full name')} error={nameError} required>
+                  <Input value={form.name} onChange={(event) => updateField('name', event.target.value)} disabled={!isEdit} maxLength={120} />
+                </Field>
+
+                <Field label={t('Job title')}>
+                  <Input value={form.jobTitle} onChange={(event) => updateField('jobTitle', event.target.value)} disabled={!isEdit} maxLength={80} />
+                </Field>
+
+                <Field label={t('Sign-in email')} hint={t('Contact your technical team to change your sign-in email or password.')} className='sm:col-span-2'>
+                  <Input dir='ltr' value={form.email} readOnly className='bg-surface-sunken! text-ink-2!' />
+                </Field>
+
+                <Field label={t('Mobile number')} error={phoneError} className='sm:col-span-2'>
+                  <PhoneInput
+                    value={form.phoneLocal}
+                    onChange={(event) => updateField('phoneLocal', parseEgyptLocalDigits(toWesternDigits(event.target.value)))}
+                    disabled={!isEdit}
+                    placeholder={t('10 digits')}
+                  />
+                </Field>
+
+                <Field label={t('Short bio')} className='sm:col-span-2'>
+                  <Textarea
+                    value={form.bio}
+                    onChange={(event) => updateField('bio', event.target.value)}
+                    disabled={!isEdit}
+                    rows={3}
+                    maxLength={500}
+                    placeholder={t('Optional note about your role')}
+                  />
+                </Field>
+
+                {isEdit && (
+                  <div className='flex flex-wrap gap-2 sm:col-span-2'>
+                    <Button type='submit' loading={saving} leadingIcon={<Save aria-hidden='true' className='size-4' />}>
+                      {t('Save changes')}
+                    </Button>
+                    <Button variant='secondary' onClick={cancelEdit} disabled={saving} leadingIcon={<X aria-hidden='true' className='size-4' />}>
+                      {t('Cancel')}
+                    </Button>
+                  </div>
+                )}
+              </form>
+
+              <Button as={Link} to='/security-settings' variant='ghost' size='sm' className='mt-4 max-w-full text-brand!' leadingIcon={<ShieldCheck aria-hidden='true' className='size-4 shrink-0' />}>
+                {t('Open security and MFA policies')}
+              </Button>
+            </CardBody>
+          </Card>
+        </div>
+      )}
+
+      <Card>
+        <CardHeader
+          headingLevel={2}
+          className='flex-wrap'
+          title={
+            <span className='flex items-center gap-2'>
+              <ShieldCheck aria-hidden='true' className='size-5 shrink-0 text-brand' />
+              {t('Authenticator MFA for your account')}
+            </span>
+          }
+        />
+        <CardBody className='space-y-4'>
+          {mfaLoadFailed && (
+            <div role='alert' className='flex flex-wrap items-center justify-between gap-3 rounded-control bg-danger-soft px-3 py-2 text-body-sm text-danger-ink'>
+              <span className='min-w-0'>{t('Your MFA status could not be loaded.')}</span>
+              <Button variant='secondary' size='sm' onClick={loadMfaStatus}>{t('Try again')}</Button>
             </div>
           )}
-        </div>
-      </div>
-    </div>
+
+          {!mfaStatus && !mfaLoadFailed && (
+            <SkeletonGroup>
+              <Skeleton className='h-6 w-40' />
+            </SkeletonGroup>
+          )}
+
+          {mfaStatus && (
+            <>
+              <div className='flex flex-wrap items-center gap-2'>
+                <Badge tone={mfaStatus.enabled ? 'success' : 'neutral'} dot>
+                  {mfaStatus.enabled ? t('MFA is on') : t('MFA is off')}
+                </Badge>
+                {mfaStatus.required && <Badge tone='info'>{t('Required by policy')}</Badge>}
+              </div>
+
+              {mfaError && !mfaSetup && !mfaStatus.enabled && (
+                <p role='alert' className='rounded-control bg-danger-soft px-3 py-2 text-body-sm text-danger-ink'>{mfaError}</p>
+              )}
+
+              {mfaSetup && (
+                <form onSubmit={enableMfa} noValidate className='space-y-4'>
+                  <MfaSetupBox mode='setup' setup={mfaSetup} />
+                  <Field label={t('Code from your authenticator app')} error={mfaError || undefined}>
+                    <CodeInput
+                      value={mfaCode}
+                      onChange={(event) => setMfaCode(cleanCode(event.target.value))}
+                      placeholder='000000'
+                    />
+                  </Field>
+                  <div className='flex flex-wrap gap-2'>
+                    <Button type='submit' loading={mfaBusy}>{t('Verify and enable')}</Button>
+                    <Button variant='secondary' onClick={cancelMfaSetup} disabled={mfaBusy}>{t('Cancel setup')}</Button>
+                  </div>
+                </form>
+              )}
+
+              {!mfaSetup && !mfaStatus.enabled && (
+                <>
+                  {mfaStatus.required && (
+                    <p className='text-body-sm text-ink-2'>{t('Admins must use MFA. Set it up now, or you will be asked to at your next sign-in.')}</p>
+                  )}
+                  <Button onClick={startMfaSetup} loading={mfaBusy} leadingIcon={<KeyRound aria-hidden='true' className='size-4' />}>
+                    {t('Set up MFA')}
+                  </Button>
+                </>
+              )}
+
+              {!mfaSetup && mfaStatus.enabled && !mfaStatus.required && (
+                <form onSubmit={disableMfa} noValidate className='space-y-3'>
+                  <Field label={t('Code from your authenticator app')} hint={t('Needed to turn MFA off.')} error={mfaError || undefined}>
+                    <CodeInput value={disableCode} onChange={(event) => setDisableCode(cleanCode(event.target.value))} placeholder='000000' />
+                  </Field>
+                  <Button type='submit' variant='danger' loading={mfaBusy}>{t('Disable MFA')}</Button>
+                </form>
+              )}
+
+              {!mfaSetup && mfaStatus.enabled && mfaStatus.required && (
+                <p className='text-body-sm text-ink-2'>{t('MFA is required for admins. You cannot turn it off while the policy is active.')}</p>
+              )}
+            </>
+          )}
+        </CardBody>
+      </Card>
+    </AdminPage>
   )
 }
 

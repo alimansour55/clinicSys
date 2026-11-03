@@ -14,7 +14,7 @@ describe('siteSettingsCache', () => {
   })
 
   it('reads from localStorage when session empty', () => {
-    localStorage.setItem('clinivo_public_site_settings_local_v1', JSON.stringify({ branding: {} }))
+    localStorage.setItem('clinivo_public_site_settings_local_v3', JSON.stringify({ branding: {} }))
     expect(readCachedPublicSiteSettings()).toEqual({ branding: {} })
   })
 })

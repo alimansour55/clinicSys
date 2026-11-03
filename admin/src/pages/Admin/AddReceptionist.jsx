@@ -1,11 +1,15 @@
 import React, { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { ArrowLeft, Building2, Camera, Eye, EyeOff, IdCard, Loader2, RotateCcw, UserCog } from "lucide-react";
-import { toast } from "react-toastify";
+import { ArrowLeft, Camera, Eye, EyeOff, RotateCcw, UserCog } from "lucide-react";
 import { AdminContext } from "../../context/AdminContext";
 import { emptyAddress, emptyEmergencyContact } from "../../utils/receptionistProfileForm";
 import { useLanguage } from "../../i18n";
+import BilingualField from "../../components/BilingualField";
+import { AdminPage } from "../../components/admin/AdminPage";
+import { useFilePreview } from "../../components/admin/SiteContentForm";
+import { Button, Card, CardBody, Field, Input, notify, Textarea } from "../../components/ui";
+import { bilingualIsEmpty, bilingualPayload, emptyBilingual } from "../../utils/bilingualValue";
 
 const addressLabels = {
   line1: "Address line 1",
@@ -17,10 +21,10 @@ const addressLabels = {
 };
 
 const AddReceptionist = () => {
-  const { backendUrl, aToken, getReceptionists } = useContext(AdminContext);
+  const { backendUrl, aToken, getReceptionists, translatePreview } = useContext(AdminContext);
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(emptyBilingual);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -32,17 +36,15 @@ const AddReceptionist = () => {
   const [address, setAddress] = useState(emptyAddress());
   const [emergencyContact, setEmergencyContact] = useState(emptyEmergencyContact());
   const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const photoPreview = useFilePreview(photoFile);
 
-  const setAddressField = (key, value) =>
-    setAddress((prev) => ({ ...prev, [key]: value }));
-  const setEmergencyField = (key, value) =>
-    setEmergencyContact((prev) => ({ ...prev, [key]: value }));
+  const setAddressField = (key, value) => setAddress((prev) => ({ ...prev, [key]: value }));
+  const setEmergencyField = (key, value) => setEmergencyContact((prev) => ({ ...prev, [key]: value }));
 
   const resetForm = () => {
-    setName("");
+    setName(emptyBilingual());
     setEmail("");
     setPhone("");
     setPassword("");
@@ -54,33 +56,26 @@ const AddReceptionist = () => {
     setAddress(emptyAddress());
     setEmergencyContact(emptyEmergencyContact());
     setPhotoFile(null);
-    setPhotoPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
   };
 
   const onPickPhoto = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast.error("Please choose an image file");
+      notify.error(t("Please choose an image file"));
       return;
     }
     setPhotoFile(file);
-    setPhotoPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
   };
 
   const onSubmitHandler = async (event) => {
     event.preventDefault();
+    if (bilingualIsEmpty(name)) return;
     setIsLoading(true);
 
     try {
       const fd = new FormData();
-      fd.append("name", name);
+      fd.append("nameI18n", JSON.stringify(bilingualPayload(name)));
       fd.append("email", email);
       fd.append("phone", phone);
       fd.append("password", password);
@@ -97,156 +92,129 @@ const AddReceptionist = () => {
         headers: { aToken },
       });
       if (data.success) {
-        toast.success(data.message);
+        notify.success(t(data.message));
         await getReceptionists();
         navigate("/receptionist-list");
       } else {
-        toast.error(data.message);
+        notify.error(t(data.message));
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message);
+      notify.error(t(error.response?.data?.message || error.message));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const displayImage = photoPreview;
-
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-6 lg:py-8 px-3 sm:px-6 lg:px-8">
-      <div className="max-w-4xl">
-        <div className="mb-4">
-          <Link
-            to="/receptionist-list"
-            className="inline-flex w-fit items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition hover:bg-gray-50"
-          >
-            <ArrowLeft className="rtl:-scale-x-100 h-4 w-4" />
-            {t("Back to receptionists")}
-          </Link>
-        </div>
-        <div className="mb-6">
-          <h1 className="text-xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <UserCog className="w-6 h-6 text-primary" />
-            {t("Add Receptionist")}
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 ms-8">
-            Create staff accounts with optional photo, address, emergency contact, and HR notes.
-          </p>
-        </div>
+    <AdminPage
+      icon={UserCog}
+      width="max-w-4xl"
+      title={t("Add Receptionist")}
+      description={t("Create staff accounts with optional photo, address, emergency contact, and HR notes.")}
+      actions={
+        <Button as={Link} to="/receptionist-list" variant="secondary" size="sm" leadingIcon={<ArrowLeft aria-hidden="true" className="size-4 rtl:-scale-x-100" />}>
+          {t("Back to receptionists")}
+        </Button>
+      }
+    >
+      <form onSubmit={onSubmitHandler}>
+        <Card variant="flat">
+          <CardBody className="space-y-6">
+            <div className="flex flex-col gap-6 sm:flex-row">
+              <div className="flex flex-col items-center">
+                <div className="size-28 overflow-hidden rounded-full border-2 border-dashed border-field bg-surface-sunken">
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="" className="size-full object-cover" />
+                  ) : (
+                    <div className="flex size-full items-center justify-center px-2 text-center text-caption text-ink-3">{t("No photo")}</div>
+                  )}
+                </div>
+                <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-body-sm font-semibold text-brand">
+                  <Camera aria-hidden="true" className="size-4" />
+                  {t("Profile photo (optional)")}
+                  <input type="file" accept="image/*" className="sr-only" onChange={onPickPhoto} />
+                </label>
+              </div>
 
-        <form onSubmit={onSubmitHandler} className="bg-white rounded-xl shadow border border-gray-200 p-5 sm:p-8 space-y-8">
-          <div className="flex flex-col sm:flex-row gap-6">
-            <div className="flex flex-col items-center">
-              <div className="relative w-28 h-28 rounded-full overflow-hidden border-2 border-dashed border-gray-300 bg-gray-50">
-                {displayImage ? (
-                  <img src={displayImage} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm text-center px-2">
-                    No photo
-                  </div>
-                )}
-              </div>
-              <label className="mt-3 cursor-pointer inline-flex items-center gap-2 text-sm font-semibold text-primary">
-                <Camera className="w-4 h-4" />
-                Profile photo (optional)
-                <input type="file" accept="image/*" className="hidden" onChange={onPickPhoto} />
-              </label>
-            </div>
-
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Full name</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-primary" required />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-primary" required />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="w-full border-2 border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-primary" required />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+              <div className="grid min-w-0 flex-1 grid-cols-1 gap-4 sm:grid-cols-2">
+                <BilingualField className="sm:col-span-2" label={t("Full name")} kind="name" value={name} onChange={setName} translate={translatePreview} required />
+                <Field label={t("Phone")} required>
+                  <Input dir="ltr" style={{ textAlign: "start" }} value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                </Field>
+                <Field label={t("Email")} required>
+                  <Input dir="ltr" style={{ textAlign: "start" }} value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
+                </Field>
                 <div className="relative">
-                  <input value={password} onChange={(e) => setPassword(e.target.value)} type={showPassword ? "text" : "password"} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2.5 pe-10 outline-none focus:border-primary" required />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-500">
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  <Field label={t("Password")} required>
+                    <Input className="pe-11" value={password} onChange={(e) => setPassword(e.target.value)} type={showPassword ? "text" : "password"} autoComplete="new-password" required />
+                  </Field>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? t("Hide password") : t("Show password")}
+                    className="absolute bottom-1 end-1 flex size-9 cursor-pointer items-center justify-center text-ink-3 hover:text-ink"
+                  >
+                    {showPassword ? <EyeOff aria-hidden="true" className="size-5" /> : <Eye aria-hidden="true" className="size-5" />}
                   </button>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
-                  <IdCard className="w-4 h-4" /> Job title
-                </label>
-                <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-primary" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
-                  <Building2 className="w-4 h-4" /> Department
-                </label>
-                <input value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-primary" />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Employee ID</label>
-                <input value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-primary" placeholder="Optional internal ID" />
+                <Field label={t("Job title")}>
+                  <Input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
+                </Field>
+                <Field label={t("Department")}>
+                  <Input value={department} onChange={(e) => setDepartment(e.target.value)} />
+                </Field>
+                <Field label={t("Employee ID")} hint={t("Optional internal ID")}>
+                  <Input value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} />
+                </Field>
               </div>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Bio</label>
-            <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-primary resize-y" placeholder="Optional short introduction" />
-          </div>
+            <Field label={t("Bio")} hint={t("Optional short introduction")}>
+              <Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} />
+            </Field>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Admin / HR notes (internal)</label>
-            <textarea value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} rows={2} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-primary resize-y" />
-          </div>
+            <Field label={t("Admin / HR notes (internal)")}>
+              <Textarea value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} rows={2} />
+            </Field>
 
-          <div>
-            <h2 className="text-sm font-bold text-gray-900 mb-3">Address</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {Object.entries(addressLabels).map(([key, label]) => (
-                <div key={key} className={key === "line1" || key === "line2" ? "sm:col-span-2" : ""}>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
-                  <input value={address[key]} onChange={(e) => setAddressField(key, e.target.value)} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-primary text-sm" />
-                </div>
-              ))}
+            <section>
+              <h2 className="mb-3 text-subtitle font-semibold text-ink">{t("Address")}</h2>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {Object.entries(addressLabels).map(([key, label]) => (
+                  <Field key={key} label={t(label)} className={key === "line1" || key === "line2" ? "sm:col-span-2" : ""}>
+                    <Input value={address[key]} onChange={(e) => setAddressField(key, e.target.value)} />
+                  </Field>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-subtitle font-semibold text-ink">{t("Emergency contact")}</h2>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Field label={t("Name")}>
+                  <Input value={emergencyContact.name} onChange={(e) => setEmergencyField("name", e.target.value)} />
+                </Field>
+                <Field label={t("Phone")}>
+                  <Input dir="ltr" style={{ textAlign: "start" }} value={emergencyContact.phone} onChange={(e) => setEmergencyField("phone", e.target.value)} />
+                </Field>
+                <Field label={t("Relationship")}>
+                  <Input value={emergencyContact.relationship} onChange={(e) => setEmergencyField("relationship", e.target.value)} />
+                </Field>
+              </div>
+            </section>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button type="submit" loading={isLoading} leadingIcon={<UserCog aria-hidden="true" className="size-4" />}>
+                {t("Create receptionist")}
+              </Button>
+              <Button variant="secondary" onClick={resetForm} leadingIcon={<RotateCcw aria-hidden="true" className="size-4" />}>
+                {t("Reset")}
+              </Button>
             </div>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-bold text-gray-900 mb-3">Emergency contact</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Name</label>
-                <input value={emergencyContact.name} onChange={(e) => setEmergencyField("name", e.target.value)} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-primary text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
-                <input value={emergencyContact.phone} onChange={(e) => setEmergencyField("phone", e.target.value)} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-primary text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Relationship</label>
-                <input value={emergencyContact.relationship} onChange={(e) => setEmergencyField("relationship", e.target.value)} className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-primary text-sm" />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button disabled={isLoading} className="bg-primary text-white px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 disabled:bg-gray-400">
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserCog className="w-5 h-5" />}
-              Create receptionist
-            </button>
-            <button type="button" onClick={resetForm} className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
-              <RotateCcw className="w-5 h-5" />
-              Reset
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          </CardBody>
+        </Card>
+      </form>
+    </AdminPage>
   );
 };
 

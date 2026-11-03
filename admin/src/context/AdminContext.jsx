@@ -5,6 +5,7 @@ import { readCachedPublicSiteSettings, writeCachedPublicSiteSettings } from '../
 import { resolveBackendUrl } from '../utils/resolveBackendUrl'
 import { getApiErrorMessage, isDatabaseConfig503 } from '../utils/apiErrorMessage'
 import { buildAdminAuthHeaders } from '../utils/staffAuthHeaders'
+import { translateString } from '../i18n'
 
 export const AdminContext = createContext()
 
@@ -65,21 +66,18 @@ const AdminContextProvider = (props) => {
     const backendUrl = resolveBackendUrl()
     const adminHeaders = useMemo(() => buildAdminAuthHeaders(aToken), [aToken])
 
+    /* Sessions expire on the server, so any admin request can be the one that finds out */
     useEffect(() => {
       if (!aToken) return undefined
-      let cancelled = false
-      axios
-        .get(`${backendUrl}/api/admin/profile`, { headers: adminHeaders })
-        .catch((error) => {
-          if (!cancelled && error?.response?.status === 401) {
-            clearAdminSession()
-            toast.info('Session expired. Please sign in again.', { toastId: 'admin-session-expired' })
-          }
-        })
-      return () => {
-        cancelled = true
-      }
-    }, [aToken, adminHeaders, backendUrl, clearAdminSession])
+      const interceptor = axios.interceptors.response.use(undefined, (error) => {
+        if (error?.response?.status === 401 && error.config?.headers?.atoken === aToken) {
+          clearAdminSession()
+          toast.info(translateString('Session expired. Please sign in again.'), { toastId: 'admin-session-expired' })
+        }
+        return Promise.reject(error)
+      })
+      return () => axios.interceptors.response.eject(interceptor)
+    }, [aToken, clearAdminSession])
 
     const refreshAdminNavSummary = useCallback(async () => {
       if (!aToken) return
@@ -135,7 +133,7 @@ const AdminContextProvider = (props) => {
         if(data.success) {
             setDoctors(data.doctors)
         } else {
-            toast.error(data.message)
+            toast.error(translateString(data.message))
         }
 
        } catch (error) {
@@ -148,10 +146,10 @@ const AdminContextProvider = (props) => {
       try {
        const { data } = await axios.post(backendUrl + '/api/admin/update-doctor', formData,{ headers: adminHeaders })
        if (data.success) {
-       toast.success(data.message)
+       toast.success(translateString(data.message))
        getAllDoctors() // context refresh
       } else {
-      toast.error(data.message)
+      toast.error(translateString(data.message))
       }
     } catch (error) {
     toast.error(error.message)
@@ -167,10 +165,10 @@ const AdminContextProvider = (props) => {
         if (typeof available === 'boolean') payload.available = available
         const { data } = await axios.post(backendUrl + '/api/admin/change-availability', payload, { headers: adminHeaders })
         if(data.success) {
-            toast.success(data.message)
+            toast.success(translateString(data.message))
             getAllDoctors()
         } else {
-            toast.error(data.message)
+            toast.error(translateString(data.message))
         }
         
         } catch (error) {
@@ -186,7 +184,7 @@ const AdminContextProvider = (props) => {
           if(data.success){
             setAppointments(data.appointments)
           } else {
-            toast.error(data.message)
+            toast.error(translateString(data.message))
           }
 
         } catch (error) {
@@ -200,10 +198,10 @@ const AdminContextProvider = (props) => {
        try {    
         const { data } = await axios.post(backendUrl+ '/api/admin/cancel-appointment', {appointmentId}, { headers: adminHeaders })
         if(data.success) {
-            toast.success(data.message)
+            toast.success(translateString(data.message))
             getAllAppointments()
         } else {
-            toast.error(data.message)
+            toast.error(translateString(data.message))
         }
        } catch (error) {
          toast.error(error.message)
@@ -218,7 +216,7 @@ const AdminContextProvider = (props) => {
            if(data.success) {
             setDashData(data.dashData)
            } else {
-            toast.error(data.message)
+            toast.error(translateString(data.message))
            }
         } catch (error) {
             toast.error(error.message)
@@ -233,7 +231,7 @@ const AdminContextProvider = (props) => {
             if(data.success){
                setmembersHistory(data.appointments)
             } else {
-               toast.error(data.message)
+               toast.error(translateString(data.message))
             }
         } catch (error) {
             console.log(error)
@@ -246,10 +244,10 @@ const AdminContextProvider = (props) => {
       try {
       const { data } = await axios.post( backendUrl + '/api/admin/delete-appointment-history', { appointmentId },{ headers: adminHeaders })
       if (data.success) {
-      toast.success(data.message)
+      toast.success(translateString(data.message))
       getAppointmentsHistory() 
        } else {
-      toast.error(data.message)
+      toast.error(translateString(data.message))
        }
     } catch (error) {
     toast.error(error.message)
@@ -262,7 +260,7 @@ const AdminContextProvider = (props) => {
         if(data.success){
           setPatients(data.patients)
         } else {
-          toast.error(data.message)
+          toast.error(translateString(data.message))
         }
       } catch (error) {
         toast.error(error.message)
@@ -276,7 +274,7 @@ const AdminContextProvider = (props) => {
           return data
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return null
       } catch (error) {
         toast.error(error.message)
@@ -288,12 +286,12 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/change-patient-status', {patientId}, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           getAllPatients()
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -305,12 +303,12 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/delete-patient', {patientId}, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           getAllPatients()
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -360,7 +358,7 @@ const AdminContextProvider = (props) => {
           setUsers(data.users)
         } else {
           await getUsersFromExistingEndpoints()
-          if (data.message) toast.error(data.message)
+          if (data.message) toast.error(translateString(data.message))
         }
       } catch (error) {
         const fallbackUsers = await getUsersFromExistingEndpoints()
@@ -372,14 +370,14 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/create-user', payload, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           await getAllUsers()
           if (payload.profileType === 'patient') getAllPatients()
           if (payload.profileType === 'receptionist') getReceptionists()
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         try {
@@ -391,19 +389,19 @@ const AdminContextProvider = (props) => {
               getAllPatients()
               return true
             }
-            toast.error(data.message)
+            toast.error(translateString(data.message))
             return false
           }
 
           if (payload.profileType === 'receptionist') {
             const { data } = await axios.post(backendUrl + '/api/admin/add-receptionist', payload, { headers: adminHeaders })
             if (data.success) {
-              toast.success(data.message)
+              toast.success(translateString(data.message))
               await getAllUsers()
               getReceptionists()
               return true
             }
-            toast.error(data.message)
+            toast.error(translateString(data.message))
             return false
           }
         } catch (fallbackError) {
@@ -420,7 +418,7 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/update-user', payload, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           await getAllUsers()
           if (payload.profileType === 'patient') getAllPatients()
           if (payload.profileType === 'doctor') getAllDoctors()
@@ -428,7 +426,7 @@ const AdminContextProvider = (props) => {
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -440,11 +438,11 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/reset-user-password', payload, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         if (payload.profileType === 'doctor') {
@@ -457,7 +455,7 @@ const AdminContextProvider = (props) => {
               toast.success('Password reset successfully')
               return true
             }
-            toast.error(data.message)
+            toast.error(translateString(data.message))
             return false
           } catch (fallbackError) {
             toast.error(fallbackError.message)
@@ -474,12 +472,12 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/update-user-mfa-requirement', payload, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           await getAllUsers()
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -491,12 +489,12 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/reset-user-mfa', payload, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           await getAllUsers()
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -508,7 +506,7 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/delete-user-account', payload, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           await getAllUsers()
           if (payload.profileType === 'patient') getAllPatients()
           if (payload.profileType === 'doctor') getAllDoctors()
@@ -516,7 +514,7 @@ const AdminContextProvider = (props) => {
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         try {
@@ -529,7 +527,7 @@ const AdminContextProvider = (props) => {
           const { data } = await axios.post(backendUrl + fallbackEndpoint, fallbackBody, { headers: adminHeaders })
 
           if(data.success) {
-            toast.success(data.message)
+            toast.success(translateString(data.message))
             await getAllUsers()
             if (payload.profileType === 'patient') getAllPatients()
             if (payload.profileType === 'doctor') getAllDoctors()
@@ -537,7 +535,7 @@ const AdminContextProvider = (props) => {
             return true
           }
 
-          toast.error(data.message)
+          toast.error(translateString(data.message))
           return false
         } catch (fallbackError) {
           toast.error(fallbackError.message || error.message)
@@ -552,7 +550,7 @@ const AdminContextProvider = (props) => {
         if(data.success) {
           setReceptionists(data.receptionists)
         } else {
-          toast.error(data.message)
+          toast.error(translateString(data.message))
         }
       } catch (error) {
         toast.error(error.message)
@@ -563,10 +561,10 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/change-receptionist-status', {receptionistId}, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           getReceptionists()
         } else {
-          toast.error(data.message)
+          toast.error(translateString(data.message))
         }
       } catch (error) {
         toast.error(error.message)
@@ -577,7 +575,7 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.get(`${backendUrl}/api/admin/receptionist/${receptionistId}`, { headers: adminHeaders })
         if (data.success) return data.receptionist
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return null
       } catch (error) {
         toast.error(error.response?.data?.message || error.message)
@@ -589,11 +587,11 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(`${backendUrl}/api/admin/update-receptionist`, formData, { headers: adminHeaders })
         if (data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           getReceptionists()
           return true
         }
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.response?.data?.message || error.message)
@@ -608,12 +606,41 @@ const AdminContextProvider = (props) => {
           setClinics(data.clinics)
           setAllowedClinics(data.defaultClinics || data.allowedClinics || [])
         } else {
-          toast.error(data.message)
+          toast.error(translateString(data.message))
         }
       } catch (error) {
         toast.error(error.message)
       }
     }
+
+    /** Live overview for the command centre. Resolves to null so a failed refresh keeps the last figures. */
+    const getCommandCenter = async () => {
+      const { data } = await axios.get(backendUrl + '/api/admin/command-center', { headers: adminHeaders })
+      return data.success ? data.commandCenter : null
+    }
+
+    const searchEverything = async (q, signal) => {
+      const { data } = await axios.get(backendUrl + '/api/admin/search', { headers: adminHeaders, params: { q }, signal })
+      return data.success ? data.results : null
+    }
+
+    const postBulk = async (path, body) => {
+      try {
+        const { data } = await axios.post(backendUrl + path, body, { headers: adminHeaders })
+        if (!data.success) toast.error(translateString(data.message))
+        return data.success ? data : null
+      } catch (error) {
+        toast.error(error.response?.data?.message || error.message)
+        return null
+      }
+    }
+
+    /** Each resolves to the server's reply, or null after showing the error. The page shows the success. */
+    const bulkDoctorAvailability = (doctorIds, available) => postBulk('/api/admin/bulk/doctor-availability', { doctorIds, available })
+    const bulkUserStatus = (users, active) => postBulk('/api/admin/bulk/user-status', { users, active })
+    const bulkUserMfa = (users, requiredByAdmin) => postBulk('/api/admin/bulk/user-mfa', { users, requiredByAdmin })
+    const bulkResetMfa = (users) => postBulk('/api/admin/bulk/reset-mfa', { users })
+    const bulkCancelAppointments = (appointmentIds) => postBulk('/api/admin/bulk/cancel-appointments', { appointmentIds })
 
     /** Suggestion for BilingualField. Resolves to '' when no translator is available. */
     const translatePreview = async (text, target, kind) => {
@@ -635,13 +662,15 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/create-clinic', clinicData, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           getClinics()
-        } else {
-          toast.error(data.message)
+          return true
         }
+        toast.error(translateString(data.message))
+        return false
       } catch (error) {
         toast.error(error.message)
+        return false
       }
     }
 
@@ -649,13 +678,15 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/update-clinic', clinicData, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           getClinics()
-        } else {
-          toast.error(data.message)
+          return true
         }
+        toast.error(translateString(data.message))
+        return false
       } catch (error) {
         toast.error(error.message)
+        return false
       }
     }
 
@@ -663,10 +694,10 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/delete-clinic', {clinicId}, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           getClinics()
         } else {
-          toast.error(data.message)
+          toast.error(translateString(data.message))
         }
       } catch (error) {
         toast.error(error.message)
@@ -677,11 +708,11 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/assign-clinic-doctors', {clinicId, doctorIds}, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           getClinics()
           getAllDoctors()
         } else {
-          toast.error(data.message)
+          toast.error(translateString(data.message))
         }
       } catch (error) {
         toast.error(error.message)
@@ -694,7 +725,7 @@ const AdminContextProvider = (props) => {
         if(data.success) {
           setSiteSettings(data.settings)
         } else {
-          toast.error(data.message)
+          toast.error(translateString(data.message))
         }
       } catch (error) {
         toast.error(error.message)
@@ -705,12 +736,12 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/site-settings/home-hero', formData, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           setSiteSettings(data.settings)
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -722,12 +753,12 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/site-settings/home-banner', formData, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           setSiteSettings(data.settings)
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -739,12 +770,12 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/site-settings/home-service-cards', formData, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           setSiteSettings(data.settings)
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -756,12 +787,12 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/site-settings/footer', footerData, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           setSiteSettings(data.settings)
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -777,11 +808,11 @@ const AdminContextProvider = (props) => {
           { headers: adminHeaders }
         )
         if (data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           setSiteSettings(data.settings)
           return true
         }
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -793,7 +824,7 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/site-settings/branding', payload, { headers: adminHeaders })
         if (data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           try {
             const refreshed = await axios.get(backendUrl + '/api/admin/site-settings', { headers: adminHeaders })
             if (refreshed.data?.success && refreshed.data.settings) {
@@ -807,7 +838,7 @@ const AdminContextProvider = (props) => {
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -819,12 +850,12 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/site-settings/security', securityData, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           setSiteSettings(data.settings)
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -840,11 +871,11 @@ const AdminContextProvider = (props) => {
           { headers: adminHeaders }
         )
         if (data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           setSiteSettings(data.settings)
           return true
         }
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -860,11 +891,11 @@ const AdminContextProvider = (props) => {
           { headers: adminHeaders }
         )
         if (data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           setSiteSettings(data.settings)
           return true
         }
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -880,11 +911,11 @@ const AdminContextProvider = (props) => {
           { headers: adminHeaders }
         )
         if (data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           setSiteSettings(data.settings)
           return true
         }
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -897,7 +928,7 @@ const AdminContextProvider = (props) => {
         const { data } = await axios.get(backendUrl + `/api/admin/doctor-ratings/${docId}`, { headers: adminHeaders })
         if(data.success) return data
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return { summary: { averageRating: 0, ratingCount: 0 }, ratings: [] }
       } catch (error) {
         toast.error(error.message)
@@ -909,12 +940,12 @@ const AdminContextProvider = (props) => {
       try {
         const { data } = await axios.post(backendUrl + '/api/admin/delete-rating', {ratingId}, { headers: adminHeaders })
         if(data.success) {
-          toast.success(data.message)
+          toast.success(translateString(data.message))
           await getAllDoctors()
           return true
         }
 
-        toast.error(data.message)
+        toast.error(translateString(data.message))
         return false
       } catch (error) {
         toast.error(error.message)
@@ -941,6 +972,7 @@ const AdminContextProvider = (props) => {
        deleteAppointmentHistory,
        receptionists, getReceptionists, changeReceptionistStatus, getReceptionistById, updateReceptionistByAdmin,
        translatePreview, getTranslationStatus, retryTranslations,
+       getCommandCenter, searchEverything, bulkDoctorAvailability, bulkUserStatus, bulkUserMfa, bulkResetMfa, bulkCancelAppointments,
        clinics, allowedClinics, getClinics, createClinic, updateClinic, deleteClinic, assignDoctorsToClinic,
        siteSettings, getSiteSettings, updateHomeHeroSettings, updateHomeBannerSettings, updateHomeServiceCardsSettings, updateFooterSettings, updateBrandingSettings, updateInsuranceProviders, updateSecuritySettings, updateHomeVisitPricingSettings, updateGlobalVisitFeesSettings, updateLanguagePoliciesSettings,
        getDoctorRatings, deleteDoctorRating

@@ -153,16 +153,76 @@ export async function resolveBilingualValue({ previous, input, kind = 'text', bu
 }
 
 /**
+ * Where a field's stored value lives: `name` is at `i18n.name`, `footer.title` at `footer.i18n.title`.
+ * A field can name its own home with `i18n`, which array fields use.
+ */
+export const i18nPathOf = (field, config = {}) => {
+  if (config.i18n) return config.i18n
+  const parts = field.split('.')
+  const leaf = parts.pop()
+  return [...parts, 'i18n', leaf].join('.')
+}
+
+const readPath = (object, path) => path.split('.').reduce((value, key) => value?.[key], object)
+
+const plainTextOf = (doc, field, config) => (config.plain ? config.plain(doc) : readPath(doc, field))
+
+/** Multipart forms post `<field>I18n` as JSON text. Everything else is left as it came. */
+const readI18nBody = (raw) => {
+  if (typeof raw !== 'string') return raw
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : raw
+  } catch {
+    return raw
+  }
+}
+
+/**
+ * The input for each field in a request body. `<field>I18n` wins over the plain `<field>`. A field
+ * marked `i18nOnly` ignores the plain one, because its plain value is not text (a doctor's address).
+ */
+export const readBilingualInputs = (fields, body = {}) => {
+  const inputs = {}
+  for (const [field, config] of Object.entries(fields)) {
+    const i18n = readI18nBody(body[`${field}I18n`])
+    const input = i18n ?? (config.i18nOnly ? undefined : body[field])
+    if (input !== undefined && input !== null) inputs[field] = input
+  }
+  return inputs
+}
+
+const isBlankInput = (input) =>
+  typeof input === 'string' ? !clean(input) : !clean(input?.en) && !clean(input?.ar)
+
+/**
+ * Resolves several fields at once, in parallel because a settings form has a dozen of them.
+ * Blank inputs are skipped when `keepBlank` is set, so a cleared box keeps the saved text.
+ * @returns {Promise<Record<string, object>>} the value to store for each field that was supplied
+ */
+export async function resolveBilingualFields({ previous = {}, fields, body = {}, keepBlank = false }) {
+  const inputs = readBilingualInputs(fields, body)
+  const resolved = {}
+  await Promise.all(
+    Object.entries(inputs).map(async ([field, input]) => {
+      if (keepBlank && isBlankInput(input)) return
+      resolved[field] = await resolveBilingualValue({ previous: previous?.[field], input, kind: fields[field].kind })
+    })
+  )
+  return resolved
+}
+
+/** The plain field's value once both languages are known. English first, so lookups keep working. */
+export const primaryOf = (value) => clean(value?.en) || clean(value?.ar)
+
+/**
  * Applies a request body to a Mongoose document: reads `<field>I18n` ({ en, ar, source, manual })
  * or the plain `<field>` string, and sets `i18n.<field>`. It leaves the plain fields to the
  * controller, because renaming one can have side effects there.
  */
 export async function applyBilingualFields(doc, fields, body = {}) {
-  for (const [field, { kind }] of Object.entries(fields)) {
-    const input = body[`${field}I18n`] ?? body[field]
-    if (input === undefined) continue
-    const previous = doc.i18n?.[field]
-    const value = await resolveBilingualValue({ previous, input, kind })
+  const resolved = await resolveBilingualFields({ previous: doc.i18n, fields, body })
+  for (const [field, value] of Object.entries(resolved)) {
     doc.set(`i18n.${field}`, value)
   }
   return doc
@@ -176,40 +236,68 @@ export const primaryText = (input) => {
 }
 
 const pendingQuery = (fields) => ({
-  $or: Object.keys(fields).map((field) => ({ [`i18n.${field}.status`]: 'pending' }))
+  $or: Object.entries(fields).map(([field, config]) => ({ [`${i18nPathOf(field, config)}.status`]: 'pending' }))
 })
 
 export const countPendingBilingual = (model, fields) => model.countDocuments(pendingQuery(fields))
 
+/* An `each` field is an array of stored values rather than one. Yields every value with its own path. */
+const storedEntries = (doc, field, config) => {
+  const path = i18nPathOf(field, config)
+  const stored = readPath(doc, path)
+  if (!config.each) return [{ path, stored }]
+  return (Array.isArray(stored) ? stored : []).map((item, index) => ({ path: `${path}.${index}`, stored: item }))
+}
+
+/* strict: false because a model can hold i18n before its schema declares it. See the registry. */
+const writeStored = (model, id, path, value) =>
+  model.updateOne({ _id: id }, { $set: { [path]: value } }, { strict: false })
+
 /** Retries records whose translation failed. Bounded, because it can run inside a request. */
 export async function retryPendingBilingual(model, fields, { limit = 3, deadlineMs = 5_000, force = false } = {}) {
-  const docs = await model.find(pendingQuery(fields)).limit(limit)
+  const docs = await model.find(pendingQuery(fields)).limit(limit).lean()
   const started = Date.now()
   let completed = 0
   let stillPending = 0
 
   for (const doc of docs) {
-    for (const [field, { kind }] of Object.entries(fields)) {
-      const current = doc.i18n?.[field]
-      if (current?.status !== 'pending') continue
-      const remaining = deadlineMs - (Date.now() - started)
-      const tooSoon = !force && Date.now() - (current.lastAttemptAt || 0) < RETRY_AFTER_MS
-      if (remaining <= 0 || tooSoon) {
-        stillPending += 1
-        continue
+    for (const [field, config] of Object.entries(fields)) {
+      for (const { path, stored: current } of storedEntries(doc, field, config)) {
+        if (current?.status !== 'pending') continue
+        const remaining = deadlineMs - (Date.now() - started)
+        const tooSoon = !force && Date.now() - (current.lastAttemptAt || 0) < RETRY_AFTER_MS
+        if (remaining <= 0 || tooSoon) {
+          stillPending += 1
+          continue
+        }
+        const value = await resolveBilingualValue({
+          previous: current,
+          input: { en: current.en, ar: current.ar, source: current.source },
+          kind: config.kind,
+          budgetMs: remaining
+        })
+        await writeStored(model, doc._id, path, value)
+        if (value.status === 'pending') stillPending += 1
+        else completed += 1
       }
-      const value = await resolveBilingualValue({
-        previous: current,
-        input: { en: current.en, ar: current.ar, source: current.source },
-        kind,
-        budgetMs: remaining
-      })
-      await model.updateOne({ _id: doc._id }, { $set: { [`i18n.${field}`]: value } })
-      if (value.status === 'pending') stillPending += 1
-      else completed += 1
     }
   }
   return { completed, stillPending }
+}
+
+/* An `each` field's list can be longer than what is stored, so walk the plain list instead */
+const backfillEntries = (doc, field, config) => {
+  if (!config.each) {
+    return [{ path: i18nPathOf(field, config), stored: readPath(doc, i18nPathOf(field, config)), plain: clean(plainTextOf(doc, field, config)) }]
+  }
+  const path = i18nPathOf(field, config)
+  const stored = readPath(doc, path)
+  const plainList = plainTextOf(doc, field, config)
+  return (Array.isArray(plainList) ? plainList : []).map((plain, index) => ({
+    path: `${path}.${index}`,
+    stored: Array.isArray(stored) ? stored[index] : undefined,
+    plain: clean(plain)
+  }))
 }
 
 /**
@@ -222,25 +310,25 @@ export async function backfillBilingual(model, fields, { dryRun = true, log = ()
 
   for (const doc of docs) {
     summary.scanned += 1
-    for (const [field, { kind }] of Object.entries(fields)) {
-      const stored = doc.i18n?.[field]
-      const plain = clean(doc[field])
-      const done = readStored(stored) && stored.status !== 'pending'
-      if (done || (!plain && !readStored(stored))) {
-        summary.skipped += 1
-        continue
+    for (const [field, config] of Object.entries(fields)) {
+      for (const { path, stored, plain } of backfillEntries(doc, field, config)) {
+        const done = readStored(stored) && stored.status !== 'pending'
+        if (done || (!plain && !readStored(stored))) {
+          summary.skipped += 1
+          continue
+        }
+        if (dryRun) {
+          summary.wouldFill += 1
+          log(`would fill ${doc._id} ${path}: ${plain.slice(0, 60)}`)
+          continue
+        }
+        const input = readStored(stored) ? { en: stored.en, ar: stored.ar, source: stored.source } : plain
+        const value = await resolveBilingualValue({ previous: stored, input, kind: config.kind })
+        await writeStored(model, doc._id, path, value)
+        if (value.status === 'pending') summary.pending += 1
+        else summary.filled += 1
+        log(`${value.status} ${doc._id} ${path}`)
       }
-      if (dryRun) {
-        summary.wouldFill += 1
-        log(`would fill ${doc._id} ${field}: ${plain.slice(0, 60)}`)
-        continue
-      }
-      const input = readStored(stored) ? { en: stored.en, ar: stored.ar, source: stored.source } : plain
-      const value = await resolveBilingualValue({ previous: stored, input, kind })
-      await model.updateOne({ _id: doc._id }, { $set: { [`i18n.${field}`]: value } })
-      if (value.status === 'pending') summary.pending += 1
-      else summary.filled += 1
-      log(`${value.status} ${doc._id} ${field}`)
     }
   }
   return summary

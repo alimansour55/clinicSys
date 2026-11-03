@@ -37,7 +37,7 @@ const getClinics = async (req, res) => {
     })
 
     const clinics = await clinicModel.find({}).sort({ name: 1 }).lean()
-    const doctors = await doctorModel.find({}).select('-password').populate('clinics').lean()
+    const doctors = await doctorModel.find({}).select('-password -mfa.secret').populate('clinics').lean()
 
     const clinicsWithDoctors = clinics.map((clinic) => ({
       ...clinic,
@@ -111,7 +111,8 @@ const updateClinic = async (req, res) => {
     const { clinicId, active } = req.body
     /* Doctors match clinics by this name, so an Arabic-only edit must not rename the clinic */
     const name = normalizeClinicName(req.body.nameI18n ? req.body.nameI18n.en : req.body.name)
-    const description = primaryText(req.body.descriptionI18n ?? req.body.description)
+    /* A partial save, such as switching a clinic off, must not blank the description */
+    const descriptionInput = req.body.descriptionI18n ?? req.body.description
 
     if (!clinicId) {
       return res.json({ success: false, message: 'Clinic ID is required' })
@@ -130,10 +131,10 @@ const updateClinic = async (req, res) => {
       clinic.name = name
     }
 
-    clinic.description = description
+    if (descriptionInput !== undefined) clinic.description = primaryText(descriptionInput)
     await applyBilingualFields(clinic, clinicBilingualFields, {
       name: req.body.nameI18n ?? clinic.name,
-      description: req.body.descriptionI18n ?? description
+      description: descriptionInput
     })
     if (typeof active !== 'undefined') {
       clinic.active = active === true || active === 'true'

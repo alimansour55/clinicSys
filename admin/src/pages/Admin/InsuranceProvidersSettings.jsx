@@ -1,14 +1,28 @@
 import React, { useContext, useEffect, useState } from 'react'
+import { Building2, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
 import { AdminContext } from '../../context/AdminContext'
 import { useLanguage } from '../../i18n'
 import { translateInsuranceProviderName } from '../../data/insuranceProviderNamesAr'
-import { Building2, Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import BilingualField from '../../components/BilingualField'
+import { AdminPage } from '../../components/admin/AdminPage'
+import { Badge, Button, Card, CardBody, IconButton } from '../../components/ui'
+import { bilingualIsEmpty, bilingualPayload, emptyBilingual } from '../../utils/bilingualValue'
+
+/** A provider as the form edits it. The built-in names already have reviewed Arabic in the app. */
+const toRow = (name, stored, t) => {
+  const known = translateInsuranceProviderName(name, t, 'ar')
+  const ar = stored?.ar || (known !== name ? known : '')
+  return { key: name, value: { en: stored?.en || name, ar, source: stored?.source === 'ar' ? 'ar' : 'en', manual: stored?.manual === true || Boolean(ar && !stored?.ar), status: stored?.status === 'pending' ? 'pending' : 'complete' } }
+}
+
+const textOf = (value) => (value.en || value.ar || '').trim().toLowerCase()
 
 const InsuranceProvidersSettings = () => {
-  const { aToken, siteSettings, getSiteSettings, updateInsuranceProviders } = useContext(AdminContext)
+  const { aToken, siteSettings, getSiteSettings, updateInsuranceProviders, translatePreview } = useContext(AdminContext)
   const { t, language } = useLanguage()
-  const [providers, setProviders] = useState([])
-  const [newName, setNewName] = useState('')
+  const [rows, setRows] = useState([])
+  const [editingKey, setEditingKey] = useState(null)
+  const [draft, setDraft] = useState(emptyBilingual)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -17,95 +31,89 @@ const InsuranceProvidersSettings = () => {
   }, [aToken])
 
   useEffect(() => {
-    const list = siteSettings?.insuranceProviders
-    if (Array.isArray(list) && list.length > 0) setProviders([...list])
+    const names = siteSettings?.insuranceProviders
+    if (!Array.isArray(names) || names.length === 0) return
+    const stored = siteSettings?.insuranceProvidersI18n || []
+    setRows(names.map((name, index) => toRow(name, stored[index]?.name === name ? stored[index] : stored.find((item) => item.name === name), t)))
+    setEditingKey(null)
+    // `t` changes with the language, which must not throw away unsaved edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteSettings])
 
-  const removeAt = (index) => {
-    setProviders((prev) => prev.filter((_, i) => i !== index))
-  }
+  const removeAt = (key) => setRows((previous) => previous.filter((row) => row.key !== key))
+  const editRow = (key, value) => setRows((previous) => previous.map((row) => (row.key === key ? { ...row, value } : row)))
 
   const addProvider = () => {
-    const name = newName.trim()
-    if (!name) return
-    if (providers.includes(name)) {
-      setNewName('')
-      return
+    if (bilingualIsEmpty(draft)) return
+    if (!rows.some((row) => textOf(row.value) === textOf(draft))) {
+      setRows((previous) => [...previous, { key: `new-${Date.now()}`, value: draft }])
     }
-    setProviders((prev) => [...prev, name])
-    setNewName('')
+    setDraft(emptyBilingual())
   }
 
   const handleSave = async () => {
     setSaving(true)
-    await updateInsuranceProviders(providers)
+    await updateInsuranceProviders(rows.map((row) => bilingualPayload(row.value)))
     setSaving(false)
   }
 
+  const labelOf = (value) => (language === 'ar' ? value.ar || value.en : value.en || value.ar)
+
   return (
-    <div className='w-full min-h-screen p-3 sm:p-5 md:p-6 lg:p-8 bg-gray-50'>
-      <div className='max-w-3xl mx-auto space-y-6'>
-        <div className='flex items-start gap-3'>
-          <div className='p-3 rounded-xl bg-primary/10 text-primary'>
-            <Building2 className='w-7 h-7' />
-          </div>
-          <div>
-            <h1 className='text-2xl font-bold text-gray-900'>{t('Insurance providers')}</h1>
-            <p className='text-sm text-gray-600 mt-1'>{t('Insurance providers page description')}</p>
-          </div>
-        </div>
+    <AdminPage icon={Building2} width='max-w-3xl' title={t('Insurance providers')} description={t('Insurance providers page description')}>
+      <div className='space-y-5'>
+        <Card variant='flat'>
+          <CardBody className='space-y-4'>
+            <p className='text-body-sm text-ink-2'>{t('Insurance providers list hint')}</p>
+            <ul className='max-h-[28rem] divide-y divide-line overflow-y-auto rounded-control border border-line'>
+              {rows.map(({ key, value }) => (
+                <li key={key} className='px-3 py-2.5'>
+                  {editingKey === key ? (
+                    <div className='space-y-2'>
+                      <BilingualField label={t('Provider name')} value={value} onChange={(next) => editRow(key, next)} translate={translatePreview} kind='label' />
+                      <Button size='sm' variant='secondary' onClick={() => setEditingKey(null)} leadingIcon={<X aria-hidden='true' className='size-4' />}>
+                        {t('Done')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className='flex items-center gap-2'>
+                      <span className='min-w-0 flex-1'>
+                        <span className='block break-words text-body-sm font-medium text-ink'>{labelOf(value)}</span>
+                        <span className='block break-words text-caption text-ink-3'>{language === 'ar' ? value.en : value.ar}</span>
+                      </span>
+                      {value.status === 'pending' && <Badge tone='warning'>{t('Translation pending')}</Badge>}
+                      <IconButton size='sm' variant='ghost' label={t('Edit')} onClick={() => setEditingKey(key)}>
+                        <Pencil aria-hidden='true' className='size-4' />
+                      </IconButton>
+                      <IconButton
+                        size='sm'
+                        variant='ghost'
+                        label={rows.length <= 1 ? t('Keep at least one provider') : t('Remove')}
+                        disabled={rows.length <= 1}
+                        onClick={() => removeAt(key)}
+                      >
+                        <Trash2 aria-hidden='true' className='size-4 text-danger-ink' />
+                      </IconButton>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
 
-        <div className='bg-white border border-gray-200 rounded-xl p-5 sm:p-6 shadow-sm space-y-4'>
-          <p className='text-sm text-gray-700'>{t('Insurance providers list hint')}</p>
+            <div className='rounded-control bg-surface-sunken p-3'>
+              <BilingualField label={t('New provider name')} value={draft} onChange={setDraft} translate={translatePreview} kind='label' />
+              <Button className='mt-2' size='sm' variant='secondary' onClick={addProvider} disabled={bilingualIsEmpty(draft)} leadingIcon={<Plus aria-hidden='true' className='size-4' />}>
+                {t('Add')}
+              </Button>
+            </div>
 
-          <ul className='divide-y divide-gray-100 border border-gray-200 rounded-lg max-h-[420px] overflow-y-auto'>
-            {providers.map((name, index) => (
-              <li key={`${name}-${index}`} className='flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50'>
-                <span className='flex-1 text-sm font-medium text-gray-900 break-words'>
-                  {translateInsuranceProviderName(name, t, language)}
-                </span>
-                <button
-                  type='button'
-                  onClick={() => removeAt(index)}
-                  disabled={providers.length <= 1}
-                  className='p-2 rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed'
-                  title={providers.length <= 1 ? t('Keep at least one provider') : t('Remove')}
-                >
-                  <Trash2 className='w-4 h-4' />
-                </button>
-              </li>
-            ))}
-          </ul>
-
-          <div className='flex flex-col sm:flex-row gap-2'>
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder={t('New provider name')}
-              className='flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary'
-            />
-            <button
-              type='button'
-              onClick={addProvider}
-              className='inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50'
-            >
-              <Plus className='w-4 h-4' />
-              {t('Add')}
-            </button>
-          </div>
-
-          <button
-            type='button'
-            onClick={handleSave}
-            disabled={saving || providers.length < 1}
-            className='inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-95 disabled:opacity-50'
-          >
-            {saving ? <Loader2 className='w-4 h-4 animate-spin' /> : <Save className='w-4 h-4' />}
-            {t('Save list')}
-          </button>
-        </div>
+            <Button onClick={handleSave} loading={saving} disabled={rows.length < 1} leadingIcon={<Save aria-hidden='true' className='size-4' />}>
+              {t('Save list')}
+            </Button>
+          </CardBody>
+        </Card>
       </div>
-    </div>
+    </AdminPage>
   )
 }
 
