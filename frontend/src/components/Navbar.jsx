@@ -1,5 +1,5 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import React, { useContext, useEffect, useRef, useState } from 'react'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
 import {
   CalendarDays,
@@ -19,32 +19,60 @@ import {
 } from 'lucide-react'
 import { LanguageToggle, useLanguage } from '../i18n'
 import { ThemeToggle } from './ui/ThemeToggle'
+import { Skeleton } from './ui'
 import PatientNotificationBell from './PatientNotificationBell'
 import { patientDrawerLogoClassName, patientHeaderLogoClassName } from '../utils/brandingLogo'
 import { resolveLogoAltText } from '../utils/siteSettingsBranding'
 import BrandLogo from './BrandLogo'
+
+const publicLinks = [
+  { to: '/', label: 'nav.home', icon: Home },
+  { to: '/doctors', label: 'nav.doctors', icon: Stethoscope },
+  { to: '/about', label: 'nav.about', icon: Info },
+  { to: '/contact', label: 'nav.contact', icon: Phone },
+]
+
+const accountLinks = [
+  { to: '/my-profile', label: 'My Profile', icon: UserRound },
+  { to: '/medical-history', label: 'Medical History', icon: HeartPulse },
+  { to: '/insurance', label: 'Insurance', icon: CreditCard },
+]
+
+/* Close a popup on Escape or on a press outside it */
+function useDismiss(open, close, ref) {
+  useEffect(() => {
+    if (!open) return undefined
+    const onKey = (event) => event.key === 'Escape' && close()
+    const onPointer = (event) => ref.current && !ref.current.contains(event.target) && close()
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onPointer)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onPointer)
+    }
+  }, [open, close, ref])
+}
 
 const Navbar = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { token, setToken, userData, siteSettings, displayPersonName } = useContext(AppContext)
   const { t } = useLanguage()
-  const [showMenu, setShowMenu] = useState(false)
+  // Each popup remembers the page it was opened on, so navigating anywhere closes it without an effect
+  const [menuPath, setMenuPath] = useState(null)
+  const [accountPath, setAccountPath] = useState(null)
+  const showMenu = menuPath === location.pathname
+  const showAccount = accountPath === location.pathname
+  const accountRef = useRef(null)
+  const drawerRef = useRef(null)
+  const closeButtonRef = useRef(null)
+  const menuButtonRef = useRef(null)
 
   const logoAltText = resolveLogoAltText(siteSettings)
-
-  const publicLinks = [
-    { to: '/', label: 'HOME', icon: Home },
-    { to: '/doctors', label: 'ALL DOCTORS', icon: Stethoscope },
-    { to: '/about', label: 'ABOUT', icon: Info },
-    { to: '/contact', label: 'CONTACT', icon: Phone },
-  ]
-
-  const accountLinks = [
-    { to: '/my-profile', label: 'My Profile', icon: UserRound },
-    { to: '/medical-history', label: 'Medical History', icon: HeartPulse },
-    { to: '/insurance', label: 'Insurance', icon: CreditCard },
-  ]
+  const closeAccount = React.useCallback(() => setAccountPath(null), [])
+  const closeMenu = React.useCallback(() => setMenuPath(null), [])
+  useDismiss(showAccount, closeAccount, accountRef)
+  useDismiss(showMenu, closeMenu, drawerRef)
 
   const logout = () => {
     setToken(false)
@@ -52,257 +80,207 @@ const Navbar = () => {
     navigate('/')
   }
 
-  const closeAndNavigate = (path) => {
-    setShowMenu(false)
-    navigate(path)
-  }
-
-  useEffect(() => {
-    setShowMenu(false)
-  }, [location.pathname])
-
   useEffect(() => {
     if (!showMenu) return undefined
     const prev = document.body.style.overflow
+    const opener = menuButtonRef.current
     document.body.style.overflow = 'hidden'
+    closeButtonRef.current?.focus()
     return () => {
       document.body.style.overflow = prev
+      opener?.focus()
     }
   }, [showMenu])
 
-  const drawerLinkClass = (isActive) =>
-    `flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-[15px] font-medium transition ${
-      isActive
-        ? 'border-primary/20 bg-primary text-white shadow-sm'
-        : 'border-transparent bg-gray-50 text-gray-800 active:bg-teal-50'
+  const drawerLinkClass = ({ isActive }) =>
+    `flex w-full items-center justify-between gap-3 rounded-control px-4 py-3.5 text-body font-medium transition ${
+      isActive ? 'bg-primary text-on-primary shadow-e1' : 'bg-surface-sunken text-ink active:bg-primary-soft'
     }`
 
-  return (
-    <header className='sticky top-0 z-50 border-b border-gray-200/90 bg-white shadow-sm'>
-      <div className='flex min-h-[3.5rem] items-center gap-3 py-2 sm:min-h-[3.75rem] sm:gap-4'>
-        <button
-          type='button'
-          onClick={() => navigate('/')}
-          className='flex shrink-0 items-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35'
-          aria-label={logoAltText}
-        >
-          <BrandLogo siteSettings={siteSettings} imgClassName={patientHeaderLogoClassName} />
-        </button>
+  const signedIn = Boolean(token && userData)
+  const loadingUser = Boolean(token && !userData)
 
-        <nav aria-label='Primary' className='hidden min-w-0 flex-1 justify-center md:flex'>
-          <div className='inline-flex flex-wrap items-center justify-center gap-1 rounded-full border border-teal-100/90 bg-teal-50/60 p-1 text-sm font-medium text-gray-700 shadow-sm'>
+  return (
+    <header className='sticky top-0 z-50 border-b border-line bg-surface/90 backdrop-blur-md supports-[backdrop-filter]:bg-surface/80'>
+      <div className='mx-auto flex min-h-16 w-full max-w-7xl items-center gap-3 px-gutter py-2 sm:gap-4'>
+        <Link to='/' className='flex shrink-0 items-center rounded-control' aria-label={logoAltText}>
+          <BrandLogo siteSettings={siteSettings} imgClassName={patientHeaderLogoClassName} />
+        </Link>
+
+        <nav aria-label={t('Main')} className='hidden min-w-0 flex-1 justify-center md:flex'>
+          <ul className='inline-flex items-center gap-1 rounded-full border border-line bg-surface-sunken p-1 text-body-sm font-medium'>
             {publicLinks.map(({ to, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === '/'}
-                className={({ isActive }) =>
-                  `whitespace-nowrap rounded-full px-3 py-2 transition sm:px-4 ${
-                    isActive ? 'bg-white text-primary shadow-sm' : 'hover:bg-white/85 hover:text-primary'
-                  }`
-                }
-              >
-                {t(label)}
-              </NavLink>
+              <li key={to}>
+                <NavLink
+                  to={to}
+                  end={to === '/'}
+                  className={({ isActive }) =>
+                    `block whitespace-nowrap rounded-full px-4 py-2 transition duration-(--duration-fast) ${
+                      isActive ? 'bg-surface text-brand shadow-e1' : 'text-ink-2 hover:text-ink'
+                    }`
+                  }
+                >
+                  {t(label)}
+                </NavLink>
+              </li>
             ))}
-          </div>
+          </ul>
         </nav>
 
-        <div className='ms-auto flex shrink-0 items-center gap-2 sm:gap-3'>
-          {token && userData ? (
+        <div className='ms-auto flex shrink-0 items-center gap-1.5 sm:gap-2'>
+          <span className='hidden md:contents'>
+            <LanguageToggle compact />
+            <ThemeToggle />
+          </span>
+
+          {signedIn && (
             <>
-              <div className='hidden items-center gap-2 md:flex md:gap-3'>
+              <PatientNotificationBell />
+              <Link
+                to='/my-appointments'
+                className='hidden min-h-10 items-center gap-2 rounded-control bg-primary px-4 text-body-sm font-semibold text-on-primary shadow-e1 transition hover:bg-primary-dark lg:inline-flex'
+              >
+                <CalendarDays aria-hidden='true' className='size-4' />
+                {t('My Appointments')}
+              </Link>
+              <div ref={accountRef} className='relative hidden md:block'>
                 <button
                   type='button'
-                  onClick={() => navigate('/my-appointments')}
-                  className='inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark sm:px-5 sm:py-2.5'
+                  onClick={() => setAccountPath(showAccount ? null : location.pathname)}
+                  aria-expanded={showAccount}
+                  aria-haspopup='true'
+                  aria-controls='account-menu'
+                  className='flex max-w-48 items-center gap-2 rounded-full border border-line bg-surface p-1 pe-2 text-start transition hover:border-primary'
                 >
-                  <CalendarDays className='h-4 w-4 shrink-0' />
-                  <span className='hidden sm:inline'>{t('My Appointments')}</span>
-                  <span className='sm:hidden'>{t('APPOINTMENTS')}</span>
+                  <img className='size-8 shrink-0 rounded-full object-cover' src={userData.image} alt='' />
+                  <span className='hidden min-w-0 flex-1 truncate text-body-sm font-semibold text-ink xl:block'>
+                    {displayPersonName(userData.name) || t('User')}
+                  </span>
+                  <ChevronDown aria-hidden='true' className={`size-4 shrink-0 text-ink-3 transition ${showAccount ? 'rotate-180' : ''}`} />
+                  <span className='sr-only'>{t('Account')}</span>
                 </button>
-
-                <LanguageToggle compact />
-
-                <ThemeToggle />
-
-                <PatientNotificationBell />
-
-                <div className='group relative'>
-                  <button
-                    type='button'
-                    className='flex max-w-[12rem] items-center gap-2 rounded-full border border-teal-100 bg-white px-2 py-1.5 text-start shadow-sm transition hover:border-primary/40 hover:bg-teal-50'
-                  >
-                    <img
-                      className='h-9 w-9 shrink-0 rounded-full border-2 border-teal-100 object-cover'
-                      src={userData.image}
-                      alt=''
-                    />
-                    <div className='hidden min-w-0 flex-1 lg:block'>
-                      <p className='truncate text-sm font-semibold text-gray-900'>
-                        {displayPersonName(userData.name) || t('User')}
-                      </p>
-                      <p className='truncate text-xs text-gray-500'>{t('Account')}</p>
-                    </div>
-                    <ChevronDown className='h-4 w-4 shrink-0 text-gray-500' />
-                  </button>
-
-                  <div className='absolute end-0 top-full z-50 hidden pt-2 group-hover:block'>
-                    <div className='w-64 rounded-xl border border-teal-100 bg-white p-2 text-gray-700 shadow-xl'>
-                      {accountLinks.map(({ to, label, icon: Icon }) => (
-                        <button
-                          key={to}
-                          type='button'
-                          onClick={() => navigate(to)}
-                          className='flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start text-sm transition hover:bg-teal-50 hover:text-primary'
-                        >
-                          <Icon className='h-4 w-4 shrink-0' />
-                          {t(label)}
-                        </button>
+                {showAccount && (
+                  <div id='account-menu' className='absolute end-0 top-full z-50 mt-2 w-64 animate-rise rounded-card border border-line bg-surface-raised p-2 shadow-e2'>
+                    <p className='truncate px-3 pb-2 pt-1 text-caption text-ink-3'>{userData.email}</p>
+                    <ul>
+                      {[{ to: '/my-appointments', label: 'My Appointments', icon: CalendarDays }, ...accountLinks].map(({ to, label, icon: Icon }) => (
+                        <li key={to}>
+                          <Link to={to} onClick={closeAccount} className='flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-body-sm text-ink transition hover:bg-primary-soft hover:text-brand'>
+                            <Icon aria-hidden='true' className='size-4 shrink-0' />
+                            {t(label)}
+                          </Link>
+                        </li>
                       ))}
-
-                      <div className='my-2 border-t border-gray-100 pt-2'>
-                        <div className='mb-2 flex items-center gap-2 px-3 text-xs font-semibold uppercase tracking-wide text-gray-400'>
-                          <Languages className='h-3.5 w-3.5' />
-                          {t('Language')}
-                        </div>
-                        <div className='px-3'>
-                          <LanguageToggle />
-                        </div>
-                      </div>
-
-                      <button
-                        type='button'
-                        onClick={logout}
-                        className='flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start text-sm text-red-600 transition hover:bg-red-50'
-                      >
-                        <LogOut className='h-4 w-4' />
-                        {t('Logout')}
-                      </button>
-                    </div>
+                    </ul>
+                    <button
+                      type='button'
+                      onClick={logout}
+                      className='mt-1 flex w-full items-center gap-3 rounded-control border-t border-line px-3 py-2.5 text-start text-body-sm text-danger-ink transition hover:bg-danger-soft'
+                    >
+                      <LogOut aria-hidden='true' className='size-4' />
+                      {t('Logout')}
+                    </button>
                   </div>
-                </div>
-              </div>
-
-              <div className='flex items-center gap-1.5 md:hidden'>
-                <LanguageToggle compact />
-                <ThemeToggle />
-                <PatientNotificationBell />
+                )}
               </div>
             </>
-          ) : (
-            <div className='hidden items-center gap-2 md:flex md:gap-3'>
-              <LanguageToggle compact />
-              <ThemeToggle />
-              <button
-                type='button'
-                onClick={() => navigate('/login?mode=login')}
-                className='rounded-full border border-primary px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary hover:text-white sm:px-5'
-              >
-                {t('Sign in')}
-              </button>
-              <button
-                type='button'
-                onClick={() => navigate('/login?mode=signup')}
-                className='rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark sm:px-5'
-              >
-                {t('Create Account')}
-              </button>
-            </div>
           )}
 
+          {loadingUser && <Skeleton circle className='hidden size-10 md:block' />}
+
+          {!token && (
+            <span className='hidden items-center gap-2 md:flex'>
+              <Link to='/login?mode=login' className='inline-flex min-h-10 items-center rounded-control px-3 text-body-sm font-semibold text-brand transition hover:bg-primary-soft'>
+                {t('Sign in')}
+              </Link>
+              <Link to='/login?mode=signup' className='inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-body-sm font-semibold text-on-primary shadow-e1 transition hover:bg-primary-dark'>
+                {t('Create Account')}
+              </Link>
+            </span>
+          )}
+
+          <span className='md:hidden'>
+            <LanguageToggle compact />
+          </span>
           <button
+            ref={menuButtonRef}
             type='button'
-            onClick={() => setShowMenu(true)}
-            className='inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm transition active:bg-teal-50 md:hidden'
+            onClick={() => setMenuPath(location.pathname)}
+            className='inline-flex size-10 items-center justify-center rounded-control border border-line bg-surface text-ink transition active:bg-primary-soft md:hidden'
             aria-label={t('Menu')}
             aria-expanded={showMenu}
+            aria-controls='site-drawer'
           >
-            <Menu className='h-5 w-5 text-primary' />
-            <span>{t('Menu')}</span>
+            <Menu aria-hidden='true' className='size-5' />
           </button>
         </div>
       </div>
 
-      {showMenu ? (
+      {showMenu && (
         <div className='fixed inset-0 z-[60] md:hidden' role='dialog' aria-modal='true' aria-label={t('Menu')}>
-          <div
-            className='absolute inset-0 bg-gray-950/50 backdrop-blur-[2px]'
-            onClick={() => setShowMenu(false)}
-            role='presentation'
-          />
-
-          <aside className='absolute top-0 end-0 bottom-0 flex h-full w-[min(100vw-1.25rem,22rem)] max-w-sm flex-col overflow-hidden bg-white shadow-2xl'>
-            <div className='border-b border-teal-100 bg-gradient-to-br from-teal-50 via-white to-blue-50 px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))]'>
+          <div className='absolute inset-0 animate-fade bg-(--color-scrim)' aria-hidden='true' />
+          <aside
+            id='site-drawer'
+            ref={drawerRef}
+            className='absolute inset-y-0 end-0 flex w-[min(100vw-2.5rem,22rem)] animate-fade flex-col overflow-hidden bg-surface shadow-e3'
+          >
+            <div className='border-b border-line bg-primary-soft px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))]'>
               <div className='flex items-center justify-between gap-3'>
-                <button type='button' onClick={() => closeAndNavigate('/')} className='min-w-0 text-start'>
+                <Link to='/' className='min-w-0' aria-label={logoAltText}>
                   <BrandLogo siteSettings={siteSettings} imgClassName={patientDrawerLogoClassName} />
-                </button>
+                </Link>
                 <button
+                  ref={closeButtonRef}
                   type='button'
-                  onClick={() => setShowMenu(false)}
-                  className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm'
+                  onClick={closeMenu}
+                  className='flex size-10 shrink-0 items-center justify-center rounded-control border border-line bg-surface text-ink-2'
                   aria-label={t('Close')}
                 >
-                  <X className='h-5 w-5' />
+                  <X aria-hidden='true' className='size-5' />
                 </button>
               </div>
-
-              {token && userData ? (
-                <div className='mt-4 flex items-center gap-3 rounded-2xl border border-white/80 bg-white/90 p-3 shadow-sm'>
-                  <img className='h-12 w-12 shrink-0 rounded-full border-2 border-teal-100 object-cover' src={userData.image} alt='' />
+              {signedIn ? (
+                <div className='mt-4 flex items-center gap-3 rounded-card bg-surface p-3 shadow-e1'>
+                  <img className='size-12 shrink-0 rounded-full object-cover' src={userData.image} alt='' />
                   <div className='min-w-0 flex-1'>
-                    <p className='truncate text-sm font-bold text-gray-900'>{displayPersonName(userData.name) || t('User')}</p>
-                    <p className='truncate text-xs text-gray-500'>{userData.email}</p>
+                    <p className='truncate text-body-sm font-semibold text-ink'>{displayPersonName(userData.name) || t('User')}</p>
+                    <p className='truncate text-caption text-ink-2'>{userData.email}</p>
                   </div>
                 </div>
               ) : (
-                <p className='mt-3 text-sm leading-relaxed text-gray-600'>{t('Menu welcome guest')}</p>
+                <p className='mt-3 text-body-sm text-ink-2'>{t('Menu welcome guest')}</p>
               )}
             </div>
 
             <div className='flex-1 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]'>
-              <p className='mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400'>{t('Browse')}</p>
-              <ul className='flex flex-col gap-1'>
-                {publicLinks.map(({ to, label, icon: Icon }) => (
-                  <li key={to}>
-                    <NavLink
-                      to={to}
-                      end={to === '/'}
-                      onClick={() => setShowMenu(false)}
-                      className={({ isActive }) => drawerLinkClass(isActive)}
-                    >
-                      <span className='flex items-center gap-3'>
-                        <Icon className='h-4 w-4 shrink-0' />
-                        {t(label)}
-                      </span>
-                      <ChevronRight className='rtl:-scale-x-100 h-4 w-4 shrink-0 opacity-60' />
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
+              <nav aria-label={t('Main')}>
+                <ul className='flex flex-col gap-1.5'>
+                  {publicLinks.map(({ to, label, icon: Icon }) => (
+                    <li key={to}>
+                      <NavLink to={to} end={to === '/'} className={drawerLinkClass} onClick={closeMenu}>
+                        <span className='flex items-center gap-3'>
+                          <Icon aria-hidden='true' className='size-4 shrink-0' />
+                          {t(label)}
+                        </span>
+                        <ChevronRight aria-hidden='true' className='size-4 shrink-0 opacity-60 rtl:-scale-x-100' />
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
 
               {token && (
                 <>
-                  <p className='mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-gray-400'>{t('My Care')}</p>
-                  <ul className='flex flex-col gap-1'>
-                    <li>
-                      <NavLink to='/my-appointments' onClick={() => setShowMenu(false)} className={({ isActive }) => drawerLinkClass(isActive)}>
-                        <span className='flex items-center gap-3'>
-                          <CalendarDays className='h-4 w-4 shrink-0' />
-                          {t('My Appointments')}
-                        </span>
-                        <ChevronRight className='rtl:-scale-x-100 h-4 w-4 shrink-0 opacity-60' />
-                      </NavLink>
-                    </li>
-                    {accountLinks.map(({ to, label, icon: Icon }) => (
+                  <p className='mb-2 mt-6 text-caption font-semibold uppercase tracking-wide text-ink-3'>{t('My Care')}</p>
+                  <ul className='flex flex-col gap-1.5'>
+                    {[{ to: '/my-appointments', label: 'My Appointments', icon: CalendarDays }, ...accountLinks].map(({ to, label, icon: Icon }) => (
                       <li key={to}>
-                        <NavLink to={to} onClick={() => setShowMenu(false)} className={({ isActive }) => drawerLinkClass(isActive)}>
+                        <NavLink to={to} className={drawerLinkClass} onClick={closeMenu}>
                           <span className='flex items-center gap-3'>
-                            <Icon className='h-4 w-4 shrink-0' />
+                            <Icon aria-hidden='true' className='size-4 shrink-0' />
                             {t(label)}
                           </span>
-                          <ChevronRight className='rtl:-scale-x-100 h-4 w-4 shrink-0 opacity-60' />
+                          <ChevronRight aria-hidden='true' className='size-4 shrink-0 opacity-60 rtl:-scale-x-100' />
                         </NavLink>
                       </li>
                     ))}
@@ -310,11 +288,11 @@ const Navbar = () => {
                 </>
               )}
 
-              <div className='mt-6 rounded-xl border border-teal-100 bg-teal-50/50 p-4'>
-                <div className='mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700'>
-                  <Languages className='h-4 w-4 text-primary' />
+              <div className='mt-6 rounded-card border border-line bg-surface-sunken p-4'>
+                <p className='mb-3 flex items-center gap-2 text-body-sm font-semibold text-ink'>
+                  <Languages aria-hidden='true' className='size-4 text-brand' />
                   {t('Language')}
-                </div>
+                </p>
                 <div className='flex items-center justify-between gap-3'>
                   <LanguageToggle />
                   <ThemeToggle />
@@ -322,41 +300,33 @@ const Navbar = () => {
               </div>
 
               {!token && (
-                <div className='mt-6 space-y-3'>
-                  <button
-                    type='button'
-                    onClick={() => closeAndNavigate('/login?mode=login')}
-                    className='w-full rounded-xl border border-primary py-3 font-semibold text-primary transition hover:bg-primary hover:text-white'
-                  >
+                <div className='mt-6 grid gap-3'>
+                  <Link to='/login?mode=login' className='flex min-h-12 items-center justify-center rounded-control border border-primary font-semibold text-brand'>
                     {t('Sign in')}
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => closeAndNavigate('/login?mode=signup')}
-                    className='w-full rounded-xl bg-primary py-3 font-semibold text-white shadow-sm transition hover:bg-primary-dark'
-                  >
+                  </Link>
+                  <Link to='/login?mode=signup' className='flex min-h-12 items-center justify-center rounded-control bg-primary font-semibold text-on-primary shadow-e1'>
                     {t('Create Account')}
-                  </button>
+                  </Link>
                 </div>
               )}
 
-              {token && userData && (
+              {signedIn && (
                 <button
                   type='button'
                   onClick={() => {
-                    setShowMenu(false)
+                    closeMenu()
                     logout()
                   }}
-                  className='mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-eed-200 bg-red-50 py-3.5 text-sm font-semibold text-red-600 transition active:bg-red-100'
+                  className='mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-danger-soft text-body-sm font-semibold text-danger-ink'
                 >
-                  <LogOut className='h-4 w-4' />
+                  <LogOut aria-hidden='true' className='size-4' />
                   {t('Logout')}
                 </button>
               )}
             </div>
           </aside>
         </div>
-      ) : null}
+      )}
     </header>
   )
 }

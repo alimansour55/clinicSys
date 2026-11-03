@@ -1,51 +1,102 @@
-import React from 'react'
-import { assets } from '../assets/assets'
-import { DEFAULT_APP_DISPLAY_NAME } from '../utils/appDisplayName'
+import React, { useContext } from 'react'
+import { Link } from 'react-router-dom'
+import { ArrowRight, CalendarCheck, Languages, MessageSquareText, Star } from 'lucide-react'
+import { AppContext } from '../context/AppContext'
+import { Button } from '../components/ui'
+import { useDoctorCatalog } from '../components/discovery/useDoctorCatalog'
+import { usePageMeta } from '../components/discovery/usePageMeta'
+import { MODE_META } from '../components/discovery/modes'
+import { VISIT_MODES } from '../components/discovery/doctorInsights'
 
 const About = () => {
-  const name = DEFAULT_APP_DISPLAY_NAME
+  const { t, language, localizeDigits } = useContext(AppContext)
+  const { stats, loading } = useDoctorCatalog()
+
+  usePageMeta({
+    title: t('About Clinivo'),
+    description: t('Clinivo is a bilingual clinic booking site. Find a doctor, see their real open times and book a clinic visit, call or home visit.'),
+    path: '/about',
+    language,
+  })
+
+  /* Every figure is counted from the live doctor list. */
+  const figures = [
+    { value: stats.doctors, label: t('Doctors listed') },
+    { value: stats.specialities, label: t('Specialities') },
+    { value: stats.areas, label: t('Areas with a clinic') },
+    { value: VISIT_MODES.filter((m) => stats.modes[m]).length, label: t('Ways to be seen') },
+  ]
+
+  const steps = [
+    { icon: MessageSquareText, title: t('Say what you need'), text: t('Type a symptom, a speciality, an area or a doctor’s name, in English or Arabic.') },
+    { icon: CalendarCheck, title: t('Pick a real time'), text: t('Every time you see comes from the doctor’s published schedule, so it is free when you book it.') },
+    { icon: Star, title: t('Visit, then rate'), text: t('After a completed visit you can rate the doctor. Only those ratings are shown.') },
+  ]
+
   return (
-    <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
-      {/* Header Section */}
-      <div className='text-center text-xl sm:text-2xl lg:text-3xl pt-10 text-gray-500'>
-        <p>ABOUT <span className='text-gray-700 font-medium'>US</span></p>
-      </div>
+    <div className='mx-auto w-full max-w-7xl px-gutter pb-section'>
+      <header className='max-w-3xl pt-10 sm:pt-16'>
+        <p className='text-caption font-semibold uppercase tracking-wide text-brand'>{t('About Clinivo')}</p>
+        <h1 className='mt-3 font-display text-display-xl text-ink text-balance'>{t('Booking a doctor should feel calm.')}</h1>
+        <p className='mt-5 text-subtitle font-normal text-ink-2'>
+          {t('Clinivo helps patients find the right doctor and book a time that is really open, at the clinic, by phone, by video or at home. Everything works in English and in Arabic, from search to booking.')}
+        </p>
+      </header>
 
-      {/* About Content Section */}
-      <div className='my-10 flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-start'>
-        <img className='w-full md:max-w-[360px] rounded-lg shadow-lg'  src={assets.about_image} alt={`About ${name} healthcare`} />
-        <div className='flex flex-col justify-center gap-6 md:w-2/4 text-sm sm:text-base text-gray-600'>
-          <p>Welcome to {name}, your trusted partner in managing your healthcare needs conveniently and efficiently. At {name}, we understand the challenges individuals face when it comes to scheduling doctor appointments and managing their health records.</p>
+      <section aria-label={t('Clinivo in numbers')} className='mt-12'>
+        <dl className='grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4'>
+          {figures.map(({ value, label }) => (
+            <div key={label} className='rounded-card border border-line bg-surface p-5 shadow-e1'>
+              <dt className='text-body-sm text-ink-2'>{label}</dt>
+              <dd className='mt-2 font-display text-display text-ink tabular-nums'>{loading ? '–' : localizeDigits(String(value))}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className='mt-3 text-caption text-ink-3'>{t('Counted live from the doctors currently listed.')}</p>
+      </section>
 
-          <p>{name} is committed to excellence in healthcare technology. We continuously strive to enhance our platform, integrating the latest advancements to improve user experience and deliver superior service. Whether you're booking your first appointment or managing ongoing care, {name} is here to support you every step of the way.</p>
-          
-          <b className='text-gray-800 text-base sm:text-lg'>Our Vision</b>
-          
-          <p>Our vision at {name} is to create a seamless healthcare experience for every user. We aim to bridge the gap between patients and healthcare providers, making it easier for you to access the care you need, when you need it.</p>
+      <section aria-labelledby='how-title' className='mt-section'>
+        <h2 id='how-title' className='font-display text-display text-ink'>{t('How it works')}</h2>
+        <ol className='mt-8 grid gap-4 md:grid-cols-3'>
+          {steps.map(({ icon: Icon, title, text }, index) => (
+            <li key={title} className='relative rounded-card border border-line bg-surface p-6 shadow-e1'>
+              <span className='font-display text-display text-primary-soft' aria-hidden='true'>{localizeDigits(String(index + 1))}</span>
+              <Icon aria-hidden='true' className='absolute end-6 top-6 size-6 text-brand' />
+              <h3 className='mt-2 text-subtitle font-semibold text-ink'>{title}</h3>
+              <p className='mt-2 text-body-sm text-ink-2'>{text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section aria-labelledby='ways-title' className='mt-section grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-center'>
+        <div>
+          <h2 id='ways-title' className='font-display text-display text-ink'>{t('Seen your way')}</h2>
+          <p className='mt-4 text-body text-ink-2'>{t('Each doctor chooses which kinds of visit they offer. The doctors page shows only what is really available.')}</p>
+          <p className='mt-4 flex items-center gap-2 text-body-sm text-ink-2'>
+            <Languages aria-hidden='true' className='size-4 text-brand' />
+            {t('Switch between English and Arabic at any time from the top bar.')}
+          </p>
         </div>
-      </div>
+        <ul className='grid grid-cols-2 gap-3'>
+          {VISIT_MODES.map((m) => {
+            const { icon: Icon, label } = MODE_META[m]
+            const offered = stats.modes[m] > 0
+            return (
+              <li key={m} className={`flex items-center gap-3 rounded-card border border-line p-4 ${offered ? 'bg-surface shadow-e1' : 'bg-surface-sunken text-ink-3'}`}>
+                <Icon aria-hidden='true' className={`size-5 ${offered ? 'text-brand' : ''}`} />
+                <span className='text-body-sm font-semibold'>{t(label)}</span>
+              </li>
+            )
+          })}
+        </ul>
+      </section>
 
-      {/* Why Choose Us Section */}
-      <div className='text-xl sm:text-2xl lg:text-3xl my-8 text-center'>
-        <p>WHY <span className='text-gray-700 font-semibold'>CHOOSE US</span></p>
-      </div>
-
-      {/* Feature Cards */}
-      <div className='grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-20'>
-        <div className='border border-gray-200 px-8 sm:px-10 md:px-12 py-10 sm:py-14 flex flex-col gap-5 text-[15px] hover:bg-primary hover:text-white hover:shadow-lg transition-all duration-300 text-gray-600 cursor-pointer rounded-lg'>
-          <b className='text-base sm:text-lg'>Efficiency:</b>
-          <p>Streamlined appointment scheduling that fits into your busy lifestyle.</p>
-        </div>
-
-        <div className='border border-gray-200 px-8 sm:px-10 md:px-12 py-10 sm:py-14 flex flex-col gap-5 text-[15px] hover:bg-primary hover:text-white hover:shadow-lg transition-all duration-300 text-gray-600 cursor-pointer rounded-lg'>
-          <b className='text-base sm:text-lg'>Convenience:</b>
-          <p>Access to a network of trusted healthcare professionals in your area.</p>
-        </div>
-
-        <div className='border border-gray-200 px-8 sm:px-10 md:px-12 py-10 sm:py-14 flex flex-col gap-5 text-[15px] hover:bg-primary hover:text-white hover:shadow-lg transition-all duration-300 text-gray-600 cursor-pointer rounded-lg'>
-          <b className='text-base sm:text-lg'>Personalization:</b>
-          <p>Tailored recommendations and reminders to help you stay on top of your health.</p>
-        </div>
+      <div className='mt-section flex flex-wrap items-center gap-4 rounded-sheet rounded-se-signature bg-primary-soft p-8'>
+        <p className='flex-1 font-display text-title-lg text-ink'>{t('Ready to find your doctor?')}</p>
+        <Button as={Link} to='/doctors' size='lg' trailingIcon={<ArrowRight aria-hidden='true' className='size-5 rtl:-scale-x-100' />}>
+          {t('Find a doctor')}
+        </Button>
       </div>
     </div>
   )

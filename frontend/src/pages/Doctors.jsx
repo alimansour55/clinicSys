@@ -1,700 +1,491 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { CalendarDays, CreditCard, MapPin, Search, SlidersHorizontal, Sparkles, Star, Stethoscope, Tag, UserRound, X } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { specialityData } from '../assets/assets'
-import { ArrowUpDown, CheckCircle2, CreditCard, Filter, MapPin, Phone, Search, Stethoscope, UserRound, Video, X } from 'lucide-react'
-import { RatingBadge } from '../components/DoctorRating'
-import PromoOfferBadge from '../components/PromoOfferBadge'
-import { buildDoctorSlots } from '../utils/schedule'
-import { getPromoOfferLabel } from '../utils/promo'
-import { formatLocationLine } from '../utils/placeTranslations'
-import { isDoctorBookableForPatients, isDoctorComingSoon, resolveClinicLocationForSlots } from '../utils/doctorBooking'
-import {
-  collectLocationFilterPlaces,
-  doctorBelongsToClinicSection,
-  doctorMatchesLocationFilter,
-} from '../utils/doctorClinicPlaces'
-import { extractMainPlaceFromLocation, placeFilterKey } from '../utils/placeTranslations'
-import { formatSlotsThisWeekLabel } from '../utils/arabicMedicalUi'
-import { useMediaQuery } from '../utils/useMediaQuery'
+import { Button, EmptyState, Modal } from '../components/ui'
+import { resolveClinicSectionLabel } from '../utils/chatbotOpeningSuggestions'
+import { extractMainPlaceFromLocation, formatLocationLine, placeFilterKey } from '../utils/placeTranslations'
+import { formatDoctorCountLabel } from '../utils/arabicMedicalUi'
+import DoctorCard from '../components/discovery/DoctorCard'
+import { MODE_META } from '../components/discovery/modes'
+import PriceFilter from '../components/discovery/PriceFilter'
+import { useDoctorCatalog } from '../components/discovery/useDoctorCatalog'
+import { usePageMeta } from '../components/discovery/usePageMeta'
+import { parseDoctorQuery, removeQueryPart } from '../components/discovery/queryParser'
+import { fill } from '../components/discovery/format'
 import { DoctorListSkeleton } from '../components/DoctorCatalogSkeleton'
+import {
+  activeFilterKeys,
+  EMPTY_FILTERS,
+  facetCounts,
+  filterRows,
+  matchesFilters,
+  SORTS,
+  sortRows,
+  suggestRelaxations,
+  VISIT_MODES,
+} from '../components/discovery/doctorInsights'
 
-const MOBILE_PAGE_SIZE = 10
+const PAGE_SIZE = 12
+const WHEN_OPTIONS = ['today', 'tomorrow', 'week']
+const RATING_OPTIONS = [4, 4.5]
+const TITLE_OPTIONS = ['Professor', 'Consultant', 'Lecturer', 'Specialist']
+const SORT_LABELS = {
+  recommended: 'Recommended',
+  soonest: 'Soonest available',
+  'price-asc': 'Lowest fee',
+  'price-desc': 'Highest fee',
+  rating: 'Highest rated',
+}
+const WHEN_LABELS = { today: 'Today', tomorrow: 'Tomorrow', week: 'This week' }
+
+/** URL → the filters a person chose by hand. Old links (?clinic=, a place in the path) still work. */
+function readExplicit(params, pathParam, knownSpecialities) {
+  const pathIsSpeciality = pathParam && knownSpecialities.some((s) => s.toLowerCase() === pathParam.toLowerCase())
+  const legacyPlace = params.get('clinic') || (!pathIsSpeciality ? pathParam : '')
+  const areaParam = params.get('area') || (legacyPlace ? placeFilterKey(extractMainPlaceFromLocation(legacyPlace) || legacyPlace) : '')
+  const consultation = params.get('consultation') || ''
+  const max = Number(params.get('max'))
+  return {
+    q: params.get('q') || '',
+    speciality: pathIsSpeciality ? knownSpecialities.find((s) => s.toLowerCase() === pathParam.toLowerCase()) : '',
+    area: areaParam,
+    mode: VISIT_MODES.includes(consultation) ? consultation : '',
+    when: WHEN_OPTIONS.includes(params.get('when')) ? params.get('when') : '',
+    maxPrice: max > 0 ? max : null,
+    minRating: Number(params.get('rating')) || 0,
+    gender: ['Female', 'Male'].includes(params.get('gender')) ? params.get('gender') : '',
+    title: TITLE_OPTIONS.includes(params.get('title')) ? params.get('title') : '',
+    pay: ['cash', 'online'].includes(params.get('pay')) ? params.get('pay') : '',
+    offer: params.get('offer') === '1',
+    language: params.get('lang') || '',
+    sort: SORTS.includes(params.get('sort')) ? params.get('sort') : '',
+  }
+}
+
+function writeUrl(state) {
+  const path = state.speciality ? `/doctors/${encodeURIComponent(state.speciality)}` : '/doctors'
+  const p = new URLSearchParams()
+  if (state.q) p.set('q', state.q)
+  if (state.area) p.set('area', state.area)
+  if (state.mode) p.set('consultation', state.mode)
+  if (state.when) p.set('when', state.when)
+  if (state.maxPrice) p.set('max', String(state.maxPrice))
+  if (state.minRating) p.set('rating', String(state.minRating))
+  if (state.gender) p.set('gender', state.gender)
+  if (state.title) p.set('title', state.title)
+  if (state.pay) p.set('pay', state.pay)
+  if (state.offer) p.set('offer', '1')
+  if (state.language) p.set('lang', state.language)
+  if (state.sort) p.set('sort', state.sort)
+  const query = p.toString()
+  return query ? `${path}?${query}` : path
+}
 
 const Doctors = () => {
-  const { speciality } = useParams()
+  const { speciality: pathParam = '' } = useParams()
   const [searchParams] = useSearchParams()
-  const [showFilter, setShowFilter] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [sortBy, setSortBy] = useState('recommended')
-  const [selectedTitle, setSelectedTitle] = useState('')
-  const [selectedGender, setSelectedGender] = useState('')
-  const [selectedPayment, setSelectedPayment] = useState('')
-  const [mobilePage, setMobilePage] = useState(1)
   const navigate = useNavigate()
-  const isMobile = useMediaQuery('(max-width: 1023px)')
-  const doctorsListRef = useRef(null)
+  const location = useLocation()
+  const { token, t, tc, language, formatMoney, localizeDigits, placeTranslationOverrides } = useContext(AppContext)
+  const { rows, catalogue, stats, loading, now } = useDoctorCatalog()
+  const [showFilters, setShowFilters] = useState(false)
+  const [visible, setVisible] = useState(PAGE_SIZE)
+  const resultsRef = useRef(null)
 
-  const { token, doctors, isDoctorsLoading, t, tc, formatMoney, displayPersonName, language, placeTranslationOverrides, localizeDigits } = useContext(AppContext)
+  const knownSpecialities = useMemo(
+    () => [...new Set([...catalogue.specialities, ...specialityData.map((item) => item.speciality)])],
+    [catalogue.specialities],
+  )
+  const explicit = readExplicit(searchParams, pathParam, knownSpecialities)
+  const parsed = useMemo(() => parseDoctorQuery(explicit.q, catalogue), [explicit.q, catalogue])
 
-  useEffect(() => {
-    if (!showFilter) return undefined
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
+  // Free words only count if some doctor matches them; the rest are shown as not understood.
+  const knownTerms = parsed.terms.filter((term) => rows.some((row) => row.search.includes(term)))
+  const unknownTerms = parsed.terms.filter((term) => !knownTerms.includes(term))
+
+  const filters = {
+    ...EMPTY_FILTERS,
+    speciality: explicit.speciality || parsed.speciality || '',
+    area: explicit.area || parsed.area || '',
+    mode: explicit.mode || parsed.mode || '',
+    when: explicit.when || parsed.when || '',
+    maxPrice: explicit.maxPrice ?? parsed.maxPrice ?? null,
+    minRating: explicit.minRating,
+    gender: explicit.gender || parsed.gender || '',
+    title: explicit.title,
+    pay: explicit.pay,
+    offer: explicit.offer,
+    language: explicit.language,
+    terms: knownTerms,
+  }
+  const sort = explicit.sort || parsed.sort || 'recommended'
+  const mode = filters.mode
+
+  const results = useMemo(() => sortRows(filterRows(rows, filters), sort, mode), [rows, JSON.stringify(filters), sort, mode]) // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = results.slice(0, visible)
+
+  useEffect(() => setVisible(PAGE_SIZE), [location.search, location.pathname])
+
+  /* Any change rewrites the URL, so back, reload and sharing all keep the search. */
+  const go = (next, replace = false) => navigate(writeUrl(next), { replace, preventScrollReset: true })
+  const setFilter = (key, value) => {
+    const q = parsed.spans[key]?.length ? removeQueryPart(parsed, key) : explicit.q
+    go({ ...explicit, q, [key]: value })
+  }
+  const toggle = (key, value) => setFilter(key, filters[key] === value ? (key === 'maxPrice' ? null : '') : value)
+  const clearAll = () => go({})
+  const dropUnderstood = (key) => go({ ...explicit, q: removeQueryPart(parsed, key) })
+
+  /* Labels for chips, relaxation buttons and the page title */
+  const specialityLabel = (name) => resolveClinicSectionLabel(name, language, t, tc, placeTranslationOverrides)
+  const areaLabel = (key) => {
+    const area = catalogue.areas.find((a) => a.key === key)
+    return area ? formatLocationLine(area.main, language, t, placeTranslationOverrides) : key
+  }
+  const filterLabel = (key, value = filters[key]) => {
+    switch (key) {
+      case 'speciality': return specialityLabel(value)
+      case 'area': return areaLabel(value)
+      case 'mode': return t(MODE_META[value].label)
+      case 'when': return t(WHEN_LABELS[value])
+      case 'maxPrice': return fill(t('Up to {{amount}}'), { amount: formatMoney(value) })
+      case 'minRating': return fill(t('{{n}}+ stars'), { n: localizeDigits(String(value)) })
+      case 'gender': return t(value)
+      case 'title': return t(value)
+      case 'pay': return value === 'cash' ? t('Cash') : t('Online payment')
+      case 'offer': return t('Has an offer')
+      case 'language': return value
+      case 'terms': return `“${value.join(' ')}”`
+      default: return ''
     }
-  }, [showFilter])
-
-  const fillT = (key, vars = {}) => {
-    let s = String(t(key))
-    Object.entries(vars).forEach(([k, v]) => {
-      s = s.split(`{{${k}}}`).join(String(v))
-    })
-    return s
   }
 
-  const specialityFilters = useMemo(() => specialityData.map((item) => item.speciality), [])
-  const specialitySet = useMemo(() => new Set(specialityFilters), [specialityFilters])
-  const locationFilters = useMemo(
-    () => collectLocationFilterPlaces(doctors, specialitySet),
-    [doctors, specialitySet]
+  const facet = (key, options) => facetCounts(rows, filters, key, options).counts
+  const modeCounts = facet('mode', VISIT_MODES)
+  const whenCounts = facet('when', WHEN_OPTIONS)
+  const relaxations = results.length === 0 ? suggestRelaxations(rows, filters).slice(0, 3) : []
+  const activeKeys = activeFilterKeys(filters)
+  // Filters that came from the search words are shown under the search box instead
+  const chosenKeys = activeKeys.filter((key) => key !== 'terms' && !(parsed.spans[key]?.length && !explicit[key]))
+  const pricesForHistogram = rows.filter((row) => matchesFilters(row, filters, 'maxPrice')).map((row) => row.offerFee ?? row.fee)
+
+  /* SEO: the title names what is on screen */
+  const headingByMode = { tele: 'Book a Video Call', voice: 'Book a Voice Call', home: 'Book a Home Visit' }
+  const metaTitle = [filters.speciality && specialityLabel(filters.speciality), filters.area && areaLabel(filters.area)].filter(Boolean).join(' · ') || t(headingByMode[mode] || 'Find Your Doctor')
+  usePageMeta({
+    title: metaTitle,
+    description: fill(t('Compare {{count}} with real next openings, fees and ratings, then book a clinic visit, call or home visit on Clinivo.'), {
+      count: formatDoctorCountLabel(results.length, language, localizeDigits),
+    }),
+    path: location.pathname,
+    language,
+    jsonLd: results.length
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          itemListElement: results.slice(0, 20).map((row, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            url: `${window.location.origin}/appointment/${row.id}`,
+            name: row.doctor.name,
+          })),
+        }
+      : null,
+  })
+
+  const chip = (active) =>
+    `inline-flex min-h-10 items-center gap-2 rounded-control border px-3 text-body-sm font-medium transition duration-(--duration-fast) ease-standard disabled:cursor-not-allowed disabled:opacity-45 ${
+      active ? 'border-primary bg-primary text-on-primary shadow-e1' : 'border-line bg-surface text-ink hover:border-primary hover:text-brand'
+    }`
+  const count = (n) => <span className='ms-auto text-caption opacity-80'>{localizeDigits(String(n))}</span>
+
+  /* A render helper, not a component, so buttons inside keep focus across re-renders */
+  const section = (Icon, title, children) => (
+    <fieldset className='border-b border-line pb-5 last:border-0'>
+      <legend className='mb-3 flex items-center gap-2 text-caption font-semibold uppercase tracking-wide text-ink-2'>
+        <Icon aria-hidden='true' className='size-4 text-brand' />
+        {title}
+      </legend>
+      {children}
+    </fieldset>
   )
 
-  const consultationMode = searchParams.get('consultation')
-  const teleconsultationMode = consultationMode === 'tele'
-  const voiceCallMode = consultationMode === 'voice'
-  const homeVisitMode = consultationMode === 'home'
-  const selectedSpeciality = specialityFilters.includes(speciality) ? speciality : ''
-  const selectedClinic = searchParams.get('clinic') || (!selectedSpeciality ? speciality || '' : '')
-
-  const selectedLocationKey = useMemo(() => {
-    if (!selectedClinic) return ''
-    const main = extractMainPlaceFromLocation(selectedClinic)
-    return placeFilterKey(main || selectedClinic)
-  }, [selectedClinic])
-
-  const hasHomeVisitAvailability = (doctor) => {
-    const areas = Array.isArray(doctor?.homeVisitAreas) ? doctor.homeVisitAreas : []
-    const schedule = doctor?.homeVisitSchedule || {}
-    return Boolean(
-      doctor?.available &&
-      Array.isArray(schedule.workingDays) &&
-      schedule.workingDays.length > 0 &&
-      areas.length > 0
-    )
-  }
-
-  const hasClinicAvailability = (doctor) => isDoctorBookableForPatients(doctor)
-
-  const getAppointmentTypeForMode = () => {
-    if (homeVisitMode) return 'Home Visit'
-    if (voiceCallMode) return 'Voice Call'
-    if (teleconsultationMode) return 'Video Call'
-    return 'Clinic'
-  }
-
-  const hasBookableSlot = (doctor) => {
-    const appointmentType = getAppointmentTypeForMode()
-    const clinicLocation = appointmentType === 'Home Visit' ? '' : resolveClinicLocationForSlots(doctor, selectedClinic)
-    return buildDoctorSlots(doctor, 31, appointmentType, clinicLocation).some((day) => day.slots.some((slot) => slot.available))
-  }
-
-  const buildDoctorPath = (nextSpeciality = selectedSpeciality, nextClinic = selectedClinic) => {
-    const path = nextSpeciality ? `/doctors/${encodeURIComponent(nextSpeciality)}` : '/doctors'
-    const params = new URLSearchParams()
-    if (nextClinic) params.set('clinic', nextClinic)
-    if (voiceCallMode) params.set('consultation', 'voice')
-    if (teleconsultationMode) params.set('consultation', 'tele')
-    if (homeVisitMode) params.set('consultation', 'home')
-    const query = params.toString() ? `?${params.toString()}` : ''
-    return `${path}${query}`
-  }
-
-  const search = searchTerm.trim().toLowerCase()
-  const filterDoc = doctors
-    .filter((doc) => {
-      const doctorClinics = (doc.clinics || []).map((clinic) => clinic.name || clinic)
-      const doctorLocations = doc.locations || []
-      const doctorPlaces = [...doctorClinics, ...doctorLocations]
-      const matchesSpeciality = selectedSpeciality
-        ? doctorBelongsToClinicSection(doc, selectedSpeciality)
-        : true
-      const matchesLocation = selectedClinic
-        ? doctorBelongsToClinicSection(doc, selectedClinic) || doctorMatchesLocationFilter(doc, selectedClinic)
-        : true
-      const matchesConsultationMode = homeVisitMode
-        ? hasHomeVisitAvailability(doc)
-        : voiceCallMode
-          ? doc.available && doc.acceptsVoiceCall !== false && hasClinicAvailability(doc)
-          : teleconsultationMode
-            ? doc.available && doc.acceptsVideoCall !== false && hasClinicAvailability(doc)
-            : true
-      const matchesTitle = selectedTitle ? doc.title === selectedTitle : true
-      const matchesGender = selectedGender ? doc.gender === selectedGender : true
-      const matchesPayment = selectedPayment === 'Cash'
-        ? doc.acceptsCash !== false
-        : selectedPayment === 'Visa'
-          ? doc.acceptsOnlinePayment !== false
-          : true
-      const matchesSearch = search
-        ? [doc.name, doc.speciality, ...doctorPlaces].some((value) => String(value || '').toLowerCase().includes(search))
-        : true
-
-      return matchesSpeciality && matchesLocation && matchesConsultationMode && matchesTitle && matchesGender && matchesPayment && matchesSearch
-    })
-    .sort((a, b) => {
-      if (sortBy === 'rating') return (b.ratingSummary?.averageRating || 0) - (a.ratingSummary?.averageRating || 0)
-      const bookableDelta = Number(isDoctorBookableForPatients(b)) - Number(isDoctorBookableForPatients(a))
-      if (bookableDelta !== 0) return bookableDelta
-      return Number(hasBookableSlot(b)) - Number(hasBookableSlot(a))
-    })
-
-  const handleSpecialityFilter = (specialityName) => {
-    navigate(buildDoctorPath(selectedSpeciality === specialityName ? '' : specialityName, selectedClinic))
-  }
-
-  const handleLocationFilter = (locationName) => {
-    navigate(buildDoctorPath(selectedSpeciality, selectedClinic === locationName ? '' : locationName))
-  }
-
-  const handleAllDoctorsFilter = () => {
-    setSearchTerm('')
-    setSortBy('recommended')
-    setSelectedTitle('')
-    setSelectedGender('')
-    setSelectedPayment('')
-    navigate('/doctors')
-  }
-
-  const clearFilters = () => {
-    setSearchTerm('')
-    setSortBy('recommended')
-    setSelectedTitle('')
-    setSelectedGender('')
-    setSelectedPayment('')
-    navigate(consultationMode ? `/doctors?consultation=${consultationMode}` : '/doctors')
-  }
-
-  const updateConsultationMode = (mode) => {
-    const params = new URLSearchParams(searchParams)
-
-    if (mode === 'clinic') {
-      params.delete('consultation')
-    } else {
-      params.set('consultation', mode)
-    }
-
-    const path = selectedSpeciality ? `/doctors/${encodeURIComponent(selectedSpeciality)}` : '/doctors'
-    const query = params.toString() ? `?${params.toString()}` : ''
-    navigate(`${path}${query}`)
-  }
-
-  const getDoctorLocation = (doctor) => {
-    const locations = doctor.locations?.length
-      ? doctor.locations
-      : (doctor.clinics || []).map((clinic) => clinic.name || clinic)
-    return locations.filter(Boolean).join(', ')
-  }
-
-  const getDoctorLocations = (doctor) => {
-    const locations = doctor.locations?.length
-      ? doctor.locations
-      : (doctor.clinics || []).map((clinic) => clinic.name || clinic)
-    return locations.filter(Boolean)
-  }
-
-  const getWeeklyAvailabilityLabel = (doctor, location) => {
-    if (isDoctorComingSoon(doctor)) return t('Coming Soon')
-    const slots = buildDoctorSlots(doctor, 7, 'Clinic', location)
-    const count = slots.reduce((sum, day) => sum + day.slots.filter((slot) => slot.available).length, 0)
-    return formatSlotsThisWeekLabel(count, language, localizeDigits)
-  }
-
-  const activeFilterCount = [selectedSpeciality, selectedClinic, searchTerm, selectedTitle, selectedGender, selectedPayment].filter(Boolean).length
-  const isAllDoctorsSelected = activeFilterCount === 0 && !consultationMode
-  const totalMobilePages = Math.max(1, Math.ceil(filterDoc.length / MOBILE_PAGE_SIZE))
-  const displayedDoctors = isMobile
-    ? filterDoc.slice((mobilePage - 1) * MOBILE_PAGE_SIZE, mobilePage * MOBILE_PAGE_SIZE)
-    : filterDoc
-
-  useEffect(() => {
-    setMobilePage(1)
-  }, [selectedSpeciality, selectedClinic, searchTerm, selectedTitle, selectedGender, selectedPayment, consultationMode, sortBy])
-
-  useEffect(() => {
-    if (mobilePage > totalMobilePages) setMobilePage(totalMobilePages)
-  }, [mobilePage, totalMobilePages])
-
-  const titleFilters = ['Professor', 'Lecturer', 'Consultant', 'Specialist']
-  const genderFilters = ['Female', 'Male']
-  const consultationOptions = [
-    { key: 'clinic', label: t('Clinic visit'), icon: Stethoscope },
-    { key: 'voice', label: t('Voice call'), icon: Phone },
-    { key: 'tele', label: t('Video call'), icon: Video },
-    { key: 'home', label: t('Home visit'), icon: MapPin },
-  ]
-
-  const filterChipClass = (active) =>
-    `rounded-xl border px-3 py-2.5 text-start text-sm font-medium transition ${
-      active
-        ? 'border-primary bg-primary text-white shadow-sm'
-        : 'border-gray-200 bg-gray-50 text-gray-700 active:bg-teal-50'
-    }`
-
-  const scrollToDoctorsTop = () => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
-    doctorsListRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' })
-  }
-
-  const renderFilterSection = (title, icon, children) => {
-    const Icon = icon
+  const optionList = (key, options, label, max = 8) => {
+    const counts = facet(key, options)
     return (
-      <section className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
-        <div className='flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2.5'>
-          <Icon className='h-4 w-4 shrink-0 text-primary' />
-          <p className='text-xs font-bold uppercase tracking-wide text-gray-700'>{title}</p>
-        </div>
-        <div className='p-3'>{children}</div>
-      </section>
+      <div className='flex flex-col gap-1.5'>
+        {options.slice(0, max).map((option) => (
+          <button
+            key={option}
+            type='button'
+            aria-pressed={filters[key] === option}
+            disabled={!counts[option] && filters[key] !== option}
+            onClick={() => toggle(key, option)}
+            className={`${chip(filters[key] === option)} w-full justify-start text-start`}
+          >
+            <span className='truncate'>{label(option)}</span>
+            {count(counts[option])}
+          </button>
+        ))}
+      </div>
     )
   }
 
-  const renderFilterPanel = () => (
-    <div className='space-y-3 text-sm text-gray-600'>
-      {renderFilterSection(
-        t('Speciality'),
-        Stethoscope,
-        <div className='grid max-h-[200px] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-1'>
-          <button type='button' onClick={handleAllDoctorsFilter} className={filterChipClass(isAllDoctorsSelected)}>
-            {t('All doctors')}
-          </button>
-          {specialityFilters.map((specialityName) => (
-            <button
-              key={specialityName}
-              type='button'
-              onClick={() => handleSpecialityFilter(specialityName)}
-              className={filterChipClass(selectedSpeciality === specialityName)}
-            >
-              {tc(specialityName)}
-            </button>
-          ))}
-        </div>,
-      )}
+  const genders = ['Female', 'Male'].filter((g) => rows.some((row) => row.gender === g))
+  const titles = TITLE_OPTIONS.filter((v) => rows.some((row) => row.title === v))
+  const languages = [...new Set(rows.flatMap((row) => row.languages))]
+  const ratingCounts = facet('minRating', RATING_OPTIONS)
+  const payCounts = facet('pay', ['cash', 'online'])
+  const offerCount = facet('offer', [true]).true
 
-      {locationFilters.length > 0 &&
-        renderFilterSection(
-          t('Location'),
-          MapPin,
-          <div className='grid max-h-[200px] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-1'>
-            {locationFilters.map((locationName) => (
-              <button
-                key={locationName}
-                type='button'
-                onClick={() => handleLocationFilter(locationName)}
-                className={filterChipClass(placeFilterKey(locationName) === selectedLocationKey)}
-              >
-                {formatLocationLine(locationName, language, t, placeTranslationOverrides)}
-              </button>
-            ))}
-          </div>,
-        )}
-
-      {renderFilterSection(
-        t('Doctor details'),
-        UserRound,
+  const filterPanel = (
+    <div className='flex flex-col gap-5'>
+      {section(Stethoscope, t('Speciality'), optionList('speciality', catalogue.specialities, specialityLabel, 20))}
+      {catalogue.areas.length > 0 && section(MapPin, t('Area'), optionList('area', catalogue.areas.map((a) => a.key), areaLabel, 30))}
+      {section(CreditCard, t('Visit fee'), (
         <>
-          <p className='mb-2 text-[11px] font-semibold text-gray-500'>{t('Doctor title')}</p>
-          <div className='mb-3 grid grid-cols-2 gap-2'>
-            {titleFilters.map((titleName) => (
-              <button
-                key={titleName}
-                type='button'
-                onClick={() => setSelectedTitle((value) => (value === titleName ? '' : titleName))}
-                className={filterChipClass(selectedTitle === titleName)}
-              >
-                {t(titleName)}
+          <PriceFilter prices={pricesForHistogram} value={filters.maxPrice} onChange={(value) => setFilter('maxPrice', value)} />
+          <div className='mt-4 grid grid-cols-2 gap-2'>
+            {['cash', 'online'].map((value) => (
+              <button key={value} type='button' aria-pressed={filters.pay === value} disabled={!payCounts[value] && filters.pay !== value} onClick={() => toggle('pay', value)} className={chip(filters.pay === value)}>
+                {filterLabel('pay', value)}
               </button>
             ))}
           </div>
-          <p className='mb-2 text-[11px] font-semibold text-gray-500'>{t('Gender')}</p>
-          <div className='grid grid-cols-2 gap-2'>
-            {genderFilters.map((genderName) => (
-              <button
-                key={genderName}
-                type='button'
-                onClick={() => setSelectedGender((value) => (value === genderName ? '' : genderName))}
-                className={filterChipClass(selectedGender === genderName)}
-              >
-                {t(genderName)}
-              </button>
-            ))}
-          </div>
-        </>,
-      )}
-
-      {renderFilterSection(
-        t('Payment'),
-        CreditCard,
-        <div className='grid grid-cols-2 gap-2'>
-          {[
-            { value: 'Cash', label: t('Cash') },
-            { value: 'Visa', label: t('Online payment') },
-          ].map((item) => (
-            <button
-              key={item.value}
-              type='button'
-              onClick={() => setSelectedPayment((value) => (value === item.value ? '' : item.value))}
-              className={`flex items-center justify-center gap-2 ${filterChipClass(selectedPayment === item.value)}`}
-            >
-              <CreditCard className='h-4 w-4 shrink-0' />
-              {item.label}
+          {(offerCount > 0 || filters.offer) && (
+            <button type='button' aria-pressed={filters.offer} onClick={() => setFilter('offer', !filters.offer)} className={`${chip(filters.offer)} mt-2 w-full`}>
+              <Tag aria-hidden='true' className='size-4' />
+              {t('Has an offer')}
+              {count(offerCount)}
             </button>
-          ))}
-        </div>,
-      )}
+          )}
+        </>
+      ))}
+      {section(Star, t('Patient rating'), (
+        <>
+          <div className='grid grid-cols-2 gap-2'>
+            {RATING_OPTIONS.map((value) => (
+              <button key={value} type='button' aria-pressed={filters.minRating === value} disabled={!ratingCounts[value] && filters.minRating !== value} onClick={() => toggle('minRating', value)} className={chip(filters.minRating === value)}>
+                {filterLabel('minRating', value)}
+                {count(ratingCounts[value])}
+              </button>
+            ))}
+          </div>
+          <p className='mt-2 text-caption text-ink-3'>{t('Only doctors rated by patients after a visit.')}</p>
+        </>
+      ))}
+      {(genders.length > 1 || titles.length > 0) && section(UserRound, t('Doctor'), (
+        <>
+          {genders.length > 1 && <div className='grid grid-cols-2 gap-2'>{genders.map((g) => <button key={g} type='button' aria-pressed={filters.gender === g} onClick={() => toggle('gender', g)} className={chip(filters.gender === g)}>{t(g)}</button>)}</div>}
+          {titles.length > 0 && <div className='mt-2 grid grid-cols-2 gap-2'>{titles.map((v) => <button key={v} type='button' aria-pressed={filters.title === v} onClick={() => toggle('title', v)} className={chip(filters.title === v)}>{t(v)}</button>)}</div>}
+        </>
+      ))}
+      {languages.length > 0 && section(Sparkles, t('Languages spoken'), optionList('language', languages, (v) => v))}
     </div>
   )
 
-  const renderDoctorCard = (item, index) => {
-    const promoOffer = getPromoOfferLabel(item, formatMoney, t, language)
-    return (
-      <button
-        type='button'
-        disabled={isDoctorComingSoon(item)}
-        onClick={() => {
-          navigate(`/appointment/${item._id}${consultationMode ? `?consultation=${consultationMode}` : ''}`)
-        }}
-        className={`group w-full overflow-hidden rounded-xl border border-gray-200 bg-white text-start shadow-sm transition ${
-          isMobile ? 'min-h-[320px]' : 'min-h-[386px]'
-        } ${
-          isDoctorComingSoon(item)
-            ? 'cursor-default opacity-95'
-            : 'cursor-pointer hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg'
-        }`}
-        key={item._id || index}
-      >
-        <div className={`relative overflow-hidden rounded-lg bg-blue-50 ${isMobile ? 'mx-2 mt-2 h-[110px]' : 'mx-3 mt-3 h-[146px]'}`}>
-          <img className='h-full w-full object-cover transition duration-300 group-hover:scale-105' src={item.image} alt={displayPersonName(item.name)} />
-          <RatingBadge summary={item.ratingSummary} className='absolute start-2 top-2' />
-          <PromoOfferBadge doctor={item} formatMoney={formatMoney} className='absolute bottom-2 start-2' />
-        </div>
-
-        <div className={isMobile ? 'px-2 py-2' : 'px-3 py-2.5'}>
-          <div className={`flex items-center gap-1.5 text-xs ${
-            isDoctorComingSoon(item)
-              ? 'text-amber-600'
-              : homeVisitMode
-                ? 'text-emerald-600'
-                : isDoctorBookableForPatients(item)
-                  ? 'text-green-500'
-                  : 'text-gray-500'
-          }`}>
-            <p className={`h-1.5 w-1.5 rounded-full ${
-              isDoctorComingSoon(item)
-                ? 'bg-amber-500'
-                : homeVisitMode
-                  ? 'bg-emerald-600'
-                  : isDoctorBookableForPatients(item)
-                    ? 'bg-green-500'
-                    : 'bg-gray-500'
-            }`} />
-            <p className='truncate'>
-              {isDoctorComingSoon(item)
-                ? t('Coming Soon')
-                : homeVisitMode
-                  ? t('Home visit available')
-                  : isDoctorBookableForPatients(item)
-                    ? t('Available')
-                    : t('Not Available')}
-            </p>
-          </div>
-          <p className='mt-1.5 truncate text-sm font-bold text-gray-800'>{displayPersonName(item.name)}</p>
-          <p className='mt-1 truncate text-sm text-gray-600'>{[item.title ? t(item.title) : '', tc(item.speciality)].filter(Boolean).join(' - ')}</p>
-          <div className='mt-2 flex flex-wrap gap-1.5'>
-            {item.gender && <span className='rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600'>{t(item.gender)}</span>}
-            {promoOffer && <span className='rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700'>{localizeDigits(promoOffer)}</span>}
-          </div>
-          {!isMobile && (
-            <div className='mt-2 space-y-1.5'>
-              {getDoctorLocations(item).slice(0, 2).map((location) => (
-                <div key={location} className='rounded-lg bg-blue-50 px-2 py-1.5'>
-                  <p className='flex items-center gap-1.5 truncate text-xs font-semibold text-gray-700'>
-                    <MapPin className='h-3.5 w-3.5 shrink-0 text-blue-500' />
-                    <span className='truncate'>{formatLocationLine(location, language, t, placeTranslationOverrides)}</span>
-                  </p>
-                  <p className='ms-5 mt-0.5 text-[11px] font-medium text-blue-700'>{getWeeklyAvailabilityLabel(item, location)}</p>
-                </div>
-              ))}
-              {getDoctorLocations(item).length === 0 && (
-                <p className='flex items-center gap-1.5 truncate text-sm text-gray-600'>
-                  <MapPin className='h-4 w-4 shrink-0 text-blue-500' />
-                  <span className='truncate'>{formatLocationLine(getDoctorLocation(item), language, t, placeTranslationOverrides) || t('Clinic location')}</span>
-                </p>
-              )}
-              {getDoctorLocations(item).length > 2 && (
-                <p className='text-[11px] font-semibold text-gray-500'>
-                  {fillT('{{n}} more branches', { n: getDoctorLocations(item).length - 2 })}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      </button>
-    )
-  }
+  const understood = ['speciality', 'area', 'mode', 'when', 'maxPrice', 'gender', 'sort'].filter((key) => parsed[key] != null && parsed.spans[key]?.length)
 
   return (
-    <div className='pb-8'>
-      <section className='mb-6 overflow-hidden rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50 via-white to-blue-50 px-5 py-6 sm:px-7'>
-        <div className='flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between'>
-          <div className='max-w-2xl'>
-            <p className='mb-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-primary shadow-sm'>
-              <CheckCircle2 className='h-3.5 w-3.5' />
-              {fillT('{{count}} doctors ready to review', { count: filterDoc.length })}
-            </p>
-            <h1 className='text-2xl font-bold text-gray-950 sm:text-3xl'>
-              {teleconsultationMode ? t('Book a Video Call') : voiceCallMode ? t('Book a Voice Call') : homeVisitMode ? t('Book a Home Visit') : t('Find Your Doctor')}
-            </h1>
-            <p className='mt-2 text-sm leading-6 text-gray-600 sm:text-base'>
-              {teleconsultationMode
-                ? t('Doctors page subtitle video')
-                : voiceCallMode
-                  ? t('Doctors page subtitle voice')
-                  : homeVisitMode
-                    ? t('Doctors page subtitle home')
-                    : t('Doctors page subtitle default')}
-            </p>
-          </div>
+    <div className='mx-auto w-full max-w-7xl px-gutter pb-section'>
+      <header className='pt-8 sm:pt-12'>
+        <p className='text-caption font-semibold uppercase tracking-wide text-brand'>{t('Doctors')}</p>
+        <h1 className='mt-2 font-display text-display text-ink'>{t(headingByMode[mode] || 'Find Your Doctor')}</h1>
+        <p className='mt-3 max-w-2xl text-body text-ink-2'>{t('Describe what you need in your own words, or narrow the list with filters. Every time shown is a real opening from the doctor’s schedule.')}</p>
+      </header>
 
-          <div className='flex w-full flex-col gap-3 sm:w-auto sm:flex-row'>
-            {token && (
-              <button
-                type='button'
-                onClick={() => navigate('/my-appointments')}
-                className='rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark'
-              >
-                {t('View My Appointments')}
-              </button>
-            )}
-            <button
-              type='button'
-              onClick={clearFilters}
-              className='hidden rounded-full border border-teal-200 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-primary hover:text-primary lg:inline-flex'
-            >
-              {t('Reset filters')}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <div className='mb-5 grid gap-3 lg:grid-cols-[1fr_auto]'>
-        <div className='relative' data-input-field>
-          <Search className='field-icon absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
+      {/* Search: understands plain English and Arabic */}
+      <form role='search' className='mt-6' onSubmit={(event) => { event.preventDefault(); resultsRef.current?.focus() }}>
+        <label htmlFor='doctor-search' className='sr-only'>{t('Search doctors')}</label>
+        <div className='relative'>
+          <Search aria-hidden='true' className='pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-ink-3' />
           <input
-            id='doctors-search'
+            id='doctor-search'
             type='search'
             enterKeyHint='search'
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            className='h-12 w-full rounded-xl border border-gray-200 bg-white py-3 ps-11 pe-11 text-base shadow-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10'
-            placeholder={t('Search doctors, specialities, clinics, or locations')}
             autoComplete='off'
+            value={explicit.q}
+            onChange={(event) => go({ ...explicit, q: event.target.value }, true)}
+            placeholder={t('Try “skin rash in Maadi under 500 tomorrow”')}
+            className='h-14 w-full rounded-control border border-field bg-surface ps-12 pe-12 text-body text-ink shadow-e1 outline-none transition placeholder:text-ink-3 focus:border-primary focus:shadow-e2'
           />
-          {searchTerm && (
-            <button
-              type='button'
-              onClick={() => setSearchTerm('')}
-              className='absolute end-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700'
-              aria-label={t('Clear search')}
-            >
-              <X className='h-4 w-4' />
+          {explicit.q && (
+            <button type='button' onClick={() => go({ ...explicit, q: '' })} aria-label={t('Clear search')} className='absolute end-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full text-ink-3 hover:bg-surface-sunken hover:text-ink'>
+              <X aria-hidden='true' className='size-4' />
             </button>
           )}
         </div>
+        {(understood.length > 0 || parsed.clarify || parsed.missingSpeciality || unknownTerms.length > 0) && (
+          <div className='mt-3 flex flex-wrap items-center gap-2 text-body-sm' aria-live='polite'>
+            {understood.length > 0 && <span className='text-ink-3'>{t('Understood:')}</span>}
+            {understood.map((key) => (
+              <button key={key} type='button' onClick={() => dropUnderstood(key)} className='inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1 font-medium text-brand animate-rise hover:brightness-95' aria-label={fill(t('Remove {{filter}}'), { filter: key === 'sort' ? t(SORT_LABELS[parsed.sort]) : filterLabel(key, parsed[key]) })}>
+                {key === 'speciality' && parsed.specialityFromSymptom && <Sparkles aria-hidden='true' className='size-3.5' />}
+                {key === 'sort' ? t(SORT_LABELS[parsed.sort]) : filterLabel(key, parsed[key])}
+                <X aria-hidden='true' className='size-3.5' />
+              </button>
+            ))}
+            {parsed.clarify === 'adult_or_child' && (
+              <span className='inline-flex flex-wrap items-center gap-2'>
+                <span className='text-ink-2'>{t('Is this for an adult or a child?')}</span>
+                {catalogue.specialities.includes('General physician') && <button type='button' onClick={() => setFilter('speciality', 'General physician')} className={chip(false)}>{t('Adult')}</button>}
+                {catalogue.specialities.includes('Pediatricians') && <button type='button' onClick={() => setFilter('speciality', 'Pediatricians')} className={chip(false)}>{t('Child')}</button>}
+              </span>
+            )}
+            {parsed.missingSpeciality && (
+              <span className='rounded-full bg-warning-soft px-3 py-1 text-warning-ink'>{t('Clinivo has no doctor in that speciality yet.')}</span>
+            )}
+            {unknownTerms.length > 0 && (
+              <span className='text-ink-3'>{fill(t('No doctor matches “{{words}}”, so it was ignored.'), { words: unknownTerms.join(' ') })}</span>
+            )}
+          </div>
+        )}
+        {parsed.specialityFromSymptom && (
+          <p className='mt-2 text-caption text-ink-3'>{t('Suggested from the symptoms you typed. This is not a diagnosis. In an emergency call 123.')}</p>
+        )}
+      </form>
 
-        <div className='tap-row-mobile-wrap flex gap-2 overflow-x-auto pb-1 lg:pb-0'>
-          {consultationOptions.map(({ key, label, icon: Icon }) => {
-            const selected = (key === 'clinic' && !consultationMode) || consultationMode === key
-
+      {/* Visit type and day: the two choices most people make first */}
+      <div className='mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between'>
+        <div role='group' aria-label={t('Visit type')} className='-mx-gutter flex gap-2 overflow-x-auto px-gutter pb-1 [scrollbar-width:none] lg:mx-0 lg:px-0'>
+          {VISIT_MODES.map((key) => {
+            const { icon: Icon, label } = MODE_META[key]
             return (
-              <button
-                key={key}
-                type='button'
-                onClick={() => updateConsultationMode(key)}
-                className={`flex shrink-0 items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                  selected
-                    ? 'border-primary bg-primary text-white shadow-sm'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-primary/50 hover:text-primary'
-                }`}
-              >
-                {React.createElement(Icon, { className: 'h-4 w-4' })}
-                {label}
+              <button key={key} type='button' aria-pressed={mode === key} disabled={!modeCounts[key] && mode !== key} onClick={() => toggle('mode', key)} className={`${chip(mode === key)} shrink-0`}>
+                <Icon aria-hidden='true' className='size-4' />
+                {t(label)}
+                <span className='text-caption opacity-80'>{localizeDigits(String(modeCounts[key]))}</span>
               </button>
             )
           })}
         </div>
+        <div role='group' aria-label={t('Available')} className='-mx-gutter flex gap-2 overflow-x-auto px-gutter pb-1 [scrollbar-width:none] lg:mx-0 lg:px-0'>
+          {WHEN_OPTIONS.map((key) => (
+            <button key={key} type='button' aria-pressed={filters.when === key} disabled={!whenCounts[key] && filters.when !== key} onClick={() => toggle('when', key)} className={`${chip(filters.when === key)} shrink-0`}>
+              <CalendarDays aria-hidden='true' className='size-4' />
+              {t(WHEN_LABELS[key])}
+              <span className='text-caption opacity-80'>{localizeDigits(String(whenCounts[key]))}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className='flex flex-col gap-5 lg:flex-row lg:items-start'>
-        <button
-          type='button'
-          className='flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm font-semibold text-gray-700 shadow-sm transition lg:hidden active:border-primary active:bg-teal-50'
-          onClick={() => setShowFilter(true)}
-        >
-          <Filter className='h-4 w-4' />
-          {`${t('Filters')}${activeFilterCount ? ` (${activeFilterCount})` : ''}`}
-        </button>
-
-        {isMobile && showFilter ? (
-          <div className='fixed inset-0 z-50 lg:hidden' role='dialog' aria-modal='true' aria-label={t('Filters')}>
-            <div className='absolute inset-0 bg-gray-950/50 backdrop-blur-[2px]' onClick={() => setShowFilter(false)} role='presentation' />
-            <div className='absolute inset-x-0 bottom-0 flex max-h-[88vh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl'>
-              <div className='flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-4'>
-                <div>
-                  <p className='text-base font-bold text-gray-900'>{t('Filters')}</p>
-                  {activeFilterCount > 0 && (
-                    <p className='text-xs text-gray-500'>{fillT('{{count}} active filters', { count: activeFilterCount })}</p>
-                  )}
-                </div>
-                <button type='button' onClick={() => setShowFilter(false)} className='flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-600' aria-label={t('Close')}>
-                  <X className='h-5 w-5' />
-                </button>
-              </div>
-              <div className='flex-1 overflow-y-auto px-4 py-4'>{renderFilterPanel()}</div>
-              <div className='flex gap-3 border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]'>
-                <button
-                  type='button'
-                  onClick={() => {
-                    clearFilters()
-                    setShowFilter(false)
-                  }}
-                  className='flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700'
-                >
-                  {t('Reset filters')}
-                </button>
-                <button type='button' onClick={() => setShowFilter(false)} className='flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-sm'>
-                  {t('Apply filters')}
-                </button>
-              </div>
+      <div className='mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[17rem_1fr]'>
+        <aside aria-label={t('Filters')} className='hidden lg:block'>
+          <div className='sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto rounded-card border border-line bg-surface p-5 shadow-e1'>
+            <div className='mb-4 flex items-center justify-between'>
+              <h2 className='text-subtitle font-semibold text-ink'>{t('Filters')}</h2>
+              {activeKeys.length > 0 && <button type='button' onClick={clearAll} className='text-body-sm font-semibold text-brand hover:underline'>{t('Clear all')}</button>}
             </div>
+            {filterPanel}
           </div>
-        ) : null}
-
-        <aside className='hidden w-72 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)]'>
-          <div className='mb-4 flex items-center justify-between gap-2'>
-            <p className='font-bold text-gray-900'>{t('Filters')}</p>
-            <button type='button' onClick={clearFilters} className='text-xs font-semibold text-primary'>
-              {t('Reset filters')}
-            </button>
-          </div>
-          <div className='max-h-[calc(100vh-11rem)] overflow-y-auto pe-1'>{renderFilterPanel()}</div>
         </aside>
 
-        <main ref={doctorsListRef} className='min-w-0 flex-1 scroll-mt-24'>
-          <div className='mb-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm'>
-            <p className='text-sm text-gray-600'>
-              {isMobile
-                ? fillT('Showing doctors page count', { current: displayedDoctors.length, total: filterDoc.length, page: mobilePage, pages: totalMobilePages })
-                : fillT('Showing doctors count', { current: filterDoc.length, total: doctors.length })}
-            </p>
-            <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-              <p className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500 lg:hidden'>
-                <ArrowUpDown className='h-3.5 w-3.5 text-primary' />
-                {t('Sort by')}
-              </p>
-              {isMobile ? (
-                <div className='grid grid-cols-2 gap-2'>
-                  <button
-                    type='button'
-                    onClick={() => setSortBy('recommended')}
-                    className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
-                      sortBy === 'recommended'
-                        ? 'border-primary bg-primary text-white shadow-sm'
-                        : 'border-gray-200 bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    {t('Recommended')}
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => setSortBy('rating')}
-                    className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
-                      sortBy === 'rating'
-                        ? 'border-primary bg-primary text-white shadow-sm'
-                        : 'border-gray-200 bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    {t('Highest rated')}
-                  </button>
-                </div>
-              ) : (
-                <label className='flex items-center gap-2 text-sm font-semibold text-gray-700'>
-                  <ArrowUpDown className='h-4 w-4 text-primary' />
-                  <select
-                    value={sortBy}
-                    onChange={(event) => setSortBy(event.target.value)}
-                    className='rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10'
-                  >
-                    <option value='recommended'>{t('Recommended')}</option>
-                    <option value='rating'>{t('Highest rated')}</option>
-                  </select>
-                </label>
-              )}
-            </div>
+        <section aria-labelledby='results-heading' className='min-w-0'>
+          <div className='mb-4 flex flex-wrap items-center gap-3'>
+            <h2 id='results-heading' ref={resultsRef} tabIndex={-1} className='text-subtitle font-semibold text-ink outline-none' aria-live='polite'>
+              {loading ? t('Loading doctors…') : formatDoctorCountLabel(results.length, language, localizeDigits)}
+            </h2>
+            <Button variant='secondary' size='sm' className='lg:hidden' leadingIcon={<SlidersHorizontal aria-hidden='true' className='size-4' />} onClick={() => setShowFilters(true)}>
+              {t('Filters')}
+              {activeKeys.length > 0 && <span className='rounded-full bg-primary px-1.5 text-caption text-on-primary'>{localizeDigits(String(activeKeys.length))}</span>}
+            </Button>
+            <label className='ms-auto flex items-center gap-2 text-body-sm text-ink-2'>
+              {t('Sort by')}
+              <select value={sort} onChange={(event) => setFilter('sort', event.target.value === 'recommended' ? '' : event.target.value)} className='min-h-10 rounded-control border border-field bg-surface px-3 text-body-sm text-ink'>
+                {SORTS.map((key) => <option key={key} value={key}>{t(SORT_LABELS[key])}</option>)}
+              </select>
+            </label>
           </div>
 
-          {isDoctorsLoading ? (
-            <DoctorListSkeleton count={isMobile ? 6 : 8} isMobile={isMobile} />
-          ) : (
-          <div className={`grid gap-3 sm:gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-[repeat(auto-fill,minmax(166px,188px))] justify-center sm:justify-start'}`}>
-            {displayedDoctors.length > 0 ? (
-              displayedDoctors.map((item, index) => renderDoctorCard(item, index))
-            ) : (
-              <div className='col-span-full rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center shadow-sm'>
-                <div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-primary'>
-                  <Search className='h-5 w-5' />
-                </div>
-                <p className='text-lg font-bold text-gray-900'>{t('No doctors match these filters')}</p>
-                <p className='mx-auto mt-2 max-w-md text-sm text-gray-500'>{t('Doctors empty state hint')}</p>
-                <button
-                  type='button'
-                  onClick={clearFilters}
-                  className='mt-5 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-dark'
-                >
-                  {t('Clear filters')}
-                </button>
-              </div>
-            )}
-          </div>
-          )}
-
-          {isMobile && totalMobilePages > 1 && (
-            <nav className='mt-6 flex flex-wrap items-center justify-center gap-2' aria-label={t('Page')}>
-              {Array.from({ length: totalMobilePages }, (_, index) => index + 1).map((pageNumber) => (
-                <button
-                  key={pageNumber}
-                  type='button'
-                  onClick={() => {
-                    setMobilePage(pageNumber)
-                    scrollToDoctorsTop()
-                  }}
-                  className={`flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition ${
-                    mobilePage === pageNumber
-                      ? 'border-primary bg-primary text-white shadow-sm'
-                      : 'border-gray-200 bg-white text-gray-700'
-                  }`}
-                  aria-current={mobilePage === pageNumber ? 'page' : undefined}
-                >
-                  {localizeDigits(String(pageNumber))}
-                </button>
+          {chosenKeys.length > 0 && (
+            <ul className='mb-5 flex flex-wrap gap-2' aria-label={t('Active filters')}>
+              {chosenKeys.map((key) => (
+                <li key={key}>
+                  <button
+                    type='button'
+                    onClick={() => (key === 'terms' ? go({ ...explicit, q: removeQueryPart(parsed, 'terms') }) : setFilter(key, key === 'maxPrice' ? null : key === 'offer' ? false : key === 'minRating' ? 0 : ''))}
+                    className='inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 py-1 text-body-sm text-ink hover:border-primary'
+                    aria-label={fill(t('Remove {{filter}}'), { filter: filterLabel(key) })}
+                  >
+                    {filterLabel(key)}
+                    <X aria-hidden='true' className='size-3.5' />
+                  </button>
+                </li>
               ))}
-            </nav>
+              <li><button type='button' onClick={clearAll} className='px-2 py-1 text-body-sm font-semibold text-brand hover:underline'>{t('Clear all')}</button></li>
+            </ul>
           )}
-        </main>
+
+          {loading ? (
+            <DoctorListSkeleton count={6} />
+          ) : results.length === 0 ? (
+            <EmptyState
+              icon={<Search aria-hidden='true' className='size-6' />}
+              title={t('No doctors match all of that')}
+              description={relaxations.length ? t('Loosen one filter to see doctors who are close:') : t('Try fewer words or clear the filters.')}
+              action={
+                <div className='flex flex-wrap justify-center gap-2'>
+                  {relaxations.map(({ key, count: n }) => (
+                    <Button key={key} variant='secondary' size='sm' onClick={() => (key === 'terms' ? go({ ...explicit, q: removeQueryPart(parsed, 'terms') }) : setFilter(key, key === 'maxPrice' ? null : key === 'offer' ? false : key === 'minRating' ? 0 : ''))}>
+                      {fill(t('Without {{filter}}: {{count}}'), { filter: filterLabel(key), count: formatDoctorCountLabel(n, language, localizeDigits) })}
+                    </Button>
+                  ))}
+                  <Button variant='ghost' size='sm' onClick={clearAll}>{t('Clear all')}</Button>
+                </div>
+              }
+            />
+          ) : (
+            <>
+              <ul className='grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4'>
+                {shown.map((row, index) => (
+                  <li key={row.id} className='animate-rise' style={{ animationDelay: `${Math.min(index % PAGE_SIZE, 8) * 40}ms` }}>
+                    <DoctorCard row={row} mode={mode} now={now} priority={index < 3} />
+                  </li>
+                ))}
+              </ul>
+              {results.length > shown.length && (
+                <div className='mt-8 flex justify-center'>
+                  <Button variant='secondary' onClick={() => setVisible((n) => n + PAGE_SIZE)}>
+                    {fill(t('Show more doctors ({{n}} left)'), { n: localizeDigits(String(results.length - shown.length)) })}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+
+          {token && (
+            <p className='mt-10 text-center text-body-sm text-ink-2'>
+              <Link to='/my-appointments' className='font-semibold text-brand hover:underline'>{t('View My Appointments')}</Link>
+            </p>
+          )}
+          <p className='mt-6 text-center text-caption text-ink-3'>
+            {fill(t('{{doctors}} on Clinivo across {{specialities}} specialities.'), {
+              doctors: formatDoctorCountLabel(stats.doctors, language, localizeDigits),
+              specialities: localizeDigits(String(stats.specialities)),
+            })}
+          </p>
+        </section>
       </div>
+
+      <Modal
+        open={showFilters}
+        onClose={() => setShowFilters(false)}
+        title={t('Filters')}
+        size='lg'
+        footer={
+          <div className='flex w-full gap-3'>
+            <Button variant='secondary' className='flex-1' onClick={clearAll}>{t('Clear all')}</Button>
+            <Button className='flex-1' onClick={() => setShowFilters(false)} data-autofocus>
+              {fill(t('Show {{count}}'), { count: formatDoctorCountLabel(results.length, language, localizeDigits) })}
+            </Button>
+          </div>
+        }
+      >
+        {filterPanel}
+      </Modal>
     </div>
   )
 }

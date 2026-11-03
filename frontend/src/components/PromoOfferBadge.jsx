@@ -13,11 +13,10 @@ const PromoOfferBadge = ({ doctor, currencySymbol, formatMoney: formatMoneyProp,
 
   return (
     <span
-      dir='ltr'
       className={`inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm ${className}`}
     >
       <Tag className='h-3 w-3' />
-      {localizeDigits(offerLabel)}
+      <bdi>{localizeDigits(offerLabel)}</bdi>
     </span>
   )
 }

@@ -1,156 +1,115 @@
-import React, { useContext } from 'react'
+import React, { useContext, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, Mail, Phone } from 'lucide-react'
+import { Mail, Phone } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { patientFooterLogoClassName } from '../utils/brandingLogo'
+import { resolveClinicSectionLabel } from '../utils/chatbotOpeningSuggestions'
 import BrandLogo from './BrandLogo'
-import { DEFAULT_FOOTER_COPYRIGHT, DEFAULT_FOOTER_DESCRIPTION } from '../utils/publicSiteDefaults'
+import { DEFAULT_FOOTER_COPYRIGHT } from '../utils/publicSiteDefaults'
+import { siteText } from './discovery/siteCopy'
+import { fill } from './discovery/format'
 
 /** Calm ALL-CAPS Latin CMS labels (e.g. "ALL DOCTORS" → "All doctors") without touching other scripts. */
 const humanizeNavLabel = (label) => {
   const s = String(label || '').trim()
-  if (!s) return s
-  if (/[a-z]/.test(s)) return s
-  if (!/[A-Z]/.test(s)) return s
-  if (s !== s.toUpperCase()) return s
-  return s
-    .toLowerCase()
-    .split(/(\s+)/)
-    .map((part) => (/\s+/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1)))
-    .join('')
-}
-
-const scrollPageTop = () => {
-  window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  if (!s || /[a-z]/.test(s) || !/[A-Z]/.test(s) || s !== s.toUpperCase()) return s
+  return s.charAt(0) + s.slice(1).toLowerCase()
 }
 
 const Footer = () => {
-  const { token, t, siteSettings } = useContext(AppContext)
+  const { token, t, tc, language, siteSettings, doctors, placeTranslationOverrides, localizeDigits } = useContext(AppContext)
   const footer = siteSettings?.footer || {}
-  const logoImgClassName = patientFooterLogoClassName
-  const description = footer.description || DEFAULT_FOOTER_DESCRIPTION
-  const companyTitle = footer.companyTitle || 'Company'
-  const contactTitle = footer.contactTitle || 'Get in touch'
-  const phoneLabel = footer.phoneLabel || 'Phone'
+  const description = siteText(footer.description)
   const phoneNumber = footer.phoneNumber || '+20 101 881 1142'
-  const emailLabel = footer.emailLabel || 'Email'
   const email = footer.email || 'contact@clinivo.com'
-  const copyrightText = footer.copyrightText || DEFAULT_FOOTER_COPYRIGHT
-  const footerLinks = [
+  // Stored defaults (any year) get a translated line; text an admin wrote is kept as is
+  const customCopyright = footer.copyrightText && footer.copyrightText !== DEFAULT_FOOTER_COPYRIGHT && !/^copyright\s*(\d{4})?\s*©\s*clinivo\s*-\s*all rights reserved\.?$/i.test(footer.copyrightText.trim()) ? footer.copyrightText : ''
+
+  const siteLinks = [
     { label: footer.homeLabel || 'Home', path: '/', show: footer.showHomeLink !== false },
-    { label: footer.aboutLabel || 'About', path: '/about', show: footer.showAboutLink !== false },
     { label: footer.doctorsLabel || 'All doctors', path: '/doctors', show: footer.showDoctorsLink !== false },
-    { label: footer.contactLabel || 'Contact us', path: '/contact', show: footer.showContactLink !== false }
-  ]
-  const patientLinks = [
-    { label: footer.appointmentsLabel || 'My appointments', path: '/my-appointments' },
-    { label: footer.profileLabel || 'My profile', path: '/my-profile' }
-  ]
-  const showPatientLinks = token && footer.showPatientLinks !== false
-  const showPrivacyLink = footer.showPrivacyLink !== false
+    { label: footer.aboutLabel || 'About', path: '/about', show: footer.showAboutLink !== false },
+    { label: footer.contactLabel || 'Contact us', path: '/contact', show: footer.showContactLink !== false },
+    ...(token && footer.showPatientLinks !== false
+      ? [
+          { label: footer.appointmentsLabel || 'My appointments', path: '/my-appointments', show: true },
+          { label: footer.profileLabel || 'My profile', path: '/my-profile', show: true },
+        ]
+      : []),
+  ].filter((link) => link.show)
 
-  const sectionHeadingClass =
-    'text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500'
+  // Specialities that really have doctors, so every link leads somewhere useful
+  const specialities = useMemo(
+    () => [...new Set((doctors || []).map((doctor) => doctor.speciality).filter(Boolean))].sort().slice(0, 8),
+    [doctors],
+  )
 
-  const navLinkClass =
-    'group relative z-10 flex w-full items-center justify-between gap-2 rounded-lg py-2.5 ps-3 pe-2 text-start text-[15px] text-slate-700 transition-colors hover:bg-white/80 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/40 active:bg-white/90'
+  const heading = 'mb-4 text-caption font-semibold uppercase tracking-wide text-ink-3'
+  const link = 'inline-flex min-h-9 items-center text-body-sm text-ink-2 transition hover:text-brand'
 
   return (
-    <footer
-      className='relative z-10 mt-12 border-t border-teal-100/70 bg-gradient-to-b from-slate-50 via-white to-slate-50/80 md:mt-20'
-      role='contentinfo'
-    >
-      <div
-        className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-200/50 to-transparent'
-        aria-hidden
-      />
-      <div className='mx-auto max-w-6xl px-4 pb-10 pt-12 sm:px-6 sm:pb-12 sm:pt-14 lg:px-8 lg:pb-14 lg:pt-16'>
-        <div className='grid gap-12 lg:grid-cols-12 lg:gap-10 xl:gap-14'>
-          <div className='lg:col-span-5'>
-            <Link
-              to='/'
-              onClick={scrollPageTop}
-              className='relative z-10 mb-6 inline-block cursor-pointer rounded-2xl bg-white/60 p-3 shadow-sm ring-1 ring-slate-200/60 backdrop-blur-sm transition-opacity hover:opacity-90'
-            >
-              <BrandLogo siteSettings={siteSettings} imgClassName={logoImgClassName} />
+    <footer className='border-t border-line bg-surface-sunken'>
+      <div className='mx-auto w-full max-w-7xl px-gutter pb-28 pt-14 md:pb-12'>
+        <div className='grid gap-10 sm:grid-cols-2 lg:grid-cols-12'>
+          <div className='sm:col-span-2 lg:col-span-4'>
+            <Link to='/' className='inline-block rounded-control'>
+              <BrandLogo siteSettings={siteSettings} imgClassName={patientFooterLogoClassName} />
             </Link>
-            <p className='max-w-md text-[15px] leading-[1.65] text-slate-600'>
-              {t(description)}
+            <p className='mt-4 max-w-sm text-body-sm text-ink-2'>
+              {description ? t(description) : t('Book real open times with doctors at the clinic, by phone, by video or at home, in English or Arabic.')}
             </p>
           </div>
 
-          <nav className='relative z-10 lg:col-span-3' aria-label={humanizeNavLabel(t(companyTitle))}>
-            <h2 className={`${sectionHeadingClass} mb-4`}>{humanizeNavLabel(t(companyTitle))}</h2>
-            <ul className='space-y-0.5 rounded-2xl border border-slate-200/70 bg-white/40 p-2 shadow-sm ring-1 ring-slate-100/80 backdrop-blur-sm'>
-              {footerLinks
-                .filter((link) => link.show)
-                .map((link) => (
-                  <li key={link.path}>
-                    <Link to={link.path} onClick={scrollPageTop} className={navLinkClass}>
-                      <span>{humanizeNavLabel(t(link.label))}</span>
-                      <ArrowUpRight
-                        className='pointer-events-none h-3.5 w-3.5 shrink-0 text-slate-300 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary/70 group-hover:opacity-100'
-                        aria-hidden
-                      />
-                    </Link>
-                  </li>
-                ))}
-              {showPatientLinks &&
-                patientLinks.map((link) => (
-                  <li key={link.path}>
-                    <Link to={link.path} onClick={scrollPageTop} className={navLinkClass}>
-                      <span>{humanizeNavLabel(t(link.label))}</span>
-                      <ArrowUpRight className='pointer-events-none h-3.5 w-3.5 shrink-0 opacity-60' aria-hidden />
-                    </Link>
-                  </li>
-                ))}
-              {showPrivacyLink && (
-                <li>
-                  <Link to='/' onClick={scrollPageTop} className={navLinkClass}>
-                    <span>{humanizeNavLabel(t(footer.privacyLabel || 'Privacy Policy'))}</span>
-                    <ArrowUpRight className='pointer-events-none h-3.5 w-3.5 shrink-0 opacity-60' aria-hidden />
-                  </Link>
-                </li>
-              )}
+          <nav aria-labelledby='footer-site' className='lg:col-span-2'>
+            <h2 id='footer-site' className={heading}>{humanizeNavLabel(t(footer.companyTitle || 'Company'))}</h2>
+            <ul>
+              {siteLinks.map((item) => (
+                <li key={item.path}><Link to={item.path} className={link}>{humanizeNavLabel(t(item.label))}</Link></li>
+              ))}
             </ul>
           </nav>
 
-          <div className='relative z-10 lg:col-span-4'>
-            <h2 className={`${sectionHeadingClass} mb-4`}>{humanizeNavLabel(t(contactTitle))}</h2>
-            <div className='flex flex-col gap-3'>
-              <a
-                href={`tel:${phoneNumber.replace(/\s/g, '')}`}
-                className='group flex gap-4 rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-sm ring-1 ring-slate-100/80 transition hover:border-teal-200/90 hover:shadow-md'
-              >
-                <span className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary/15'>
-                  <Phone className='h-5 w-5' strokeWidth={2} aria-hidden />
-                </span>
-                <span className='min-w-0 flex-1'>
-                  <span className='block text-xs font-semibold uppercase tracking-wide text-slate-500'>{humanizeNavLabel(t(phoneLabel))}</span>
-                  <span className='mt-1 block text-[15px] font-medium text-slate-900 transition group-hover:text-primary'>{phoneNumber}</span>
-                </span>
-              </a>
-              <a
-                href={`mailto:${email}`}
-                className='group flex gap-4 rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-sm ring-1 ring-slate-100/80 transition hover:border-teal-200/90 hover:shadow-md'
-              >
-                <span className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary/15'>
-                  <Mail className='h-5 w-5' strokeWidth={2} aria-hidden />
-                </span>
-                <span className='min-w-0 flex-1'>
-                  <span className='block text-xs font-semibold uppercase tracking-wide text-slate-500'>{humanizeNavLabel(t(emailLabel))}</span>
-                  <span className='mt-1 block break-all text-[15px] font-medium text-slate-900 transition group-hover:text-primary'>{email}</span>
-                </span>
-              </a>
-            </div>
+          {specialities.length > 0 && (
+            <nav aria-labelledby='footer-specialities' className='lg:col-span-3'>
+              <h2 id='footer-specialities' className={heading}>{t('Specialities')}</h2>
+              <ul>
+                {specialities.map((name) => (
+                  <li key={name}>
+                    <Link to={`/doctors/${encodeURIComponent(name)}`} className={link}>
+                      {resolveClinicSectionLabel(name, language, t, tc, placeTranslationOverrides)}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
+
+          <div className='lg:col-span-3'>
+            <h2 className={heading}>{humanizeNavLabel(t(footer.contactTitle || 'Get in touch'))}</h2>
+            <ul className='space-y-2'>
+              <li>
+                <a href={`tel:${phoneNumber.replace(/[^\d+]/g, '')}`} className='flex items-center gap-3 text-body-sm text-ink transition hover:text-brand'>
+                  <span className='flex size-9 items-center justify-center rounded-control bg-primary-soft text-brand'><Phone aria-hidden='true' className='size-4' /></span>
+                  <span>
+                    <span className='sr-only'>{humanizeNavLabel(t(footer.phoneLabel || 'Phone'))}: </span>
+                    <bdi dir='ltr'>{phoneNumber}</bdi>
+                  </span>
+                </a>
+              </li>
+              <li>
+                <a href={`mailto:${email}`} className='flex items-center gap-3 text-body-sm text-ink transition hover:text-brand'>
+                  <span className='flex size-9 items-center justify-center rounded-control bg-primary-soft text-brand'><Mail aria-hidden='true' className='size-4' /></span>
+                  <span className='break-all'>
+                    <span className='sr-only'>{humanizeNavLabel(t(footer.emailLabel || 'Email'))}: </span>
+                    <bdi dir='ltr'>{email}</bdi>
+                  </span>
+                </a>
+              </li>
+            </ul>
           </div>
         </div>
 
-        <div className='mt-14 border-t border-slate-200/90 pt-8'>
-          <p className='text-center text-[13px] leading-relaxed text-slate-500'>
-            {t(copyrightText)}
-          </p>
-        </div>
+        <p className='mt-12 border-t border-line pt-6 text-center text-caption text-ink-3'>{customCopyright ? t(customCopyright) : fill(t('© {{year}} Clinivo. All rights reserved.'), { year: localizeDigits(String(new Date().getFullYear())) })}</p>
       </div>
     </footer>
   )
