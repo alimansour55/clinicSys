@@ -37,7 +37,7 @@ import {
   patchAdminProfile
 } from '../services/adminProfileService.js'
 import { primaryOf, readBilingualInputs, resolveBilingualFields, resolveBilingualValue } from '../services/bilingualContentService.js'
-import { receptionistBilingualFields } from '../services/bilingualRegistry.js'
+import { receptionistBilingualFields } from '../models/bilingualFieldSchema.js'
 
 const SETTING_KEY = 'site-settings'
 const ADMIN_MFA_TOKEN_EXPIRES_IN = '10m'

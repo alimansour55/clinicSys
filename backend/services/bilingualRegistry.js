@@ -1,12 +1,8 @@
 import clinicModel, { clinicBilingualFields } from '../models/clinicModel.js'
 import doctorModel, { doctorBilingualFields } from '../models/doctorModel.js'
+import { receptionistBilingualFields } from '../models/bilingualFieldSchema.js'
 import receptionistModel from '../models/receptionistModel.js'
 import siteSettingModel, { siteSettingBilingualFields } from '../models/siteSettingModel.js'
-
-/** A receptionist's schema does not declare `i18n` yet, so writes to it use `strict: false`. */
-export const receptionistBilingualFields = {
-  name: { kind: 'name' }
-}
 
 /**
  * Every model holding bilingual content. Retry, status and the backfill script all read this.
