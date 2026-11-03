@@ -1,94 +1,103 @@
 import React, { useContext, useEffect, useState } from 'react'
+import { Home, LayoutTemplate, Save, Video } from 'lucide-react'
 import { AdminContext } from '../../context/AdminContext'
-import { Home, Loader2, Save, Upload, Video } from 'lucide-react'
+import { useLanguage } from '../../i18n'
+import BilingualField from '../../components/BilingualField'
+import { AdminPage } from '../../components/admin/AdminPage'
+import { FormSection, ImagePicker, ToggleRow, useFilePreview } from '../../components/admin/SiteContentForm'
+import { Button } from '../../components/ui'
+import { appendBilingualGroup, bilingualGroupFromRecord } from '../../utils/bilingualValue'
+
+const TEXT_FIELDS = [
+  'teleconsultationTitle',
+  'teleconsultationDescription',
+  'teleconsultationButtonText',
+  'homeVisitTitle',
+  'homeVisitDescription',
+  'homeVisitButtonText'
+]
 
 const defaults = {
   teleconsultationTitle: 'Teleconsultation',
   teleconsultationDescription: 'Schedule a voice or video call with a specialist doctor.',
   teleconsultationButtonText: 'Book',
-  showTeleconsultation: true,
   homeVisitTitle: 'Home Visit',
   homeVisitDescription: 'Book a doctor visit at your home in supported Cairo and Giza areas.',
-  homeVisitButtonText: 'Book',
-  showHomeVisit: true
+  homeVisitButtonText: 'Book'
 }
 
-const CardEditor = ({ title, icon: Icon, imagePreview, fileSetter, fields, form, updateField }) => (
-  <div className='rounded-xl border border-gray-200 bg-white p-5 shadow-sm'>
-    <h2 className='mb-4 flex items-center gap-2 text-lg font-bold text-gray-900'>
-      <Icon className='h-5 w-5 text-primary' />
-      {title}
-    </h2>
-    <div className='grid grid-cols-1 gap-4 lg:grid-cols-[180px_1fr]'>
-      <label className='flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-3 text-center hover:border-primary'>
-        {imagePreview ? <img src={imagePreview} alt='' className='h-32 w-full rounded-lg object-cover' /> : <span className='flex flex-col items-center gap-2 text-sm text-gray-500'><Upload className='h-5 w-5 text-primary' />Upload photo</span>}
-        <input type='file' accept='image/*' hidden onChange={(event) => fileSetter(event.target.files?.[0] || null)} />
-      </label>
-      <div className='space-y-3'>
-        <input value={form[fields.title]} onChange={(event) => updateField(fields.title, event.target.value)} className='w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary' placeholder='Section name' />
-        <textarea value={form[fields.description]} onChange={(event) => updateField(fields.description, event.target.value)} rows={3} className='w-full resize-none rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary' placeholder='Description' />
-        <input value={form[fields.button]} onChange={(event) => updateField(fields.button, event.target.value)} className='w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary' placeholder='Button text' />
-        <label className='flex items-center gap-2 text-sm font-semibold text-gray-700'>
-          <input type='checkbox' checked={form[fields.visible]} onChange={(event) => updateField(fields.visible, event.target.checked)} className='accent-primary' />
-          Visible on patient homepage
-        </label>
+const CardEditor = ({ title, icon, preview, onPick, prefix, text, setField, visible, onVisible, translate }) => {
+  const { t } = useLanguage()
+  return (
+    <FormSection title={title} icon={icon}>
+      <div className='grid grid-cols-1 gap-4 lg:grid-cols-[180px_minmax(0,1fr)]'>
+        <ImagePicker label={t('Card photo')} preview={preview} onPick={onPick} hint={t('Upload photo')} imageClassName='h-32' />
+        <div className='min-w-0 space-y-4'>
+          <BilingualField label={t('Section name')} value={text[`${prefix}Title`]} onChange={setField(`${prefix}Title`)} translate={translate} />
+          <BilingualField label={t('Description')} value={text[`${prefix}Description`]} onChange={setField(`${prefix}Description`)} translate={translate} multiline />
+          <BilingualField label={t('Button text')} value={text[`${prefix}ButtonText`]} onChange={setField(`${prefix}ButtonText`)} translate={translate} />
+          <ToggleRow checked={visible} onChange={onVisible} label={t('Visible on patient homepage')} />
+        </div>
       </div>
-    </div>
-  </div>
-)
+    </FormSection>
+  )
+}
 
 const HomeServiceCardsSettings = () => {
-  const { aToken, siteSettings, getSiteSettings, updateHomeServiceCardsSettings } = useContext(AdminContext)
-  const [form, setForm] = useState(defaults)
+  const { aToken, siteSettings, getSiteSettings, updateHomeServiceCardsSettings, translatePreview } = useContext(AdminContext)
+  const { t } = useLanguage()
+  const [text, setText] = useState(() => bilingualGroupFromRecord(defaults, TEXT_FIELDS))
+  const [showTeleconsultation, setShowTeleconsultation] = useState(true)
+  const [showHomeVisit, setShowHomeVisit] = useState(true)
   const [teleconsultationImage, setTeleconsultationImage] = useState(null)
   const [homeVisitImage, setHomeVisitImage] = useState(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (aToken) getSiteSettings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aToken])
 
+  const saved = siteSettings?.homeServiceCards
   useEffect(() => {
-    if (siteSettings?.homeServiceCards) setForm({ ...defaults, ...siteSettings.homeServiceCards })
-  }, [siteSettings])
+    if (!saved) return
+    setText(bilingualGroupFromRecord({ ...defaults, ...saved }, TEXT_FIELDS))
+    setShowTeleconsultation(saved.showTeleconsultation !== false)
+    setShowHomeVisit(saved.showHomeVisit !== false)
+  }, [saved])
 
-  const updateField = (field, value) => setForm((previous) => ({ ...previous, [field]: value }))
+  const setField = (field) => (value) => setText((previous) => ({ ...previous, [field]: value }))
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     setSaving(true)
     const formData = new FormData()
-    Object.entries(form).forEach(([key, value]) => formData.append(key, value))
+    appendBilingualGroup(formData, text)
+    formData.append('showTeleconsultation', showTeleconsultation)
+    formData.append('showHomeVisit', showHomeVisit)
     if (teleconsultationImage) formData.append('teleconsultationImage', teleconsultationImage)
     if (homeVisitImage) formData.append('homeVisitImage', homeVisitImage)
-    const saved = await updateHomeServiceCardsSettings(formData)
-    if (saved) {
+    const success = await updateHomeServiceCardsSettings(formData)
+    if (success) {
       setTeleconsultationImage(null)
       setHomeVisitImage(null)
     }
     setSaving(false)
   }
 
-  const telePreview = teleconsultationImage ? URL.createObjectURL(teleconsultationImage) : siteSettings?.homeServiceCards?.teleconsultationImage
-  const homePreview = homeVisitImage ? URL.createObjectURL(homeVisitImage) : siteSettings?.homeServiceCards?.homeVisitImage
+  const telePreview = useFilePreview(teleconsultationImage, saved?.teleconsultationImage)
+  const homePreview = useFilePreview(homeVisitImage, saved?.homeVisitImage)
 
   return (
-    <div className='min-h-screen bg-gray-50 p-3 sm:p-5 md:p-6 lg:p-8'>
-      <div className='max-w-5xl'>
-        <div className='mb-6'>
-          <h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900'>Home Service Cards</h1>
-          <p className='mt-2 text-sm text-gray-600'>Control the Teleconsultation and Home Visit cards under Find by Speciality.</p>
-        </div>
-        <form onSubmit={handleSubmit} className='space-y-5'>
-          <CardEditor title='Teleconsultation' icon={Video} imagePreview={telePreview} fileSetter={setTeleconsultationImage} fields={{ title: 'teleconsultationTitle', description: 'teleconsultationDescription', button: 'teleconsultationButtonText', visible: 'showTeleconsultation' }} form={form} updateField={updateField} />
-          <CardEditor title='Home Visit' icon={Home} imagePreview={homePreview} fileSetter={setHomeVisitImage} fields={{ title: 'homeVisitTitle', description: 'homeVisitDescription', button: 'homeVisitButtonText', visible: 'showHomeVisit' }} form={form} updateField={updateField} />
-          <button disabled={saving} className='inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white disabled:bg-gray-300'>
-            {saving ? <Loader2 className='h-4 w-4 animate-spin' /> : <Save className='h-4 w-4' />}
-            Save service cards
-          </button>
-        </form>
-      </div>
-    </div>
+    <AdminPage icon={LayoutTemplate} width='max-w-5xl' title={t('Home Service Cards')} description={t('Control the Teleconsultation and Home Visit cards under Find by Speciality.')}>
+      <form onSubmit={handleSubmit} className='space-y-5'>
+        <CardEditor title={t('Teleconsultation')} icon={Video} preview={telePreview} onPick={setTeleconsultationImage} prefix='teleconsultation' text={text} setField={setField} visible={showTeleconsultation} onVisible={setShowTeleconsultation} translate={translatePreview} />
+        <CardEditor title={t('Home Visit')} icon={Home} preview={homePreview} onPick={setHomeVisitImage} prefix='homeVisit' text={text} setField={setField} visible={showHomeVisit} onVisible={setShowHomeVisit} translate={translatePreview} />
+        <Button type='submit' loading={saving} leadingIcon={<Save aria-hidden='true' className='size-4' />}>
+          {t('Save service cards')}
+        </Button>
+      </form>
+    </AdminPage>
   )
 }
 

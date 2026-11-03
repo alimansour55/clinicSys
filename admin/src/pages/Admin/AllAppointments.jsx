@@ -1,10 +1,21 @@
-import React, { useContext, useEffect, useState, useMemo } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronUp, ClipboardList, Clock, Home, ListChecks, Phone, Search, SlidersHorizontal, User, Video, X } from 'lucide-react'
 import { AdminContext } from '../../context/AdminContext'
 import { AppContext } from '../../context/AppContext'
-import { assets } from '../../assets/assets'
-import { Search, X, ChevronDown, ChevronUp, SlidersHorizontal, FileText, Home, Phone, Video } from 'lucide-react'
-import { formatHomeVisitAddress } from '../../utils/homeVisitAreas'
+import { AdminPage, BulkBar, ConfirmDialog, ExportButton, SelectBox, StatCard, selectionFor } from '../../components/admin/AdminPage'
+import { Badge, Button, EmptyState, Field, IconButton, Input, Select, Skeleton, SkeletonGroup, notify } from '../../components/ui'
+import { useLanguage } from '../../i18n'
+import { downloadCsv } from '../../utils/csvExport'
+import { toWesternAsciiDigits } from '../../utils/arabicNumerals'
+
+const NO_FILTERS = { status: 'all', dateRange: 'all' }
+const DAY_MS = 24 * 60 * 60 * 1000
+const NO_VALUE = '—'
+
+/* Separate grids for header and rows, so the two templates must stay identical */
+const GRID_WITH_SELECT = 'xl:grid-cols-[1.5rem_1.75rem_minmax(0,1.7fr)_minmax(0,0.8fr)_2.5rem_minmax(0,1.3fr)_minmax(0,1.4fr)_minmax(0,1fr)_6.5rem]'
+const GRID_NO_SELECT = 'xl:grid-cols-[1.75rem_minmax(0,1.7fr)_minmax(0,0.8fr)_2.5rem_minmax(0,1.3fr)_minmax(0,1.4fr)_minmax(0,1fr)_6.5rem]'
 
 /** Live row: cancelled (any reason) */
 const isRowCancelled = (item) => item.cancelled === true || item.appointmentStatus === 'Cancelled'
@@ -15,455 +26,595 @@ const isRowFinished = (item) => item.isCompleted === true || item.appointmentSta
 /** Still on the schedule — not done and not cancelled */
 const isRowActual = (item) => !isRowCancelled(item) && !isRowFinished(item)
 
+const getReservationNumber = (item) => item.reservationNumber || `RES-${String(item._id || '').slice(-6).toUpperCase()}`
+
+const getAppointmentMode = (item) => item.appointmentType || 'Clinic'
+
+/** `slotDate` is day_month_year. Returns null for anything else, including 31_2_2026. */
+const parseSlotDate = (slotDate) => {
+  const [day, month, year] = String(slotDate || '').split('_').map(Number)
+  if (!day || !month || !year) return null
+  const date = new Date(year, month - 1, day)
+  return date.getMonth() === month - 1 ? date : null
+}
+
+/* Rounded, not floored: a clock change makes one day 23 hours long */
+const daysFromToday = (date) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.round((date - today) / DAY_MS)
+}
+
+const DATE_RANGE_MATCHES = {
+  today: (days) => days === 0,
+  tomorrow: (days) => days === 1,
+  week: (days) => days >= -7 && days <= 0,
+  '15days': (days) => days >= -15 && days <= 0,
+  month: (days) => days >= -30 && days <= 0,
+}
+
+/* Accounts can hold no birth date, or the text 'Not Selected' */
+const ageFrom = (dob) => {
+  const birth = new Date(dob)
+  if (!dob || Number.isNaN(birth.getTime())) return null
+  const today = new Date()
+  const hadBirthday = today.getMonth() > birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate())
+  const age = today.getFullYear() - birth.getFullYear() - (hadBirthday ? 0 : 1)
+  return age >= 0 ? age : null
+}
+
+const normalizeSearch = (value) => toWesternAsciiDigits(value).toLowerCase().trim()
+
+const searchTextFor = (item) =>
+  normalizeSearch(
+    [
+      item.userData?.patientId,
+      item.userData?.name,
+      item.docData?.name,
+      item.docData?.i18n?.name?.en,
+      item.docData?.i18n?.name?.ar,
+      getReservationNumber(item),
+    ]
+      .filter(Boolean)
+      .join(' '),
+  )
+
+const statusKeyOf = (item) => (isRowCancelled(item) ? 'cancelled' : isRowFinished(item) ? 'completed' : 'pending')
+
+const modeTone = (mode) => (mode === 'Home Visit' ? 'success' : mode === 'Voice Call' || mode === 'Video Call' ? 'info' : 'neutral')
+
+const refundTone = (status) => (status === 'Refund Failed' ? 'danger' : status === 'Refunded' ? 'success' : 'warning')
+
+const MODE_ICONS = { 'Video Call': Video, 'Voice Call': Phone, 'Home Visit': Home }
+
+const Avatar = ({ src, className }) =>
+  src ? (
+    <img className={`shrink-0 rounded-full bg-surface-sunken object-cover ${className}`} src={src} alt='' />
+  ) : (
+    <span aria-hidden='true' className={`flex shrink-0 items-center justify-center rounded-full bg-surface-sunken text-ink-3 ${className}`}>
+      <User className='size-1/2' />
+    </span>
+  )
+
+const FilterChip = ({ label, clearLabel, onClear }) => (
+  <span className='inline-flex max-w-full items-center gap-1 rounded-full bg-primary-soft py-0.5 ps-3 pe-0.5 text-caption font-semibold text-brand'>
+    <span className='truncate'>{label}</span>
+    <button type='button' aria-label={clearLabel} title={clearLabel} onClick={onClear} className='flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full hover:bg-surface'>
+      <X aria-hidden='true' className='size-3' />
+    </button>
+  </span>
+)
+
+const ListSkeleton = () => (
+  <SkeletonGroup>
+    {[1, 2, 3, 4, 5, 6].map((row) => (
+      <div key={row} className='flex items-center gap-3 border-b border-line p-4'>
+        <Skeleton circle className='size-10 shrink-0' />
+        <div className='min-w-0 flex-1 space-y-2'>
+          <Skeleton className='h-4 w-2/3 max-w-xs' />
+          <Skeleton className='h-3 w-1/2 max-w-48' />
+        </div>
+        <Skeleton className='hidden h-8 w-20 sm:block' />
+      </div>
+    ))}
+  </SkeletonGroup>
+)
+
 const AllAppointments = () => {
   const location = useLocation()
-  const scope = useMemo(() => {
-    if (location.pathname === '/actual-appointments') return 'actual'
-    if (location.pathname === '/finished-appointments') return 'finished'
-    return 'all'
-  }, [location.pathname])
+  const scope = location.pathname === '/actual-appointments' ? 'actual' : location.pathname === '/finished-appointments' ? 'finished' : 'all'
 
-  const { aToken, appointments, getAllAppointments, cancelAppointment } = useContext(AdminContext)
-  const { calculateAge, slotDateFormat, currency } = useContext(AppContext)
+  const { aToken, appointments, getAllAppointments, cancelAppointment, bulkCancelAppointments } = useContext(AdminContext)
+  const { slotDateFormat, currency } = useContext(AppContext)
+  const { t, tc, localizeDigits, isRtl } = useLanguage()
 
-  // Filter States
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(() => String(location.state?.search || ''))
   const [showFilters, setShowFilters] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [filters, setFilters] = useState({
-    status: 'all',
-    dateRange: 'all',
-  })
+  const [isLoading, setIsLoading] = useState(Boolean(aToken))
+  const [filters, setFilters] = useState(NO_FILTERS)
+  const [selected, setSelected] = useState([])
+  const [cancelTarget, setCancelTarget] = useState(null)
+  const [confirmBulk, setConfirmBulk] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  /* Each arrival starts clean: another of the three routes, or a search from the command palette */
+  const [seenLocationKey, setSeenLocationKey] = useState(location.key)
+  if (seenLocationKey !== location.key) {
+    setSeenLocationKey(location.key)
+    setSearchQuery(String(location.state?.search || ''))
+    setFilters(NO_FILTERS)
+    setSelected([])
+  }
 
   useEffect(() => {
-  const fetchData = async () => {
-    if (aToken) {
-      setIsLoading(true);
-      await getAllAppointments();
-      setIsLoading(false);
+    if (!aToken) return undefined
+    let active = true
+    Promise.resolve(getAllAppointments()).finally(() => {
+      if (active) setIsLoading(false)
+    })
+    return () => {
+      active = false
     }
-    };
-    fetchData();
+    // getAllAppointments is rebuilt on every provider render, so listing it would refetch forever
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aToken])
-
-  useEffect(() => {
-    setSearchQuery('')
-    setFilters({ status: 'all', dateRange: 'all' })
-  }, [scope])
-
-  // Handle Cancel with Refresh
-  const handleCancelAppointment = async (appointmentId) => {
-    await cancelAppointment(appointmentId);
-    getAllAppointments(); 
-  };
-
-  const getReservationNumber = (item) => item.reservationNumber || `RES-${String(item._id || '').slice(-6).toUpperCase()}`
 
   const scopePool = useMemo(() => {
     const list = appointments || []
     if (scope === 'actual') return list.filter(isRowActual)
-    if (scope === 'finished') return list.filter((item) => isRowFinished(item) || isRowCancelled(item))
-    return [...list]
+    if (scope === 'finished') return list.filter((item) => !isRowActual(item))
+    return list
   }, [appointments, scope])
 
-  const pageMeta = useMemo(() => {
-    if (scope === 'actual') {
-      return {
-        title: 'Actual Appointments',
-        subtitle: 'Active visits only — not completed and not cancelled. Use the sidebar “All Appointments” to see everything.',
-      }
-    }
-    if (scope === 'finished') {
-      return {
-        title: 'Finished Appointments',
-        subtitle: 'Completed or cancelled visits. Archived records are under Appointment History in the top bar.',
-      }
-    }
-    return {
-      title: 'All Appointments',
-      subtitle: 'Monitor and manage every appointment in the system.',
-    }
-  }, [scope])
-
-  // Filtered Appointments
   const filteredAppointments = useMemo(() => {
-    let result = [...scopePool];
+    let result = scopePool
 
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      result = result.filter(item => 
-        item.userData.patientId?.toLowerCase().includes(query) ||
-        getReservationNumber(item).toLowerCase().includes(query)
-      );
-    }
+    const query = normalizeSearch(searchQuery)
+    if (query) result = result.filter((item) => searchTextFor(item).includes(query))
 
-    if (filters.status !== 'all') {
+    if (filters.status !== 'all') result = result.filter((item) => statusKeyOf(item) === filters.status)
+
+    const matchesRange = DATE_RANGE_MATCHES[filters.dateRange]
+    if (matchesRange) {
       result = result.filter((item) => {
-        if (filters.status === 'pending') return isRowActual(item)
-        if (filters.status === 'completed') return isRowFinished(item) && !isRowCancelled(item)
-        if (filters.status === 'cancelled') return isRowCancelled(item)
-        return true
+        const date = parseSlotDate(item.slotDate)
+        return date ? matchesRange(daysFromToday(date)) : false
       })
     }
 
-    if (filters.dateRange !== 'all') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      result = result.filter(item => {
-        const [day, month, year] = item.slotDate.split('_').map(Number);
-        const appointmentDate = new Date(year, month - 1, day);
-        appointmentDate.setHours(0, 0, 0, 0);
-        
-        const daysDiff = Math.floor((appointmentDate - today) / (1000 * 60 * 60 * 24));
-        
-        if (filters.dateRange === 'today') return daysDiff === 0;
-        if (filters.dateRange === 'tomorrow') return daysDiff === 1;
-        if (filters.dateRange === 'week') return daysDiff >= -7 && daysDiff <= 0;
-        if (filters.dateRange === '15days') return daysDiff >= -15 && daysDiff <= 0;
-        if (filters.dateRange === 'month') return daysDiff >= -30 && daysDiff <= 0;
-        
-        return true;
-      });
-    }
+    return result
+  }, [scopePool, searchQuery, filters])
 
-    return result;
-  }, [scopePool, searchQuery, filters]);
+  const counts = useMemo(() => {
+    const tally = { pending: 0, completed: 0, cancelled: 0, today: 0 }
+    scopePool.forEach((item) => {
+      tally[statusKeyOf(item)] += 1
+      const date = parseSlotDate(item.slotDate)
+      if (date && daysFromToday(date) === 0) tally.today += 1
+    })
+    return tally
+  }, [scopePool])
+
+  /* Only a visit still on the schedule can be cancelled */
+  const canSelect = scope !== 'finished'
+  const selectableIds = canSelect ? filteredAppointments.filter((item) => isRowActual(item) && item._id).map((item) => item._id) : []
+  const selection = selectionFor(selected, selectableIds)
+  const gridTemplate = canSelect ? GRID_WITH_SELECT : GRID_NO_SELECT
+
+  const toggleOne = (id, checked) => setSelected((current) => (checked ? [...current, id] : current.filter((value) => value !== id)))
 
   const clearFilters = () => {
-    setSearchQuery('');
-    setFilters({
-      status: 'all',
-      dateRange: 'all',
-    });
-  };
+    setSearchQuery('')
+    setFilters(NO_FILTERS)
+  }
 
-  const getAppointmentMode = (item) => item.appointmentType || 'Clinic'
-  const isRemoteAppointment = (item) => ['Voice Call', 'Video Call'].includes(getAppointmentMode(item))
-  const isHomeVisit = (item) => getAppointmentMode(item) === 'Home Visit'
+  const hasActiveFilters = Boolean(searchQuery.trim()) || filters.status !== 'all' || filters.dateRange !== 'all'
+
+  const pageMeta =
+    scope === 'actual'
+      ? {
+          title: t('Actual Appointments'),
+          subtitle: t('Active visits only — not completed and not cancelled. Use the sidebar “All Appointments” to see everything.'),
+        }
+      : scope === 'finished'
+        ? {
+            title: t('Finished Appointments'),
+            subtitle: t('Completed or cancelled visits. Archived records are under Appointment History.'),
+          }
+        : {
+            title: t('All Appointments'),
+            subtitle: t('Monitor and manage every appointment in the system.'),
+          }
+
+  const statusLabels = { pending: t('Pending'), completed: t('Completed'), cancelled: t('Cancelled') }
+  const dateLabels = {
+    today: t('Today'),
+    tomorrow: t('Tomorrow'),
+    week: t('Last 7 Days'),
+    '15days': t('Last 15 Days'),
+    month: t('Last 30 Days'),
+  }
+  const statusOptions = scope === 'finished' ? ['completed', 'cancelled'] : ['pending', 'completed', 'cancelled']
+
+  const patientName = (item) => item.userData?.name || t('Unknown patient')
+  const doctorName = (item) => tc(item.docData?.i18n?.name) || item.docData?.name || t('Unknown doctor')
+  const doctorSpeciality = (item) => tc(item.docData?.i18n?.speciality) || tc(item.docData?.speciality) || ''
+  const formatSlotDate = (item) => (parseSlotDate(item.slotDate) ? localizeDigits(slotDateFormat(item.slotDate)) : NO_VALUE)
+  const formatSlotTime = (item) => (item.slotTime ? localizeDigits(item.slotTime) : NO_VALUE)
+  const formatAmount = (item) => (item.amount === null || item.amount === undefined ? NO_VALUE : `${currency}${localizeDigits(item.amount)}`)
+  const formatPayment = (item) => [t(item.paymentStatus || 'Not Paid'), item.paymentMethod ? t(item.paymentMethod) : ''].filter(Boolean).join(' - ')
+  const formatHomeAddress = (address) =>
+    [
+      address?.area ? t(address.area) : '',
+      address?.street,
+      address?.building ? `${t('Building')} ${address.building}` : '',
+      address?.floor ? `${t('Floor')} ${address.floor}` : '',
+      address?.apartment ? `${t('Apartment')} ${address.apartment}` : '',
+    ]
+      .filter(Boolean)
+      .join(isRtl ? '، ' : ', ')
+
+  const cancelWarning = t('This cancels the visit and frees the time slot. The patient is notified, and a refund is requested for card payments.')
+
+  const closeDialogs = () => {
+    if (busy) return
+    setCancelTarget(null)
+    setConfirmBulk(false)
+  }
+
+  /* cancelAppointment shows its own result and refreshes the list */
+  const confirmCancelOne = async () => {
+    setBusy(true)
+    await cancelAppointment(cancelTarget._id)
+    setBusy(false)
+    setCancelTarget(null)
+  }
+
+  const confirmCancelSelected = async () => {
+    setBusy(true)
+    const result = await bulkCancelAppointments(selection.ids)
+    if (result) {
+      const cancelled = result.cancelled || 0
+      const failed = result.failed || []
+      const summary = `${t('Appointments cancelled')}: ${localizeDigits(cancelled)}`
+      if (!failed.length) {
+        notify.success(summary)
+      } else {
+        const message = `${summary}. ${t('Could not be cancelled')}: ${localizeDigits(failed.length)}. ${t(failed[0].message) || ''}`
+        if (cancelled) notify.warning(message)
+        else notify.error(message)
+      }
+      /* What failed stays selected, so it is clear which ones are left */
+      setSelected(failed.map((entry) => entry.appointmentId))
+      await getAllAppointments()
+    }
+    setBusy(false)
+    setConfirmBulk(false)
+  }
+
+  const exportRows = () => {
+    downloadCsv(
+      `${scope}-appointments`,
+      [
+        { label: t('Reservation'), value: getReservationNumber },
+        { label: t('Patient'), value: (row) => row.userData?.name || '' },
+        { label: t('Patient ID'), value: (row) => row.userData?.patientId || '' },
+        { label: t('Age'), value: (row) => ageFrom(row.userData?.dob) },
+        { label: t('Date'), value: formatSlotDate },
+        { label: t('Time'), value: (row) => row.slotTime || '' },
+        { label: t('Visit type'), value: (row) => t(getAppointmentMode(row)) },
+        { label: t('Address'), value: (row) => (getAppointmentMode(row) === 'Home Visit' ? formatHomeAddress(row.homeVisitAddress) : '') },
+        { label: t('Doctor'), value: (row) => tc(row.docData?.i18n?.name) || row.docData?.name || '' },
+        { label: t('Speciality'), value: doctorSpeciality },
+        { label: t('Fees'), value: (row) => row.amount },
+        { label: t('Payment'), value: formatPayment },
+        { label: t('Refund'), value: (row) => (row.refundStatus && row.refundStatus !== 'Not Refunded' ? t(row.refundStatus) : '') },
+        { label: t('Status'), value: (row) => statusLabels[statusKeyOf(row)] },
+      ],
+      filteredAppointments,
+    )
+  }
+
+  const statCards =
+    scope === 'actual'
+      ? [
+          { key: 'total', label: t('Total'), value: scopePool.length, icon: ListChecks, onClick: () => setFilters(NO_FILTERS) },
+          { key: 'today', label: t('Today'), value: counts.today, icon: CalendarDays, onClick: () => setFilters({ ...NO_FILTERS, dateRange: 'today' }) },
+        ]
+      : [
+          { key: 'total', label: t('Total'), value: scopePool.length, icon: ListChecks, onClick: () => setFilters(NO_FILTERS) },
+          ...(scope === 'all'
+            ? [{ key: 'pending', label: t('Pending'), value: counts.pending, icon: Clock, tone: 'text-warning-ink', onClick: () => setFilters({ ...filters, status: 'pending' }) }]
+            : []),
+          { key: 'completed', label: t('Completed'), value: counts.completed, icon: CheckCircle2, tone: 'text-success-ink', onClick: () => setFilters({ ...filters, status: 'completed' }) },
+          { key: 'cancelled', label: t('Cancelled'), value: counts.cancelled, icon: Ban, tone: 'text-danger-ink', onClick: () => setFilters({ ...filters, status: 'cancelled' }) },
+        ]
 
   return (
-    <div className='w-full p-3 sm:p-5 md:p-6 lg:p-8'>
-      <div className='max-w-6xl'>
-        
-        <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-4'>
-          <div>
-            <h1 className='text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2'>
-              <FileText className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 text-blue-600" /> {pageMeta.title}
-            </h1>
-            <p className='text-xs sm:text-sm md:text-base text-gray-600 mt-1 ms-6 sm:ms-9'>{pageMeta.subtitle}</p>
-          </div>
-          
-          <button onClick={() => setShowFilters(!showFilters)} className='flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm'>
-            <SlidersHorizontal className='w-4 h-4' />
-            Filters
-            {showFilters ? <ChevronUp className='w-4 h-4' /> : <ChevronDown className='w-4 h-4' />}
-          </button>
-        </div>
+    <AdminPage
+      title={pageMeta.title}
+      description={pageMeta.subtitle}
+      icon={ClipboardList}
+      actions={
+        <>
+          <Button
+            variant='secondary'
+            size='sm'
+            aria-expanded={showFilters}
+            onClick={() => setShowFilters(!showFilters)}
+            leadingIcon={<SlidersHorizontal aria-hidden='true' className='size-4' />}
+            trailingIcon={showFilters ? <ChevronUp aria-hidden='true' className='size-4' /> : <ChevronDown aria-hidden='true' className='size-4' />}
+          >
+            {t('Filters')}
+          </Button>
+          <ExportButton onExport={exportRows} disabled={isLoading || filteredAppointments.length === 0} />
+        </>
+      }
+    >
+      <div className='mb-4 grid grid-cols-2 gap-3 lg:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]'>
+        {statCards.map(({ key, value, ...card }) => (
+          <StatCard key={key} value={localizeDigits(value)} {...card} />
+        ))}
+      </div>
 
-        {/* Search Bar */}
-        <div className='bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6'>
-          <div className='relative'>
-            <Search className='absolute start-3 sm:start-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5' />
-            <input
-              type='text'
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder='Search by Patient ID or reservation...'
-              className='w-full ps-10 sm:ps-12 pe-10 sm:pe-12 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className='absolute end-3 sm:end-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600'>
-                <X className='w-4 h-4 sm:w-5 sm:h-5' />
-              </button>
-            )}
-          </div>
-
-          {/* Filters Panel */}
-          {showFilters && (
-            <div className='mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200'>
-              <div className='flex justify-between items-center mb-3 sm:mb-4'>
-                <h3 className='font-semibold text-gray-700 text-sm sm:text-base'>Filter Appointments</h3>
-                <button onClick={clearFilters} className='text-xs sm:text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1'>
-                  <X className='w-3 h-3 sm:w-4 sm:h-4' />
-                  Clear all
-                </button>
-              </div>
-              
-              <div className='flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-3 sm:space-y-0'>
-                
-                {/* Status Filter */}
-                <div className='flex-1'>
-                  <label className='block text-xs sm:text-sm font-medium text-gray-700 mb-1'>Status</label>
-                  <select
-                    value={filters.status}
-                    onChange={(e) => setFilters({...filters, status: e.target.value})}
-                    className='w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-
-                {/* Date Range Filter */}
-                <div className='flex-1'>
-                  <label className='block text-xs sm:text-sm font-medium text-gray-700 mb-1'>Date Range</label>
-                  <select
-                    value={filters.dateRange}
-                    onChange={(e) => setFilters({...filters, dateRange: e.target.value})}
-                    className='w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
-                  >
-                    <option value="all">All Dates</option>
-                    <option value="today">Today</option>
-                    <option value="tomorrow">Tomorrow</option>
-                    <option value="week">Last 7 Days</option>
-                    <option value="15days">Last 15 Days</option>
-                    <option value="month">Last 30 Days</option>
-                  </select>
-                </div>
-
-              </div>
-
-              {/* Active Filters Badges */}
-              <div className='flex flex-wrap gap-2 mt-3 sm:mt-4'>
-                {searchQuery && (
-                  <span className='inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full'>
-                    Search: "{searchQuery}"
-                    <button onClick={() => setSearchQuery('')} className='ms-1 hover:text-blue-900'>
-                      <X className='w-2.5 h-2.5 sm:w-3 sm:h-3' />
-                    </button>
-                  </span>
-                )}
-                
-                {filters.status !== 'all' && (
-                  <span className='inline-flex items-center gap-1 bg-green-100 text-green-800 text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full'>
-                    Status: {filters.status}
-                    <button onClick={() => setFilters({...filters, status: 'all'})} className='ms-1 hover:text-green-900'>
-                      <X className='w-2.5 h-2.5 sm:w-3 sm:h-3' />
-                    </button>
-                  </span>
-                )}
-                
-                {filters.dateRange !== 'all' && (
-                  <span className='inline-flex items-center gap-1 bg-purple-100 text-purple-800 text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full'>
-                    Date: {filters.dateRange === 'today' ? 'Today' : 
-                           filters.dateRange === 'tomorrow' ? 'Tomorrow' :
-                           filters.dateRange === 'week' ? 'Last 7 Days' :
-                           filters.dateRange === '15days' ? 'Last 15 Days' :
-                           filters.dateRange === 'month' ? 'Last 30 Days' : filters.dateRange}
-                    <button onClick={() => setFilters({...filters, dateRange: 'all'})} className='ms-1 hover:text-purple-900'>
-                      <X className='w-2.5 h-2.5 sm:w-3 sm:h-3' />
-                    </button>
-                  </span>
-                )}
-              </div>
-            </div>
+      <div className='mb-4 rounded-card border border-line bg-surface p-3 shadow-e1 sm:p-4'>
+        <div data-input-field className='relative'>
+          <Search aria-hidden='true' className='pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-3' />
+          <Input
+            type='search'
+            aria-label={t('Search appointments')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('Search by name, patient ID or reservation...')}
+            className='ps-10! pe-11! [&::-webkit-search-cancel-button]:hidden'
+          />
+          {searchQuery && (
+            <IconButton label={t('Clear search')} size='sm' className='absolute end-1 top-1/2 -translate-y-1/2' onClick={() => setSearchQuery('')}>
+              <X aria-hidden='true' className='size-4' />
+            </IconButton>
           )}
-
         </div>
 
-        {/* Stats Summary */}
-        <div className='flex flex-wrap gap-2 sm:gap-3 md:gap-4 mb-4 text-[10px] sm:text-xs md:text-sm'>
-          <span className='px-2 sm:px-3 py-1 bg-blue-50 text-blue-700 rounded-full whitespace-nowrap'>
-            Total: {scopePool.length}
-          </span>
-          <span className='px-2 sm:px-3 py-1 bg-yellow-50 text-yellow-700 rounded-full whitespace-nowrap'>
-            Pending: {scopePool.filter((a) => isRowActual(a)).length}
-          </span>
-          <span className='px-2 sm:px-3 py-1 bg-green-50 text-green-700 rounded-full whitespace-nowrap'>
-            Completed: {scopePool.filter((a) => isRowFinished(a) && !isRowCancelled(a)).length}
-          </span>
-          <span className='px-2 sm:px-3 py-1 bg-red-50 text-red-700 rounded-full whitespace-nowrap'>
-            Cancelled: {scopePool.filter((a) => isRowCancelled(a)).length}
-          </span>
-          <span className='px-2 sm:px-3 py-1 bg-gray-100 text-gray-700 rounded-full whitespace-nowrap'>
-            Showing: {filteredAppointments.length}
-          </span>
-        </div>
-
-        {/* Appointments Table */}
-        <div className='bg-white border rounded-lg text-xs sm:text-sm max-h-[70vh] sm:max-h-[80vh] min-h-[40vh] sm:min-h-[60vh] overflow-y-auto overflow-x-auto'>
-
-          <div className='hidden lg:grid grid-cols-[0.5fr_2fr_1fr_0.5fr_1.5fr_1.5fr_1fr_1fr] gap-1 py-3 px-4 sm:px-6 border-b bg-gray-50 sticky top-0 z-10'>
-            <p className='font-medium'>#</p>
-            <p className='font-medium'>Patient</p>
-            <p className='font-medium'>Patient ID</p>
-            <p className='font-medium'>Age</p>
-            <p className='font-medium'>Date & Time</p>
-            <p className='font-medium'>Doctor</p>
-            <p className='font-medium'>Fees</p>
-            <p className='font-medium'>Action</p>
+        {showFilters && (
+          <div className='mt-3 grid gap-3 rounded-control bg-surface-sunken p-3 sm:grid-cols-2 sm:p-4'>
+            {scope !== 'actual' && (
+              <Field label={t('Status')}>
+                <Select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+                  <option value='all'>{t('All Status')}</option>
+                  {statusOptions.map((value) => (
+                    <option key={value} value={value}>
+                      {statusLabels[value]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+            <Field label={t('Date Range')}>
+              <Select value={filters.dateRange} onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}>
+                <option value='all'>{t('All Dates')}</option>
+                {Object.entries(dateLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
           </div>
+        )}
 
-          {isLoading ? (
-            // Loading Skeleton
-            <>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <div key={i} className='flex flex-col lg:grid lg:grid-cols-[0.5fr_2fr_1fr_0.5fr_1.5fr_1.5fr_1fr_1fr] gap-2 lg:gap-1 items-start lg:items-center py-3 sm:py-4 px-3 sm:px-4 lg:px-6 border-b animate-pulse'>
-                  
-                  {/* Mobile Skeleton */}
-                  <div className='lg:hidden w-full'>
-                    <div className='flex items-start gap-3 mb-3'>
-                      <div className='w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gray-200'></div>
-                      <div className='flex-1 space-y-2'>
-                        <div className='h-4 bg-gray-200 rounded w-3/4'></div>
-                        <div className='h-3 bg-gray-200 rounded w-1/2'></div>
-                        <div className='h-3 bg-gray-200 rounded w-1/3'></div>
-                      </div>
-                    </div>
-                    <div className='flex gap-2 mb-3'>
-                      <div className='h-6 bg-gray-200 rounded w-24'></div>
-                      <div className='h-6 bg-gray-200 rounded w-20'></div>
-                      <div className='h-6 bg-gray-200 rounded w-16'></div>
-                    </div>
-                    <div className='flex items-center gap-2 mb-3 pb-3 border-b border-gray-200'>
-                      <div className='w-8 h-8 rounded-full bg-gray-200'></div>
-                      <div className='space-y-2 flex-1'>
-                        <div className='h-3 bg-gray-200 rounded w-16'></div>
-                        <div className='h-3 bg-gray-200 rounded w-24'></div>
-                      </div>
-                    </div>
-                    <div className='flex justify-end'>
-                      <div className='h-8 bg-gray-200 rounded-lg w-24'></div>
-                    </div>
-                  </div>
+        {/* Outside the panel: a filter still applies after the panel is closed */}
+        {hasActiveFilters && (
+          <div className='mt-3 flex flex-wrap items-center gap-2'>
+            {searchQuery.trim() && <FilterChip label={`${t('Search')}: ${searchQuery.trim()}`} clearLabel={t('Clear search')} onClear={() => setSearchQuery('')} />}
+            {filters.status !== 'all' && <FilterChip label={`${t('Status')}: ${statusLabels[filters.status]}`} clearLabel={t('Clear status filter')} onClear={() => setFilters({ ...filters, status: 'all' })} />}
+            {filters.dateRange !== 'all' && <FilterChip label={`${t('Date')}: ${dateLabels[filters.dateRange]}`} clearLabel={t('Clear date filter')} onClear={() => setFilters({ ...filters, dateRange: 'all' })} />}
+            <Button variant='ghost' size='sm' onClick={clearFilters}>
+              {t('Clear all')}
+            </Button>
+          </div>
+        )}
+      </div>
 
-                  {/* Desktop Skeleton */}
-                  <div className='hidden lg:block h-4 bg-gray-200 rounded w-8'></div>
-                  <div className='hidden lg:flex items-center gap-2'>
-                    <div className='w-10 h-10 rounded-full bg-gray-200'></div>
-                    <div className='h-4 bg-gray-200 rounded flex-1'></div>
-                  </div>
-                  <div className='hidden lg:block h-4 bg-gray-200 rounded w-20'></div>
-                  <div className='hidden lg:block h-4 bg-gray-200 rounded w-8'></div>
-                  <div className='hidden lg:block h-4 bg-gray-200 rounded w-32'></div>
-                  <div className='hidden lg:flex items-center gap-2'>
-                    <div className='w-8 h-8 rounded-full bg-gray-200'></div>
-                    <div className='h-4 bg-gray-200 rounded flex-1'></div>
-                  </div>
-                  <div className='hidden lg:block h-4 bg-gray-200 rounded w-16'></div>
-                  <div className='hidden lg:block h-8 bg-gray-200 rounded w-20'></div>
-                </div>
-              ))}
-            </>
-          ) : filteredAppointments.length === 0 ? (
-            <div className='py-12 sm:py-16 text-center px-4'>
-              <div className='mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3 sm:mb-4'>
-                <Search className='w-6 h-6 sm:w-8 sm:h-8 text-gray-400' />
-              </div>
-              <h3 className='text-base sm:text-lg font-medium text-gray-700 mb-2'>No appointments found</h3>
-              <p className='text-xs sm:text-sm text-gray-500'>
-                {searchQuery ? 'Try adjusting your search or filters' : 'No appointments available'}
-              </p>
-              {(searchQuery || filters.status !== 'all' || filters.dateRange !== 'all') && (
-                <button onClick={clearFilters} className='mt-3 sm:mt-4 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium'>
-                  Clear all filters
-                </button>
+      <BulkBar count={selection.count} onClear={() => setSelected([])}>
+        <Button variant='danger' size='sm' onClick={() => setConfirmBulk(true)} leadingIcon={<Ban aria-hidden='true' className='size-4' />}>
+          {t('Cancel selected')}
+        </Button>
+      </BulkBar>
+
+      <div className='mb-2 flex min-h-6 flex-wrap items-center justify-between gap-2'>
+        <p aria-live='polite' className='text-body-sm text-ink-3'>
+          {`${t('Showing')}: ${localizeDigits(filteredAppointments.length)}`}
+        </p>
+        {selectableIds.length > 0 && !isLoading && (
+          <label className='flex cursor-pointer items-center gap-2 text-body-sm font-medium text-ink-2 xl:hidden'>
+            <SelectBox
+              checked={selection.all}
+              indeterminate={selection.some}
+              onChange={(checked) => setSelected(checked ? selectableIds : [])}
+              label={t('Select all')}
+            />
+            {t('Select all')}
+          </label>
+        )}
+      </div>
+
+      <div className='overflow-hidden rounded-card border border-line bg-surface text-body-sm text-ink-2 shadow-e1 xl:max-h-[75vh] xl:overflow-y-auto'>
+        <div className={`sticky top-0 z-10 hidden items-center gap-3 border-b border-line bg-surface-sunken px-5 py-3 text-caption font-semibold text-ink-2 xl:grid ${gridTemplate}`}>
+          {canSelect && (
+            <span className='flex'>
+              {selectableIds.length > 0 && (
+                <SelectBox
+                  checked={selection.all}
+                  indeterminate={selection.some}
+                  onChange={(checked) => setSelected(checked ? selectableIds : [])}
+                  label={t('Select all')}
+                />
               )}
-            </div>
-          ) : (
-            filteredAppointments.map((item, index) => (
-              <div 
-                className='flex flex-col lg:grid lg:grid-cols-[0.5fr_2fr_1fr_0.5fr_1.5fr_1.5fr_1fr_1fr] gap-2 lg:gap-1 items-start lg:items-center text-gray-500 py-3 sm:py-4 px-3 sm:px-4 lg:px-6 border-b hover:bg-gray-50' 
-                key={item._id}
-              >
-                {/* Mobile Card Layout */}
-                <div className='lg:hidden w-full'>
-                  <div className='flex items-start gap-3 mb-3'>
-                    <img className='w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover flex-shrink-0' src={item.userData.image} alt="" />
-                    <div className='flex-1 min-w-0'>
-                      <p className='font-medium text-gray-800 text-sm sm:text-base mb-1'>{item.userData.name}</p>
-                      <p className='text-xs font-semibold text-blue-700 mb-1'>Reservation: {getReservationNumber(item)}</p>
-                      <p className='text-xs text-gray-500 mb-1'>ID: {item.userData.patientId}</p>
-                      <p className='text-xs text-gray-500'>Age: {calculateAge(item.userData.dob)} years</p>
-                    </div>
-                  </div>
-                  
-                  <div className='flex flex-wrap items-center gap-2 mb-3'>
-                    <span className='text-xs bg-gray-100 px-2 py-1 rounded'>{slotDateFormat(item.slotDate)}</span>
-                    <span className='text-xs bg-gray-100 px-2 py-1 rounded'>{item.slotTime}</span>
-                    <span className='text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded'>{currency} {item.amount}</span>
-                    <span className={`text-xs px-2 py-1 rounded ${item.paymentStatus === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {item.paymentStatus || 'Not Paid'}{item.paymentMethod ? ` - ${item.paymentMethod}` : ''}
-                    </span>
-                    <span className={`text-xs px-2 py-1 rounded ${isHomeVisit(item) ? 'bg-emerald-100 text-emerald-700' : isRemoteAppointment(item) ? 'bg-sky-100 text-sky-700' : 'bg-gray-100 text-gray-700'}`}>
-                      {getAppointmentMode(item)}
-                    </span>
-                  </div>
-                  {isHomeVisit(item) && <p className='mb-3 text-xs text-emerald-700'>{formatHomeVisitAddress(item.homeVisitAddress)}</p>}
+            </span>
+          )}
+          <p>#</p>
+          <p>{t('Patient')}</p>
+          <p>{t('Patient ID')}</p>
+          <p>{t('Age')}</p>
+          <p>{t('Date & Time')}</p>
+          <p>{t('Doctor')}</p>
+          <p>{t('Fees')}</p>
+          <p>{t('Action')}</p>
+        </div>
 
-                  <div className='flex items-center gap-2 mb-3 pb-3 border-b border-gray-200'>
-                    <img className='w-8 h-8 rounded-full bg-gray-200 object-cover' src={item.docData.image} alt="" />
-                    <div>
-                      <p className='text-xs text-gray-500'>Doctor</p>
-                      <p className='text-sm font-medium text-gray-700'>{item.docData.name}</p>
+        {isLoading ? (
+          <ListSkeleton />
+        ) : filteredAppointments.length === 0 ? (
+          <EmptyState
+            icon={<Search />}
+            title={t('No appointments found')}
+            description={hasActiveFilters ? t('Try adjusting your search or filters') : t('No appointments available')}
+            action={
+              hasActiveFilters ? (
+                <Button variant='secondary' size='sm' onClick={clearFilters}>
+                  {t('Clear all filters')}
+                </Button>
+              ) : null
+            }
+          />
+        ) : (
+          <ul>
+            {filteredAppointments.map((item, index) => {
+              const mode = getAppointmentMode(item)
+              const ModeIcon = MODE_ICONS[mode]
+              const age = ageFrom(item.userData?.dob)
+              const isSelectable = canSelect && isRowActual(item) && Boolean(item._id)
+              const reservation = getReservationNumber(item)
+              const speciality = doctorSpeciality(item)
+              const homeAddress = mode === 'Home Visit' ? formatHomeAddress(item.homeVisitAddress) : ''
+              const hasRefund = item.refundStatus && item.refundStatus !== 'Not Refunded'
+
+              return (
+                <li
+                  key={item._id || index}
+                  className={`grid gap-3 border-b border-line p-4 last:border-b-0 hover:bg-surface-sunken/60 xl:items-center xl:px-5 xl:py-3 ${gridTemplate} ${
+                    isSelectable ? 'grid-cols-[auto_minmax(0,1fr)]' : 'grid-cols-1'
+                  }`}
+                >
+                  {isSelectable ? (
+                    <label className='-m-2 flex cursor-pointer self-start p-2 xl:self-center'>
+                      <SelectBox
+                        checked={selected.includes(item._id)}
+                        onChange={(checked) => toggleOne(item._id, checked)}
+                        label={`${t('Select')} ${reservation}`}
+                      />
+                    </label>
+                  ) : (
+                    canSelect && <span aria-hidden='true' className='hidden xl:block' />
+                  )}
+
+                  <p className='hidden tabular-nums xl:block'>{localizeDigits(index + 1)}</p>
+
+                  <div className='flex min-w-0 items-start gap-3 xl:items-center'>
+                    <Avatar src={item.userData?.image} className='size-12 xl:size-10' />
+                    <div className='min-w-0'>
+                      <p className='truncate font-medium text-ink'>{patientName(item)}</p>
+                      <p className='truncate text-caption font-semibold text-brand'>
+                        <span dir='ltr'>{reservation}</span>
+                      </p>
+                      <div className='mt-0.5 text-caption text-ink-3 xl:hidden'>
+                        {item.userData?.patientId && (
+                          <p className='truncate'>
+                            {`${t('Patient ID')}: `}
+                            <span dir='ltr'>{item.userData.patientId}</span>
+                          </p>
+                        )}
+                        {age !== null && <p>{`${t('Age')}: ${localizeDigits(age)}`}</p>}
+                      </div>
                     </div>
                   </div>
-                  
-                  <div className='flex justify-end'>
-                    {isRowCancelled(item) ? (
-                      <p className='text-red-500 text-xs font-medium px-3 py-1.5 bg-red-50 rounded-full'>Cancelled</p>
-                    ) : isRowFinished(item) ? (
-                      <p className='text-green-600 text-xs font-medium px-3 py-1.5 bg-green-50 rounded-full'>Completed</p>
-                    ) : (
-                      <button onClick={() => handleCancelAppointment(item._id)} className='flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-xs font-medium'>
-                        <img className='w-4 h-4' src={assets.cancel_icon} alt="Cancel" />
-                        Cancel
-                      </button>
+
+                  <p className='hidden truncate xl:block'>
+                    <span dir='ltr'>{item.userData?.patientId || NO_VALUE}</span>
+                  </p>
+                  <p className='hidden tabular-nums xl:block'>{age === null ? NO_VALUE : localizeDigits(age)}</p>
+
+                  <div className='col-span-full min-w-0 xl:col-span-1'>
+                    <p className='text-ink-2'>
+                      {formatSlotDate(item)}
+                      {' · '}
+                      <span dir='ltr'>{formatSlotTime(item)}</span>
+                    </p>
+                    <Badge tone={modeTone(mode)} className='mt-1'>
+                      {ModeIcon && <ModeIcon aria-hidden='true' className='size-3' />}
+                      {t(mode)}
+                    </Badge>
+                    {homeAddress && <p className='mt-1 break-words text-caption text-success-ink'>{homeAddress}</p>}
+                  </div>
+
+                  <div className='col-span-full flex min-w-0 items-center gap-2 xl:col-span-1'>
+                    <Avatar src={item.docData?.image} className='size-8' />
+                    <div className='min-w-0'>
+                      <p className='text-caption text-ink-3 xl:hidden'>{t('Doctor')}</p>
+                      <p className='truncate font-medium text-ink'>{doctorName(item)}</p>
+                      {speciality && <p className='truncate text-caption text-ink-3'>{speciality}</p>}
+                    </div>
+                  </div>
+
+                  <div className='col-span-full flex min-w-0 flex-wrap items-center gap-1.5 xl:col-span-1 xl:block'>
+                    <p className='font-medium text-ink tabular-nums'>{formatAmount(item)}</p>
+                    <Badge tone={item.paymentStatus === 'Paid' ? 'success' : 'warning'} className='max-w-full whitespace-normal! xl:mt-1'>
+                      {formatPayment(item)}
+                    </Badge>
+                    {hasRefund && (
+                      <Badge tone={refundTone(item.refundStatus)} className='max-w-full whitespace-normal! xl:mt-1'>
+                        {t(item.refundStatus)}
+                      </Badge>
                     )}
                   </div>
-                </div>
 
-                {/* Desktop Grid Layout */}
-                <p className='hidden lg:block'>{index + 1}</p>
-                <div className='hidden lg:flex items-center gap-2'>
-                  <img className='w-8 sm:w-9 md:w-10 h-8 sm:h-9 md:h-10 rounded-full object-cover' src={item.userData.image} alt="" /> 
-                  <div className='min-w-0'>
-                    <p className='truncate'>{item.userData.name}</p>
-                    <p className='truncate text-[11px] font-semibold text-blue-700'>{getReservationNumber(item)}</p>
+                  <div className='col-span-full flex justify-end xl:col-span-1 xl:justify-start'>
+                    {isRowCancelled(item) ? (
+                      <Badge tone='danger'>{t('Cancelled')}</Badge>
+                    ) : isRowFinished(item) ? (
+                      <Badge tone='success'>{t('Completed')}</Badge>
+                    ) : (
+                      <Button
+                        variant='secondary'
+                        size='sm'
+                        className='text-danger-ink!'
+                        aria-label={`${t('Cancel appointment')}: ${patientName(item)}`}
+                        onClick={() => setCancelTarget(item)}
+                        leadingIcon={<X aria-hidden='true' className='size-4' />}
+                      >
+                        {t('Cancel')}
+                      </Button>
+                    )}
                   </div>
-                </div>
-                <p className='hidden lg:block truncate'>{item.userData.patientId}</p>
-                <p className='hidden lg:block'>{calculateAge(item.userData.dob)}</p>
-                <p className='hidden lg:block text-xs xl:text-sm'>
-                  {slotDateFormat(item.slotDate)}, {item.slotTime}
-                  <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${isHomeVisit(item) ? 'bg-emerald-50 text-emerald-700' : isRemoteAppointment(item) ? 'bg-sky-50 text-sky-700' : 'bg-gray-100 text-gray-700'}`}>
-                    {getAppointmentMode(item) === 'Video Call' ? <Video className='h-3 w-3' /> : getAppointmentMode(item) === 'Voice Call' ? <Phone className='h-3 w-3' /> : isHomeVisit(item) ? <Home className='h-3 w-3' /> : null}
-                    {getAppointmentMode(item)}
-                  </span>
-                  {isHomeVisit(item) && <span className='mt-1 block text-[11px] text-emerald-700'>{formatHomeVisitAddress(item.homeVisitAddress)}</span>}
-                </p>
-                <div className='hidden lg:flex items-center gap-2'>
-                  <img className='w-8 rounded-full bg-gray-200 object-cover' src={item.docData.image} alt="" /> 
-                  <p className='truncate'>{item.docData.name}</p>
-                </div>
-                <div className='hidden lg:block'>
-                  <p>{currency} {item.amount}</p>
-                  <p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${item.paymentStatus === 'Paid' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
-                    {item.paymentStatus || 'Not Paid'}{item.paymentMethod ? ` - ${item.paymentMethod}` : ''}
-                  </p>
-                  {item.refundStatus && item.refundStatus !== 'Not Refunded' && (
-                    <p className='mt-1 text-[11px] text-blue-700'>{item.refundStatus}</p>
-                  )}
-                </div>
-                <div className='hidden lg:block'>
-                  {isRowCancelled(item) ? (
-                    <p className='text-red-500 text-xs font-medium px-2 py-1 bg-red-50 rounded-full inline-block'>Cancelled</p>
-                  ) : isRowFinished(item) ? (
-                    <p className='text-green-600 text-xs font-medium px-2 py-1 bg-green-50 rounded-full inline-block'>Completed</p>
-                  ) : (
-                    <img onClick={() => handleCancelAppointment(item._id)} className='w-8 sm:w-9 md:w-10 cursor-pointer hover:scale-110 transition-transform' src={assets.cancel_icon} alt="Cancel" />
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-
-        </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        danger
+        busy={busy}
+        title={t('Cancel this appointment?')}
+        body={cancelTarget ? `${patientName(cancelTarget)} (${getReservationNumber(cancelTarget)}). ${cancelWarning}` : ''}
+        confirmLabel={t('Cancel appointment')}
+        onConfirm={confirmCancelOne}
+        onClose={closeDialogs}
+      />
+
+      <ConfirmDialog
+        open={confirmBulk}
+        danger
+        busy={busy}
+        title={t('Cancel the selected appointments?')}
+        body={`${t('Selected')}: ${localizeDigits(selection.count)}. ${cancelWarning}`}
+        confirmLabel={t('Cancel selected')}
+        onConfirm={confirmCancelSelected}
+        onClose={closeDialogs}
+      />
+    </AdminPage>
   )
 }
 

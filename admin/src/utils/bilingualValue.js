@@ -23,4 +23,22 @@ export const bilingualFromRecord = (record, field) => {
 /** What the API needs. The status is the server's to decide. */
 export const bilingualPayload = ({ en, ar, source, manual }) => ({ en, ar, source, manual })
 
+/** One form value per field, for a form that edits many at once. `fields` is a list of field names. */
+export const bilingualGroupFromRecord = (record, fields) =>
+  Object.fromEntries(fields.map((field) => [field, bilingualFromRecord(record, field)]))
+
+/** Adds a group to a multipart request as `<field>I18n` JSON text, which is what the server reads. */
+export const appendBilingualGroup = (formData, group) => {
+  Object.entries(group).forEach(([field, value]) => {
+    formData.append(`${field}I18n`, JSON.stringify(bilingualPayload(value)))
+  })
+}
+
+/** The same for a JSON request. */
+export const bilingualGroupPayload = (group) =>
+  Object.fromEntries(Object.entries(group).map(([field, value]) => [`${field}I18n`, bilingualPayload(value)]))
+
+/** What a preview shows for one language: the text if it exists, otherwise the other language. */
+export const bilingualText = (value, language) => value?.[language] || value?.[language === 'en' ? 'ar' : 'en'] || ''
+
 export const bilingualIsEmpty = (value) => !String(value?.en || '').trim() && !String(value?.ar || '').trim()

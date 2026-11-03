@@ -462,9 +462,9 @@ const updateDoctorByAdmin = async (req, res) => {
       : (doctor.clinics || []).map((clinic) => String(clinic?._id || clinic)).filter(Boolean)
     updatedData.clinics = await resolveClinicIdsForDoctor(nextSpeciality, explicitClinicIds)
 
-    /* A blank box keeps the saved text, as the plain fields above do */
+    /* A blank box keeps the saved text, as the plain fields above do. An address can be cleared. */
     for (const [field, value] of Object.entries(i18n)) {
-      if (primaryOf(value)) updatedData[`i18n.${field}`] = value
+      if (primaryOf(value) || field === 'address') updatedData[`i18n.${field}`] = value
     }
 
     await doctorModel.findByIdAndUpdate(docId, updatedData)

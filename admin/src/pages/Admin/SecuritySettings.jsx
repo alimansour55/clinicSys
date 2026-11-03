@@ -1,7 +1,12 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
+import axios from 'axios'
+import { Clock, DatabaseBackup, KeyRound, Lock, Save, ShieldCheck, ShieldQuestion, TriangleAlert } from 'lucide-react'
 import { AdminContext } from '../../context/AdminContext'
-import { Clock, DatabaseBackup, KeyRound, Loader2, Lock, Save, ShieldCheck, ShieldQuestion } from 'lucide-react'
+import { useLanguage } from '../../i18n'
+import { AdminPage } from '../../components/admin/AdminPage'
+import { Badge, Button, Card, CardBody, CardHeader, Field, Input, notify, Skeleton, SkeletonGroup } from '../../components/ui'
 
+/* Everything this form may send. `adminMfa` is deliberately absent: it has its own routes. */
 const defaults = {
   mfaEnabled: false,
   mfaRequiredGlobally: false,
@@ -31,213 +36,333 @@ const defaults = {
   allowIpTracking: true
 }
 
-const ToggleRow = ({ checked, onChange, label, description }) => (
-  <label className='flex items-start justify-between gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3 cursor-pointer hover:bg-gray-50 transition'>
-    <span>
-      <span className='block text-sm font-semibold text-gray-900'>{label}</span>
-      <span className='block text-xs text-gray-500 mt-1 leading-5'>{description}</span>
+/* The ranges in normalizeSecuritySettings. The server clamps silently, so they are refused here instead. */
+const NUMBER_RANGES = {
+  passwordMinLength: [6, 128],
+  passwordExpiryDays: [0, 3650],
+  maxLoginAttempts: [3, 20],
+  lockoutMinutes: [1, 1440],
+  sessionTimeoutMinutes: [5, 1440],
+  auditLogRetentionDays: [30, 3650],
+  dataRetentionDays: [30, 3650],
+  inactiveAccountRetentionDays: [30, 3650]
+}
+
+const pickKnownFields = (security = {}) =>
+  Object.keys(defaults).reduce((picked, key) => {
+    picked[key] = security?.[key] ?? defaults[key]
+    return picked
+  }, {})
+
+const isInRange = (value, [min, max]) => {
+  const number = Number(value)
+  return String(value).trim() !== '' && Number.isInteger(number) && number >= min && number <= max
+}
+
+const NotEnforced = () => {
+  const { t } = useLanguage()
+  return <Badge tone='neutral'>{t('Not enforced yet')}</Badge>
+}
+
+const ToggleRow = ({ checked, onChange, label, description, notEnforced = false }) => (
+  <label className='flex cursor-pointer items-start justify-between gap-4 rounded-control border border-line bg-surface px-4 py-3 transition duration-(--duration-fast) ease-standard hover:bg-surface-sunken'>
+    <span className='min-w-0'>
+      <span className='flex flex-wrap items-center gap-2 text-body-sm font-semibold text-ink'>
+        {label}
+        {notEnforced && <NotEnforced />}
+      </span>
+      <span className='mt-1 block text-caption text-ink-3'>{description}</span>
     </span>
     <input
       type='checkbox'
       checked={checked}
       onChange={(event) => onChange(event.target.checked)}
-      className='mt-1 h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary'
+      className='mt-0.5 size-5 shrink-0 cursor-pointer accent-(--color-primary)'
     />
   </label>
 )
 
-const NumberInput = ({ label, value, onChange, min, max, suffix }) => (
-  <div>
-    <label className='block text-sm font-semibold text-gray-700 mb-2'>{label}</label>
-    <div className='flex rounded-lg border border-gray-300 bg-white focus-within:ring-2 focus-within:ring-primary'>
-      <input
-        type='number'
-        min={min}
-        max={max}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className='min-w-0 flex-1 rounded-s-lg px-3 py-2.5 text-sm outline-none'
-      />
-      <span className='flex items-center rounded-e-lg border-s border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500'>{suffix}</span>
-    </div>
+const NumberControl = ({ unit, ...props }) => (
+  <div className='flex items-stretch gap-2'>
+    <Input type='number' inputMode='numeric' className='min-w-0 flex-1' {...props} />
+    <span className='flex shrink-0 items-center rounded-control bg-surface-sunken px-3 text-caption font-semibold text-ink-2'>{unit}</span>
   </div>
 )
 
 const Section = ({ icon, title, children }) => (
-  <div className='bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm'>
-    <h2 className='text-base sm:text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2'>
-      {icon}
-      {title}
-    </h2>
-    {children}
+  <Card>
+    <CardHeader
+      headingLevel={2}
+      title={
+        <span className='flex items-center gap-2'>
+          {icon}
+          {title}
+        </span>
+      }
+    />
+    <CardBody className='space-y-4'>{children}</CardBody>
+  </Card>
+)
+
+const SummaryBox = ({ tone, title, children }) => (
+  <div className={`rounded-control p-3 ${tone}`}>
+    <p className='font-semibold'>{title}</p>
+    <div className='mt-1'>{children}</div>
   </div>
 )
 
 const SecuritySettings = () => {
-  const { aToken, siteSettings, getSiteSettings, updateSecuritySettings } = useContext(AdminContext)
+  const { aToken, backendUrl, updateSecuritySettings } = useContext(AdminContext)
+  const { t, isRtl } = useLanguage()
   const [form, setForm] = useState(defaults)
+  const [loadState, setLoadState] = useState('loading')
   const [saving, setSaving] = useState(false)
 
+  /* Read from the server, not the cached copy, so a save can never write the defaults over a real policy. */
+  const loadSettings = async () => {
+    setLoadState('loading')
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/admin/site-settings`, { headers: { aToken } })
+      if (!data.success) throw new Error(data.message)
+      setForm(pickKnownFields(data.settings?.security))
+      setLoadState('ready')
+    } catch {
+      setLoadState('failed')
+    }
+  }
+
   useEffect(() => {
-    if (aToken) getSiteSettings()
+    if (aToken) loadSettings()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aToken])
 
-  useEffect(() => {
-    if (siteSettings?.security) {
-      setForm({ ...defaults, ...siteSettings.security })
-    }
-  }, [siteSettings])
+  const updateField = (field, value) => setForm((previous) => ({ ...previous, [field]: value }))
 
-  const updateField = (field, value) => {
-    setForm((previous) => ({ ...previous, [field]: value }))
+  const invalidFields = Object.keys(NUMBER_RANGES).filter((field) => !isInRange(form[field], NUMBER_RANGES[field]))
+
+  const rangeError = (field) => {
+    if (!invalidFields.includes(field)) return undefined
+    const [min, max] = NUMBER_RANGES[field]
+    return t('Enter a whole number from {{min}} to {{max}}').replace('{{min}}', min).replace('{{max}}', max)
   }
+
+  const numberField = (field, label, unit, hint, notEnforced = false) => (
+    <Field
+      label={
+        <span className='inline-flex flex-wrap items-center gap-2'>
+          {label}
+          {notEnforced && <NotEnforced />}
+        </span>
+      }
+      hint={hint}
+      error={rangeError(field)}
+    >
+      <NumberControl
+        unit={unit}
+        min={NUMBER_RANGES[field][0]}
+        max={NUMBER_RANGES[field][1]}
+        value={form[field]}
+        onChange={(event) => updateField(field, event.target.value)}
+      />
+    </Field>
+  )
+
+  const toggle = (field, label, description, notEnforced = false) => (
+    <ToggleRow
+      checked={Boolean(form[field])}
+      onChange={(value) => updateField(field, value)}
+      label={label}
+      description={description}
+      notEnforced={notEnforced}
+    />
+  )
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (invalidFields.length) {
+      notify.error(t('Fix the highlighted numbers before saving'))
+      return
+    }
     setSaving(true)
-    const payload = Object.entries(form).reduce((acc, [key, value]) => {
-      acc[key] = typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))
-        ? Number(value)
-        : value
-      return acc
-    }, {})
+    const payload = pickKnownFields(form)
+    Object.keys(NUMBER_RANGES).forEach((field) => {
+      payload[field] = Number(form[field])
+    })
     await updateSecuritySettings(payload)
     setSaving(false)
   }
 
-  const enabledMfaRoles = useMemo(() => [
-    form.mfaRequiredForAdmins && 'Admins',
-    form.mfaRequiredForDoctors && 'Doctors',
-    form.mfaRequiredForReceptionists && 'Receptionists',
-    form.mfaRequiredForPatients && 'Patients'
-  ].filter(Boolean), [form])
+  const separator = isRtl ? '، ' : ', '
+  const enabledMfaRoles = [
+    form.mfaRequiredForAdmins && t('Admins'),
+    form.mfaRequiredForDoctors && t('Doctors'),
+    form.mfaRequiredForReceptionists && t('Receptionists'),
+    form.mfaRequiredForPatients && t('Patients')
+  ].filter(Boolean)
 
-  const passwordRules = useMemo(() => [
-    `${form.passwordMinLength}+ characters`,
-    form.enforceStrongPasswords && form.requireUppercase && 'uppercase',
-    form.enforceStrongPasswords && form.requireLowercase && 'lowercase',
-    form.enforceStrongPasswords && form.requireNumber && 'number',
-    form.enforceStrongPasswords && form.requireSpecialCharacter && 'special character',
-    form.enforceStrongPasswords && form.preventCommonPasswords && 'blocks common passwords'
-  ].filter(Boolean), [form])
+  const strong = form.enforceStrongPasswords
+  const passwordRules = [
+    t('{{count}}+ characters').replace('{{count}}', form.passwordMinLength),
+    strong && form.requireUppercase && t('uppercase letter'),
+    strong && form.requireLowercase && t('lowercase letter'),
+    strong && form.requireNumber && t('number'),
+    strong && form.requireSpecialCharacter && t('special character'),
+    strong && form.preventCommonPasswords && t('common passwords blocked')
+  ].filter(Boolean)
+
+  let mfaSummary = t('MFA is not required by policy')
+  if (form.mfaRequiredGlobally) mfaSummary = t('Required globally for all users')
+  else if (form.mfaEnabled) {
+    mfaSummary = enabledMfaRoles.length
+      ? t('Required for: {{roles}}').replace('{{roles}}', enabledMfaRoles.join(separator))
+      : t('Required only for users you pick one by one')
+  }
+
+  const lockoutOff = !form.auditLogsEnabled || !form.allowIpTracking
+
+  const saveIcon = <Save aria-hidden='true' className='size-4' />
 
   return (
-    <div className='min-h-screen bg-gray-50 p-3 sm:p-5 md:p-6 lg:p-8'>
-      <div className='max-w-7xl'>
-        <div className='mb-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4'>
-          <div>
-            <h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2'>
-              <ShieldCheck className='w-6 h-6 text-primary' />
-              Security
-            </h1>
-            <p className='mt-2 text-sm text-gray-600 ms-8'>
-              Control MFA, password strength, sessions, audit logs, and retention policies for the clinic platform.
-            </p>
-          </div>
+    <AdminPage
+      title={t('Security')}
+      description={t('Control MFA, password strength, sessions, audit logs and retention for the clinic platform.')}
+      icon={ShieldCheck}
+      actions={
+        loadState === 'ready' ? (
+          <Button type='submit' form='security-settings-form' loading={saving} leadingIcon={saveIcon}>
+            {t('Save security')}
+          </Button>
+        ) : null
+      }
+    >
+      {loadState === 'loading' && (
+        <SkeletonGroup className='space-y-4'>
+          <Skeleton className='h-56 w-full rounded-card!' />
+          <Skeleton className='h-56 w-full rounded-card!' />
+        </SkeletonGroup>
+      )}
 
-          <button
-            type='submit'
-            form='security-settings-form'
-            disabled={saving}
-            className='inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:bg-gray-300 transition'
-          >
-            {saving ? <Loader2 className='w-4 h-4 animate-spin' /> : <Save className='w-4 h-4' />}
-            Save Security
-          </button>
+      {loadState === 'failed' && (
+        <div role='alert' className='flex flex-wrap items-center justify-between gap-3 rounded-card bg-danger-soft px-4 py-3 text-body-sm text-danger-ink'>
+          <span className='min-w-0'>{t('These settings could not be loaded, so nothing can be saved yet.')}</span>
+          <Button variant='secondary' size='sm' onClick={loadSettings}>{t('Try again')}</Button>
         </div>
+      )}
 
-        <form id='security-settings-form' onSubmit={handleSubmit} className='grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-5'>
-          <div className='space-y-5'>
-            <Section icon={<ShieldQuestion className='w-5 h-5 text-primary' />} title='Multi-Factor Authentication'>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-                <ToggleRow checked={form.mfaEnabled} onChange={(value) => updateField('mfaEnabled', value)} label='Enable MFA controls' description='Turn on multi-factor authentication policy management.' />
-                <ToggleRow checked={form.mfaRequiredGlobally} onChange={(value) => updateField('mfaRequiredGlobally', value)} label='Require MFA globally' description='One click to require MFA for every role and every user.' />
-                <ToggleRow checked={form.mfaAllowUserOptIn} onChange={(value) => updateField('mfaAllowUserOptIn', value)} label='Allow user self-activation' description='Users can enable MFA for their own account even if it is not required.' />
-                <ToggleRow checked={form.mfaRequiredForAdmins} onChange={(value) => updateField('mfaRequiredForAdmins', value)} label='Require for admins' description='Admins must use a second factor when MFA is active.' />
-                <ToggleRow checked={form.mfaRequiredForDoctors} onChange={(value) => updateField('mfaRequiredForDoctors', value)} label='Require for doctors' description='Doctors must use a second factor when MFA is active.' />
-                <ToggleRow checked={form.mfaRequiredForReceptionists} onChange={(value) => updateField('mfaRequiredForReceptionists', value)} label='Require for receptionists' description='Receptionists must use a second factor when MFA is active.' />
-                <ToggleRow checked={form.mfaRequiredForPatients} onChange={(value) => updateField('mfaRequiredForPatients', value)} label='Require for patients' description='Patients must use a second factor when MFA is active.' />
+      {loadState === 'ready' && (
+        <form id='security-settings-form' onSubmit={handleSubmit} noValidate className='grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]'>
+          <div className='min-w-0 space-y-5'>
+            <Section icon={<ShieldQuestion aria-hidden='true' className='size-5 shrink-0 text-brand' />} title={t('Multi-factor authentication')}>
+              <div className='grid grid-cols-1 gap-3 md:grid-cols-2'>
+                {toggle('mfaEnabled', t('Enable MFA controls'), t('Turns on the per-role requirements below. Without it they do nothing.'))}
+                {toggle('mfaRequiredGlobally', t('Require MFA globally'), t('One switch that requires MFA for every role and every user.'))}
+                {toggle('mfaAllowUserOptIn', t('Allow user self-activation'), t('Doctors, receptionists and patients can turn on MFA for their own account even when it is not required. Admins always can.'))}
+                {toggle('mfaRequiredForAdmins', t('Require for admins'), t('Admins must use a second factor when MFA is active.'))}
+                {toggle('mfaRequiredForDoctors', t('Require for doctors'), t('Doctors must use a second factor when MFA is active.'))}
+                {toggle('mfaRequiredForReceptionists', t('Require for receptionists'), t('Receptionists must use a second factor when MFA is active.'))}
+                {toggle('mfaRequiredForPatients', t('Require for patients'), t('Patients must use a second factor when MFA is active.'))}
               </div>
             </Section>
 
-            <Section icon={<KeyRound className='w-5 h-5 text-primary' />} title='Password Policy'>
-              <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4'>
-                <NumberInput label='Minimum password length' value={form.passwordMinLength} onChange={(value) => updateField('passwordMinLength', value)} min='6' max='128' suffix='chars' />
-                <NumberInput label='Password expiry' value={form.passwordExpiryDays} onChange={(value) => updateField('passwordExpiryDays', value)} min='0' max='3650' suffix='days' />
-                <NumberInput label='Maximum login attempts' value={form.maxLoginAttempts} onChange={(value) => updateField('maxLoginAttempts', value)} min='3' max='20' suffix='tries' />
+            <Section icon={<KeyRound aria-hidden='true' className='size-5 shrink-0 text-brand' />} title={t('Password policy')}>
+              <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                {numberField('passwordMinLength', t('Minimum password length'), t('characters'), t('Checked whenever a password is set.'))}
+                {numberField('passwordExpiryDays', t('Password expiry'), t('days'), t('Would ask for a new password after this many days. 0 means never.'), true)}
               </div>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-                <ToggleRow checked={form.enforceStrongPasswords} onChange={(value) => updateField('enforceStrongPasswords', value)} label='Enforce strong passwords' description='Apply composition rules instead of length-only validation.' />
-                <ToggleRow checked={form.preventCommonPasswords} onChange={(value) => updateField('preventCommonPasswords', value)} label='Block common passwords' description='Reject passwords like password123 and clinic123.' />
-                <ToggleRow checked={form.requireUppercase} onChange={(value) => updateField('requireUppercase', value)} label='Require uppercase letter' description='Password must include at least one A-Z character.' />
-                <ToggleRow checked={form.requireLowercase} onChange={(value) => updateField('requireLowercase', value)} label='Require lowercase letter' description='Password must include at least one a-z character.' />
-                <ToggleRow checked={form.requireNumber} onChange={(value) => updateField('requireNumber', value)} label='Require number' description='Password must include at least one digit.' />
-                <ToggleRow checked={form.requireSpecialCharacter} onChange={(value) => updateField('requireSpecialCharacter', value)} label='Require special character' description='Password must include a symbol or punctuation mark.' />
-              </div>
-            </Section>
-
-            <Section icon={<Clock className='w-5 h-5 text-primary' />} title='Sessions and Access'>
-              <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4'>
-                <NumberInput label='Account lockout window' value={form.lockoutMinutes} onChange={(value) => updateField('lockoutMinutes', value)} min='1' max='1440' suffix='minutes' />
-                <NumberInput label='Session timeout' value={form.sessionTimeoutMinutes} onChange={(value) => updateField('sessionTimeoutMinutes', value)} min='5' max='1440' suffix='minutes' />
-                <NumberInput label='Inactive account retention' value={form.inactiveAccountRetentionDays} onChange={(value) => updateField('inactiveAccountRetentionDays', value)} min='30' max='3650' suffix='days' />
-              </div>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-                <ToggleRow checked={form.allowPatientSelfRegistration} onChange={(value) => updateField('allowPatientSelfRegistration', value)} label='Allow patient self registration' description='Patients can create their own accounts from the public app.' />
-                <ToggleRow checked={form.requireEmailVerification} onChange={(value) => updateField('requireEmailVerification', value)} label='Require email verification' description='Mark email confirmation as required in security policy.' />
-                <ToggleRow checked={form.enforceHttpsOnly} onChange={(value) => updateField('enforceHttpsOnly', value)} label='HTTPS only policy' description='Keep the platform marked for secure transport only.' />
-                <ToggleRow checked={form.allowIpTracking} onChange={(value) => updateField('allowIpTracking', value)} label='Allow IP tracking' description='Include IP/location metadata in audit records where available.' />
+              <div className='grid grid-cols-1 gap-3 md:grid-cols-2'>
+                {toggle('enforceStrongPasswords', t('Enforce strong passwords'), t('Apply the rules below as well as the minimum length.'))}
+                {toggle('preventCommonPasswords', t('Block common passwords'), t('Reject passwords like password123 and clinic123.'))}
+                {toggle('requireUppercase', t('Require uppercase letter'), t('The password must include at least one letter from A to Z.'))}
+                {toggle('requireLowercase', t('Require lowercase letter'), t('The password must include at least one letter from a to z.'))}
+                {toggle('requireNumber', t('Require number'), t('The password must include at least one digit.'))}
+                {toggle('requireSpecialCharacter', t('Require special character'), t('The password must include a symbol or punctuation mark.'))}
               </div>
             </Section>
 
-            <Section icon={<DatabaseBackup className='w-5 h-5 text-primary' />} title='Retention and Audit Logs'>
-              <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4'>
-                <NumberInput label='Audit log retention' value={form.auditLogRetentionDays} onChange={(value) => updateField('auditLogRetentionDays', value)} min='30' max='3650' suffix='days' />
-                <NumberInput label='Operational data retention' value={form.dataRetentionDays} onChange={(value) => updateField('dataRetentionDays', value)} min='30' max='3650' suffix='days' />
-                <NumberInput label='Inactive account data' value={form.inactiveAccountRetentionDays} onChange={(value) => updateField('inactiveAccountRetentionDays', value)} min='30' max='3650' suffix='days' />
+            <Section icon={<Clock aria-hidden='true' className='size-5 shrink-0 text-brand' />} title={t('Sessions and access')}>
+              <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                {numberField(
+                  'sessionTimeoutMinutes',
+                  t('Admin session timeout'),
+                  t('minutes'),
+                  t('Enforced for admins. A sign-in expires this many minutes after it happens, even if the admin stays active. Applies from the next sign-in. Other roles are not affected.')
+                )}
+                {numberField(
+                  'maxLoginAttempts',
+                  t('Maximum admin login attempts'),
+                  t('attempts'),
+                  t('Enforced for admins. After this many failed sign-ins from one address, that address is locked out. Other roles are not limited by this.')
+                )}
+                {numberField(
+                  'lockoutMinutes',
+                  t('Admin lockout window'),
+                  t('minutes'),
+                  t('Enforced for admins. Failed sign-ins count for this long, so a locked address can try again once they age out.')
+                )}
               </div>
-              <ToggleRow checked={form.auditLogsEnabled} onChange={(value) => updateField('auditLogsEnabled', value)} label='Enable audit logs' description='Admins can review security, payment, profile, and medical-record activity.' />
+              {lockoutOff && (
+                <p role='status' className='flex items-start gap-2 rounded-control bg-warning-soft px-3 py-2 text-body-sm text-warning-ink'>
+                  <TriangleAlert aria-hidden='true' className='mt-0.5 size-4 shrink-0' />
+                  <span className='min-w-0'>{t('Admin lockout is off while audit logs or IP tracking are off, because it counts failed sign-ins from the audit log by address.')}</span>
+                </p>
+              )}
+              <div className='grid grid-cols-1 gap-3 md:grid-cols-2'>
+                {toggle('allowPatientSelfRegistration', t('Allow patient self registration'), t('Patients can create their own accounts from the public app.'))}
+                {toggle('requireEmailVerification', t('Require email verification'), t('Would make patients confirm their email before using their account.'), true)}
+                {toggle('enforceHttpsOnly', t('HTTPS only policy'), t('Would refuse connections that are not secure.'), true)}
+                {toggle('allowIpTracking', t('Allow IP tracking'), t('Stores the address and location with audit records. Admin lockout needs this.'))}
+              </div>
             </Section>
+
+            <Section icon={<DatabaseBackup aria-hidden='true' className='size-5 shrink-0 text-brand' />} title={t('Retention and audit logs')}>
+              <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                {numberField('auditLogRetentionDays', t('Audit log retention'), t('days'), t('Older audit records are deleted when this page is saved or the audit log is opened.'))}
+                {numberField('dataRetentionDays', t('Operational data retention'), t('days'), t('Would delete operational records older than this.'), true)}
+                {numberField('inactiveAccountRetentionDays', t('Inactive account retention'), t('days'), t('Would remove accounts that have been inactive for this long.'), true)}
+              </div>
+              {toggle('auditLogsEnabled', t('Enable audit logs'), t('Admins can review security, payment, profile and medical-record activity. Admin lockout needs this.'))}
+            </Section>
+
+            <Button type='submit' fullWidth loading={saving} leadingIcon={saveIcon} className='sm:hidden'>
+              {t('Save security')}
+            </Button>
           </div>
 
-          <aside className='bg-white border border-gray-200 rounded-xl shadow-sm h-fit xl:sticky xl:top-5 overflow-hidden'>
-            <div className='p-4 sm:p-5 border-b border-gray-100'>
-              <h2 className='text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2'>
-                <Lock className='w-5 h-5 text-primary' />
-                Policy Summary
-              </h2>
-              <p className='text-sm text-gray-500 mt-1'>Current security posture after saving.</p>
-            </div>
-            <div className='p-4 sm:p-5 space-y-4 text-sm'>
-              <div className='rounded-lg bg-blue-50 p-3'>
-                <p className='font-semibold text-blue-900'>MFA</p>
-                <p className='mt-1 text-blue-700'>
-                  {form.mfaRequiredGlobally
-                    ? 'Required globally for all users'
-                    : form.mfaEnabled
-                      ? `Required for: ${enabledMfaRoles.join(', ') || 'selected users only'}`
-                      : 'MFA is not active'}
+          <Card as='aside' className='h-fit overflow-hidden xl:sticky xl:top-5'>
+            <CardHeader
+              headingLevel={2}
+              title={
+                <span className='flex items-center gap-2'>
+                  <Lock aria-hidden='true' className='size-5 shrink-0 text-brand' />
+                  {t('Policy summary')}
+                </span>
+              }
+              description={t('What applies once this page is saved.')}
+            />
+            <CardBody className='space-y-3 text-body-sm'>
+              <SummaryBox tone='bg-primary-soft text-brand' title={t('MFA')}>
+                <p>{mfaSummary}</p>
+              </SummaryBox>
+              <SummaryBox tone='bg-success-soft text-success-ink' title={t('Passwords')}>
+                <p>{passwordRules.join(separator)}</p>
+              </SummaryBox>
+              <SummaryBox tone='bg-warning-soft text-warning-ink' title={t('Audit logs')}>
+                <p>
+                  {form.auditLogsEnabled
+                    ? t('Kept for {{days}} days').replace('{{days}}', form.auditLogRetentionDays)
+                    : t('Audit log review is turned off')}
                 </p>
-              </div>
-              <div className='rounded-lg bg-emerald-50 p-3'>
-                <p className='font-semibold text-emerald-900'>Passwords</p>
-                <p className='mt-1 text-emerald-700'>{passwordRules.join(', ')}</p>
-              </div>
-              <div className='rounded-lg bg-amber-50 p-3'>
-                <p className='font-semibold text-amber-900'>Audit logs</p>
-                <p className='mt-1 text-amber-700'>{form.auditLogsEnabled ? `Saved for ${form.auditLogRetentionDays} days` : 'Audit log review is disabled'}</p>
-              </div>
-              <div className='rounded-lg bg-gray-100 p-3'>
-                <p className='font-semibold text-gray-900'>Data retention</p>
-                <p className='mt-1 text-gray-700'>Operational records: {form.dataRetentionDays} days</p>
-                <p className='text-gray-700'>Inactive accounts: {form.inactiveAccountRetentionDays} days</p>
-              </div>
-            </div>
-          </aside>
+              </SummaryBox>
+              <SummaryBox tone='bg-surface-sunken text-ink-2' title={t('Data retention')}>
+                <p className='mb-1.5'><NotEnforced /></p>
+                <p>{t('Operational records: {{days}} days').replace('{{days}}', form.dataRetentionDays)}</p>
+                <p>{t('Inactive accounts: {{days}} days').replace('{{days}}', form.inactiveAccountRetentionDays)}</p>
+              </SummaryBox>
+            </CardBody>
+          </Card>
         </form>
-      </div>
-    </div>
+      )}
+    </AdminPage>
   )
 }
 

@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { AdminContext } from '../../context/AdminContext'
 import InsuranceStatusBadge from '../../components/InsuranceStatusBadge'
 import { useLanguage } from '../../i18n'
-import { CheckCircle2, ChevronDown, Edit3, ExternalLink, HeartHandshake, KeyRound, Loader2, Mail, MoreVertical, Phone, Plus, RefreshCw, RotateCcw, Search, Shield, ShieldCheck, Sparkles, Stethoscope, Trash2, UserCog, UserRound, UsersRound, X } from 'lucide-react'
+import { ChevronDown, Edit3, ExternalLink, HeartHandshake, KeyRound, Mail, MoreVertical, Phone, Plus, RefreshCw, RotateCcw, Search, ShieldCheck, ShieldOff, Stethoscope, Trash2, UserCheck, UserCog, UserRound, UsersRound, UserX } from 'lucide-react'
+import { AdminPage, BulkBar, ConfirmDialog, ExportButton, SelectBox, StatCard, selectionFor } from '../../components/admin/AdminPage'
+import { Badge, Button, EmptyState, Field, IconButton, Input, Modal, notify, Select, Skeleton, SkeletonGroup } from '../../components/ui'
+import { downloadCsv } from '../../utils/csvExport'
 
 const getUserRoleLabel = (user, t) => {
   if (user.profileType === 'patient') return t('User role patient')
@@ -24,11 +27,7 @@ const roleKeyForConfirm = {
   receptionist: 'Receptionist'
 }
 
-const roleStyles = {
-  patient: 'bg-blue-50 text-blue-700',
-  doctor: 'bg-indigo-50 text-indigo-700',
-  receptionist: 'bg-emerald-50 text-emerald-700'
-}
+const roleTones = { patient: 'info', doctor: 'brand', receptionist: 'success' }
 
 const emptyForm = {
   name: '',
@@ -39,174 +38,94 @@ const emptyForm = {
   address: { line1: '', line2: '' }
 }
 
-const emptyCreateForm = {
-  profileType: 'patient',
-  name: '',
-  email: '',
-  phone: '',
-  password: '',
-  gender: 'Not Selected',
-  dob: '',
-  address: { line1: '', line2: '' }
-}
+const emptyCreateForm = { ...emptyForm, profileType: 'patient', password: '' }
 
 const userRowKey = (user) => `${user.profileType}-${user.profileId}`
 
-const UserRowActionsMenu = ({
-  user,
-  t,
-  isOpen,
-  onToggle,
-  onEdit,
-  onResetPassword,
-  onToggleMfaRequirement,
-  onResetMfa,
-  onDelete,
-  onOpenPatientInsurance,
-  onOpenDoctorProfile,
-  onOpenReceptionistProfile
-}) => {
-  const wrapRef = useRef(null)
+const MenuItem = ({ icon: Icon, onSelect, danger = false, children }) => (
+  <button
+    type='button'
+    role='menuitem'
+    onClick={onSelect}
+    className={`flex min-h-10 w-full cursor-pointer items-center gap-2 px-3 text-start text-body-sm ${danger ? 'text-danger-ink hover:bg-danger-soft' : 'text-ink-2 hover:bg-surface-sunken'}`}
+  >
+    <Icon aria-hidden='true' className='size-4 shrink-0' />
+    {children}
+  </button>
+)
 
+/** Closes on an outside press or Escape. */
+const useDismiss = (open, onClose) => {
+  const ref = useRef(null)
   useEffect(() => {
-    if (!isOpen) return
-    const onDoc = (event) => {
-      if (wrapRef.current && !wrapRef.current.contains(event.target)) {
-        onToggle(false)
-      }
+    if (!open) return undefined
+    const onDown = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) onClose()
     }
-    document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
-  }, [isOpen, onToggle])
+    const onKey = (event) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open, onClose])
+  return ref
+}
 
-  const close = () => onToggle(false)
+const UserRowActionsMenu = ({ user, t, isOpen, onToggle, onEdit, onResetPassword, onToggleMfaRequirement, onResetMfa, onDelete, onOpenPatientInsurance, onOpenDoctorProfile, onOpenReceptionistProfile }) => {
+  const wrapRef = useDismiss(isOpen, () => onToggle(false))
+  const run = (action) => () => {
+    onToggle(false)
+    action()
+  }
 
   return (
-    <div className='relative flex justify-end' ref={wrapRef}>
-      <button
-        type='button'
-        aria-expanded={isOpen}
-        aria-haspopup='menu'
-        aria-label={t('User actions')}
-        onClick={() => onToggle(!isOpen)}
-        className='inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition'
-      >
-        <MoreVertical className='w-4 h-4' />
-      </button>
+    <div className='relative' ref={wrapRef}>
+      <IconButton variant='secondary' size='sm' label={t('User actions')} aria-expanded={isOpen} aria-haspopup='menu' onClick={() => onToggle(!isOpen)}>
+        <MoreVertical aria-hidden='true' className='size-4' />
+      </IconButton>
       {isOpen && (
-        <div
-          role='menu'
-          className='absolute end-0 top-full z-50 mt-1 w-56 rounded-xl border border-gray-200 bg-white py-1 shadow-lg'
-        >
-          <button
-            type='button'
-            role='menuitem'
-            onClick={() => {
-              close()
-              onEdit()
-            }}
-            className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
-          >
-            <Edit3 className='w-4 h-4 text-blue-600' />
-            {t('Edit profile')}
-          </button>
-          <button
-            type='button'
-            role='menuitem'
-            onClick={() => {
-              close()
-              onResetPassword()
-            }}
-            className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
-          >
-            <KeyRound className='w-4 h-4 text-amber-600' />
-            {t('Reset password')}
-          </button>
-          {user.profileType === 'patient' && (
-            <button
-              type='button'
-              role='menuitem'
-              onClick={() => {
-                close()
-                onOpenPatientInsurance()
-              }}
-              className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
-            >
-              <HeartHandshake className='w-4 h-4 text-teal-600' />
-              {t('Patient & insurance')}
-            </button>
-          )}
-          {user.profileType === 'doctor' && (
-            <button
-              type='button'
-              role='menuitem'
-              onClick={() => {
-                close()
-                onOpenDoctorProfile()
-              }}
-              className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
-            >
-              <Stethoscope className='w-4 h-4 text-indigo-600' />
-              {t('Doctor profile')}
-            </button>
-          )}
-          {user.profileType === 'receptionist' && (
-            <button
-              type='button'
-              role='menuitem'
-              onClick={() => {
-                close()
-                onOpenReceptionistProfile()
-              }}
-              className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
-            >
-              <ExternalLink className='w-4 h-4 text-emerald-600' />
-              {t('Full profile')}
-            </button>
-          )}
-          <div className='my-1 border-t border-gray-100' />
-          <button
-            type='button'
-            role='menuitem'
-            onClick={() => {
-              close()
-              onToggleMfaRequirement()
-            }}
-            className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
-          >
-            <ShieldCheck className='w-4 h-4 text-purple-600' />
-            {user.mfa?.requiredByAdmin ? t('Make MFA optional') : t('Require MFA')}
-          </button>
-          <button
-            type='button'
-            role='menuitem'
-            onClick={() => {
-              close()
-              onResetMfa()
-            }}
-            className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-gray-700 hover:bg-gray-50'
-          >
-            <RotateCcw className='w-4 h-4 text-gray-600' />
-            {t('Reset MFA')}
-          </button>
-          <div className='my-1 border-t border-gray-100' />
-          <button
-            type='button'
-            role='menuitem'
-            onClick={() => {
-              close()
-              onDelete()
-            }}
-            className='flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-red-700 hover:bg-red-50'
-          >
-            <Trash2 className='w-4 h-4' />
-            {t('Delete account')}
-          </button>
+        <div role='menu' className='absolute end-0 top-full z-(--z-popover,40) mt-1 w-56 rounded-control border border-line bg-surface-raised py-1 shadow-e2'>
+          <MenuItem icon={Edit3} onSelect={run(onEdit)}>{t('Edit profile')}</MenuItem>
+          <MenuItem icon={KeyRound} onSelect={run(onResetPassword)}>{t('Reset password')}</MenuItem>
+          {user.profileType === 'patient' && <MenuItem icon={HeartHandshake} onSelect={run(onOpenPatientInsurance)}>{t('Patient & insurance')}</MenuItem>}
+          {user.profileType === 'doctor' && <MenuItem icon={Stethoscope} onSelect={run(onOpenDoctorProfile)}>{t('Doctor profile')}</MenuItem>}
+          {user.profileType === 'receptionist' && <MenuItem icon={ExternalLink} onSelect={run(onOpenReceptionistProfile)}>{t('Full profile')}</MenuItem>}
+          <div className='my-1 border-t border-line' />
+          <MenuItem icon={ShieldCheck} onSelect={run(onToggleMfaRequirement)}>{user.mfa?.requiredByAdmin ? t('Make MFA optional') : t('Require MFA')}</MenuItem>
+          <MenuItem icon={RotateCcw} onSelect={run(onResetMfa)}>{t('Reset MFA')}</MenuItem>
+          <div className='my-1 border-t border-line' />
+          <MenuItem icon={Trash2} danger onSelect={run(onDelete)}>{t('Delete account')}</MenuItem>
         </div>
       )}
     </div>
   )
 }
+
+/** The fields a patient has beyond a name and contact details. */
+const PatientFields = ({ form, setForm, t }) => (
+  <>
+    <Field label={t('Gender')}>
+      <Select value={form.gender} onChange={(event) => setForm((prev) => ({ ...prev, gender: event.target.value }))}>
+        <option value='Not Selected'>{t('Not Selected')}</option>
+        <option value='Female'>{t('Female')}</option>
+        <option value='Male'>{t('Male')}</option>
+      </Select>
+    </Field>
+    <Field label={t('Date of Birth')}>
+      <Input type='date' value={form.dob} onChange={(event) => setForm((prev) => ({ ...prev, dob: event.target.value }))} />
+    </Field>
+    <Field label={t('Address Line 1')}>
+      <Input value={form.address.line1} onChange={(event) => setForm((prev) => ({ ...prev, address: { ...prev.address, line1: event.target.value } }))} />
+    </Field>
+    <Field label={t('Address Line 2')}>
+      <Input value={form.address.line2} onChange={(event) => setForm((prev) => ({ ...prev, address: { ...prev.address, line2: event.target.value } }))} />
+    </Field>
+  </>
+)
 
 const Users = () => {
   const {
@@ -218,10 +137,12 @@ const Users = () => {
     resetUserPassword,
     updateUserMfaRequirement,
     resetUserMfa,
-    deleteUserAccount
+    deleteUserAccount,
+    bulkUserStatus,
+    bulkUserMfa
   } = useContext(AdminContext)
   const navigate = useNavigate()
-  const { t, localizeDigits } = useLanguage()
+  const { t, tc, localizeDigits } = useLanguage()
 
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -237,18 +158,11 @@ const Users = () => {
   const [saving, setSaving] = useState(false)
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const addMenuRef = useRef(null)
+  const [selected, setSelected] = useState([])
+  const [confirm, setConfirm] = useState(null)
+  const addMenuRef = useDismiss(addMenuOpen, () => setAddMenuOpen(false))
 
-  useEffect(() => {
-    if (!addMenuOpen) return
-    const onDoc = (event) => {
-      if (addMenuRef.current && !addMenuRef.current.contains(event.target)) {
-        setAddMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
-  }, [addMenuOpen])
+  const nameOf = (user) => tc(user.nameI18n) || user.name
 
   const refreshUsers = async () => {
     setRefreshing(true)
@@ -263,35 +177,56 @@ const Users = () => {
       await getAllUsers()
       setLoading(false)
     }
-
     loadUsers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aToken])
 
   const filteredUsers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-
     return users.filter((user) => {
       const matchesRole = roleFilter === 'all' || user.profileType === roleFilter
-      const matchesSearch = !query
-        || user.name?.toLowerCase().includes(query)
-        || user.email?.toLowerCase().includes(query)
-        || user.phone?.toLowerCase().includes(query)
-        || user.patientId?.toLowerCase().includes(query)
-        || user.speciality?.toLowerCase().includes(query)
-        || user.insurance?.provider?.toLowerCase().includes(query)
+      const matchesSearch = !query || [user.name, user.nameI18n?.ar, user.email, user.phone, user.patientId, user.speciality, user.insurance?.provider]
+        .some((value) => String(value || '').toLowerCase().includes(query))
 
       const hasPatientInsurance = user.profileType === 'patient' && Boolean(user.insurance?.enabled)
       const matchesInsurance = (() => {
         if (insuranceFilter === 'all') return true
         if (user.profileType !== 'patient') return false
-        if (insuranceFilter === 'with') return hasPatientInsurance
-        if (insuranceFilter === 'without') return !hasPatientInsurance
-        return true
+        return insuranceFilter === 'with' ? hasPatientInsurance : !hasPatientInsurance
       })()
 
       return matchesRole && matchesSearch && matchesInsurance
     })
   }, [users, searchQuery, roleFilter, insuranceFilter])
+
+  const visibleKeys = filteredUsers.map(userRowKey)
+  const selection = selectionFor(selected, visibleKeys)
+  const selectedUsers = () =>
+    filteredUsers.filter((user) => selection.ids.includes(userRowKey(user))).map(({ profileType, profileId }) => ({ profileType, profileId: String(profileId) }))
+
+  const runBulk = async (action) => {
+    const result = await action(selectedUsers())
+    if (!result) return
+    notify.success(`${t('Accounts updated')}: ${localizeDigits(result.updated)}`)
+    setSelected([])
+    refreshUsers()
+  }
+
+  const exportUsers = () =>
+    downloadCsv(
+      'users',
+      [
+        { label: t('Name'), value: (row) => nameOf(row) },
+        { label: t('Role'), value: (row) => getUserRoleLabel(row, t) },
+        { label: t('Email'), value: (row) => row.email },
+        { label: t('Phone'), value: (row) => row.phone },
+        { label: t('Identifier'), value: (row) => getUserIdentifier(row, t) },
+        { label: t('Insurance'), value: (row) => row.insurance?.provider || '' },
+        { label: t('Status'), value: (row) => (row.isActive ? t('Active') : t('Disabled')) },
+        { label: t('MFA'), value: (row) => (row.mfa?.enabled ? t('MFA On') : t('MFA Off')) }
+      ],
+      filteredUsers
+    )
 
   const openEdit = (user) => {
     setEditingUser(user)
@@ -301,10 +236,7 @@ const Users = () => {
       phone: user.phone || '',
       gender: user.gender || 'Not Selected',
       dob: user.dob && user.dob !== 'Not Selected' ? user.dob : '',
-      address: {
-        line1: user.address?.line1 || '',
-        line2: user.address?.line2 || ''
-      }
+      address: { line1: user.address?.line1 || '', line2: user.address?.line2 || '' }
     })
   }
 
@@ -339,28 +271,25 @@ const Users = () => {
     navigate('/add-receptionist')
   }
 
-  const saveNewUser = async () => {
+  const saveNewUser = async (event) => {
+    event.preventDefault()
     setSaving(true)
-    const payload = {
+    const saved = await createUserByAdmin({
       profileType: createForm.profileType,
       name: createForm.name,
       email: createForm.email,
       phone: createForm.phone,
-      password: createForm.password
-    }
-
-    if (createForm.profileType === 'patient') {
-      payload.gender = createForm.gender
-      payload.dob = createForm.dob
-      payload.address = createForm.address
-    }
-
-    const saved = await createUserByAdmin(payload)
+      password: createForm.password,
+      gender: createForm.gender,
+      dob: createForm.dob,
+      address: createForm.address
+    })
     setSaving(false)
     if (saved) closeCreate()
   }
 
-  const saveUser = async () => {
+  const saveUser = async (event) => {
+    event.preventDefault()
     if (!editingUser) return
     setSaving(true)
     const payload = {
@@ -370,19 +299,18 @@ const Users = () => {
       email: form.email,
       phone: form.phone
     }
-
     if (editingUser.profileType === 'patient') {
       payload.gender = form.gender
       payload.dob = form.dob || 'Not Selected'
       payload.address = form.address
     }
-
     const saved = await updateUserByAdmin(payload)
     setSaving(false)
     if (saved) closeEdit()
   }
 
-  const savePassword = async () => {
+  const savePassword = async (event) => {
+    event.preventDefault()
     if (!passwordUser) return
     setSaving(true)
     const saved = await resetUserPassword({
@@ -394,35 +322,31 @@ const Users = () => {
     if (saved) closePassword()
   }
 
-  const deleteUser = async (user) => {
-    const roleLabel = t(roleKeyForConfirm[user.profileType] || 'User')
-    const confirmed = window.confirm(
-      `${t('Delete')} ${user.name} ${t('permanently')}? ${t('This removes login account for')} ${roleLabel}.`
-    )
-    if (!confirmed) return
-
-    await deleteUserAccount({
-      profileType: user.profileType,
-      profileId: user.profileId
+  const confirmDelete = (user) =>
+    setConfirm({
+      title: `${t('Delete')} ${nameOf(user)}`,
+      body: `${t('This removes login account for')} ${t(roleKeyForConfirm[user.profileType] || 'User')}.`,
+      confirmLabel: t('Delete account'),
+      danger: true,
+      run: () => deleteUserAccount({ profileType: user.profileType, profileId: user.profileId })
     })
-  }
 
-  const toggleUserMfaRequirement = async (user) => {
-    await updateUserMfaRequirement({
-      profileType: user.profileType,
-      profileId: user.profileId,
-      requiredByAdmin: !user.mfa?.requiredByAdmin
+  const confirmResetMfa = (user) =>
+    setConfirm({
+      title: `${t('Reset MFA')}: ${nameOf(user)}`,
+      body: t('Reset MFA confirm body'),
+      confirmLabel: t('Reset MFA'),
+      run: () => resetUserMfa({ profileType: user.profileType, profileId: user.profileId })
     })
-  }
 
-  const resetMfa = async (user) => {
-    const confirmed = window.confirm(`${t('Reset MFA')} ${user.name}? ${t('Reset MFA confirm body')}`)
-    if (!confirmed) return
+  const toggleUserMfaRequirement = (user) =>
+    updateUserMfaRequirement({ profileType: user.profileType, profileId: user.profileId, requiredByAdmin: !user.mfa?.requiredByAdmin })
 
-    await resetUserMfa({
-      profileType: user.profileType,
-      profileId: user.profileId
-    })
+  const runConfirm = async () => {
+    setSaving(true)
+    await confirm.run()
+    setSaving(false)
+    setConfirm(null)
   }
 
   const counts = {
@@ -433,419 +357,245 @@ const Users = () => {
   }
 
   return (
-    <div className='w-full bg-[#f4f6fb] p-3 sm:p-5 md:p-6 lg:p-8'>
-      <div className='mx-auto max-w-7xl'>
-        <div className='overflow-hidden rounded-2xl border border-slate-700/20 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 shadow-xl'>
-          <div className='relative px-5 py-8 sm:px-8 sm:py-10'>
-            <div className='relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between'>
-              <div className='max-w-2xl'>
-                <div className='inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/90 ring-1 ring-white/20'>
-                  <Sparkles className='h-3.5 w-3.5' />
-                  {t('User accounts')}
-                </div>
-                <h1 className='mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl'>{t('All users')}</h1>
-                <p className='mt-3 text-sm leading-relaxed text-white/85 sm:text-base'>
-                  {t('Users page description')}
-                </p>
+    <AdminPage
+      icon={UsersRound}
+      title={t('All users')}
+      description={t('Users page description')}
+      actions={
+        <>
+          <div className='relative' ref={addMenuRef}>
+            <Button size='sm' onClick={() => setAddMenuOpen((open) => !open)} aria-expanded={addMenuOpen} aria-haspopup='menu' leadingIcon={<Plus aria-hidden='true' className='size-4' />} trailingIcon={<ChevronDown aria-hidden='true' className='size-4' />}>
+              {t('Add user')}
+            </Button>
+            {addMenuOpen && (
+              <div role='menu' className='absolute end-0 top-full z-(--z-popover,40) mt-1 w-52 rounded-control border border-line bg-surface-raised py-1 shadow-e2'>
+                <MenuItem icon={UserRound} onSelect={openCreatePatient}>{t('Add patient')}</MenuItem>
+                <MenuItem icon={Stethoscope} onSelect={goAddDoctor}>{t('Add doctor')}</MenuItem>
+                <MenuItem icon={UserCog} onSelect={goAddReceptionist}>{t('Add receptionist')}</MenuItem>
               </div>
-              <div className='flex flex-wrap items-center gap-2'>
-                <div className='relative' ref={addMenuRef}>
-                  <button
-                    type='button'
-                    onClick={() => setAddMenuOpen((open) => !open)}
-                    aria-expanded={addMenuOpen}
-                    aria-haspopup='menu'
-                    className='inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-900 shadow-md transition hover:bg-white/95'
-                  >
-                    <Plus className='h-4 w-4 text-primary' />
-                    {t('Add user')}
-                    <ChevronDown className={`h-4 w-4 transition ${addMenuOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {addMenuOpen && (
-                    <div
-                      role='menu'
-                      className='absolute end-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg'
-                    >
-                      <button type='button' role='menuitem' onClick={openCreatePatient} className='flex w-full items-center gap-2 px-4 py-2.5 text-start text-sm font-medium text-gray-800 hover:bg-gray-50'>
-                        <UserRound className='h-4 w-4 text-blue-600' />
-                        {t('Add patient')}
-                      </button>
-                      <button type='button' role='menuitem' onClick={goAddDoctor} className='flex w-full items-center gap-2 px-4 py-2.5 text-start text-sm font-medium text-gray-800 hover:bg-gray-50'>
-                        <Stethoscope className='h-4 w-4 text-indigo-600' />
-                        {t('Add doctor')}
-                      </button>
-                      <button type='button' role='menuitem' onClick={goAddReceptionist} className='flex w-full items-center gap-2 px-4 py-2.5 text-start text-sm font-medium text-gray-800 hover:bg-gray-50'>
-                        <UserCog className='h-4 w-4 text-emerald-600' />
-                        {t('Add receptionist')}
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <button
-                  type='button'
-                  onClick={refreshUsers}
-                  disabled={refreshing}
-                  aria-label={t('Refresh')}
-                  className='inline-flex items-center gap-2 rounded-xl border border-white/25 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50'
-                >
-                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                  {t('Refresh')}
-                </button>
-              </div>
-            </div>
-            <div className='relative mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4'>
-              {[
-                { label: t('All users'), value: counts.all, path: null },
-                { label: t('Patients'), value: counts.patient, path: '/patients' },
-                { label: t('Doctors'), value: counts.doctor, path: '/doctor-list' },
-                { label: t('Receptionists'), value: counts.receptionist, path: '/receptionist-list' }
-              ].map(({ label, value, path }) => {
-                const card = (
-                  <>
-                    <p className='text-xs font-semibold uppercase tracking-wide text-white/70'>{label}</p>
-                    <p className='mt-1 text-2xl font-bold tabular-nums text-white'>{localizeDigits(value)}</p>
-                  </>
-                )
-                if (!path) {
-                  return (
-                    <div key={label} className='rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm'>
-                      {card}
-                    </div>
-                  )
-                }
-                return (
-                  <button
-                    key={label}
-                    type='button'
-                    onClick={() => navigate(path)}
-                    className='rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-start backdrop-blur-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40'
-                  >
-                    {card}
-                  </button>
-                )
-              })}
-            </div>
+            )}
           </div>
-        </div>
-
-        <div dir='ltr' className='mt-6 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end lg:justify-between'>
-          <div className='grid w-full gap-3 sm:grid-cols-2 lg:max-w-4xl lg:grid-cols-3'>
-            <div className='relative sm:col-span-2 lg:col-span-1'>
-              <Search className='pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={t('Search name, email, phone, ID, speciality…')}
-                className='w-full rounded-xl border border-gray-200 py-2.5 ps-10 pe-10 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
-              />
-              {searchQuery && (
-                <button type='button' onClick={() => setSearchQuery('')} className='absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600' aria-label={t('Clear search')}>
-                  <X className='h-4 w-4' />
-                </button>
-              )}
-            </div>
-            <div className='relative'>
-              <select
-                value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
-                className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 ps-3 pe-10 text-sm font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
-              >
-                <option value='all'>{t('All roles')}</option>
-                <option value='patient'>{t('Patients only')}</option>
-                <option value='doctor'>{t('Doctors only')}</option>
-                <option value='receptionist'>{t('Receptionists only')}</option>
-              </select>
-              <ChevronDown className='pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
-            </div>
-            <div className='relative'>
-              <select
-                value={insuranceFilter}
-                onChange={(event) => setInsuranceFilter(event.target.value)}
-                className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 ps-3 pe-10 text-sm font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
-              >
-                <option value='all'>{t('Insurance: all')}</option>
-                <option value='with'>{t('With insurance')}</option>
-                <option value='without'>{t('Without insurance')}</option>
-              </select>
-              <ChevronDown className='pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
-            </div>
-          </div>
-          <p className='text-center text-sm font-medium text-gray-600 lg:text-end'>
-            {t('Showing')}{' '}
-            <span className='font-bold text-gray-900'>{localizeDigits(filteredUsers.length)}</span>{' '}
-            {t('of')}{' '}
-            <span className='font-bold text-gray-900'>{localizeDigits(users.length)}</span>
-          </p>
-        </div>
-
-        <div dir='ltr' className='mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm'>
-          <div className='hidden lg:grid lg:grid-cols-[minmax(0,1.55fr)_minmax(0,0.85fr)_minmax(0,1.35fr)_minmax(0,0.95fr)_minmax(0,1.1fr)_minmax(0,1fr)_auto] gap-3 px-4 py-3 bg-gray-50 border-b text-sm font-semibold text-gray-700'>
-            <p>{t('User')}</p>
-            <p>{t('Role')}</p>
-            <p>{t('Contact')}</p>
-            <p>{t('Identifier')}</p>
-            <p>{t('Insurance')}</p>
-            <p>{t('Status')}</p>
-            <p className='text-end pe-1'>{t('Actions')}</p>
-          </div>
-
-          {loading ? (
-            <div className='flex items-center justify-center py-20 text-gray-500'>
-              <Loader2 className='h-9 w-9 animate-spin text-blue-600' />
-            </div>
-          ) : filteredUsers.length === 0 ? (
-            <div className='px-6 py-16 text-center'>
-              <div className='mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-gray-400'>
-                <UsersRound className='h-8 w-8' />
-              </div>
-              <p className='mt-4 text-lg font-semibold text-gray-900'>{t('No users match')}</p>
-              <p className='mt-1 text-sm text-gray-600'>{t('Try another search or add a new account.')}</p>
-              <div className='mt-6 flex flex-wrap items-center justify-center gap-2'>
-                <button type='button' onClick={openCreatePatient} className='inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700'>
-                  <UserRound className='h-4 w-4' />
-                  {t('Add patient')}
-                </button>
-                <button type='button' onClick={goAddDoctor} className='inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-800 hover:bg-indigo-100'>
-                  <Stethoscope className='h-4 w-4' />
-                  {t('Add doctor')}
-                </button>
-              </div>
-            </div>
-          ) : (
-            filteredUsers.map((user) => (
-              <div key={`${user.profileType}-${user.profileId}`} className='grid grid-cols-1 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,0.85fr)_minmax(0,1.35fr)_minmax(0,0.95fr)_minmax(0,1.1fr)_minmax(0,1fr)_auto] gap-3 px-4 py-4 border-b text-sm text-gray-700'>
-                <div className='flex items-center gap-3 min-w-0'>
-                  {user.image ? (
-                    <img className='w-11 h-11 rounded-full object-cover border border-gray-200 bg-gray-100 flex-shrink-0' src={user.image} alt={user.name} />
-                  ) : (
-                    <div className='w-11 h-11 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center font-bold flex-shrink-0'>
-                      {user.name?.charAt(0)?.toUpperCase() || 'U'}
-                    </div>
-                  )}
-                  <div className='min-w-0'>
-                    <p className='font-semibold text-gray-900 truncate'>{user.name}</p>
-                    <p className='text-xs text-gray-500 truncate lg:hidden'>{getUserRoleLabel(user, t)}</p>
-                  </div>
-                </div>
-
-                <p>
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${roleStyles[user.profileType]}`}>
-                    <Shield className='w-3.5 h-3.5' />
-                    {getUserRoleLabel(user, t)}
-                  </span>
-                </p>
-                <div className='min-w-0 space-y-1'>
-                  <p className='flex items-center gap-1.5 min-w-0'><Mail className='w-4 h-4 text-blue-600 flex-shrink-0' /><span className='truncate'>{user.email}</span></p>
-                  <p className='flex items-center gap-1.5 text-gray-500'><Phone className='w-4 h-4 text-blue-600 flex-shrink-0' />{user.phone || t('No phone')}</p>
-                </div>
-                <p className='text-gray-600'>
-                  <span className='text-xs font-semibold text-gray-500 lg:hidden'>{t('Identifier')} </span>
-                  {getUserIdentifier(user, t)}
-                </p>
-                <div className='min-w-0'>
-                  <p className='text-xs font-semibold text-gray-500 lg:hidden mb-1'>{t('Insurance')}</p>
-                  {user.profileType !== 'patient' ? (
-                    <span className='text-gray-400'>—</span>
-                  ) : user.insurance?.enabled ? (
-                    <div className='space-y-1'>
-                      <div className='flex flex-wrap items-center gap-1'>
-                        <span className='inline-flex items-center rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-800'>{t('On file')}</span>
-                        <InsuranceStatusBadge insurance={user.insurance} />
-                      </div>
-                      {user.insurance.provider ? (
-                        <p className='truncate text-xs text-gray-600' title={user.insurance.provider}>{user.insurance.provider}</p>
-                      ) : (
-                        <p className='text-xs text-gray-500'>{t('Provider not set')}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <span className='inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600'>{t('None on file')}</span>
-                  )}
-                </div>
-                <p>
-                  <span className='text-xs font-semibold text-gray-500 lg:hidden block mb-1'>{t('Status')}</span>
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${user.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                    <CheckCircle2 className='w-3.5 h-3.5' />
-                    {user.isActive ? t('Active') : t('Disabled')}
-                  </span>
-                  <span className={`mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${user.mfa?.enabled ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-                    <ShieldCheck className='w-3.5 h-3.5' />
-                    {user.mfa?.enabled ? t('MFA On') : t('MFA Off')}
-                  </span>
-                  {user.mfa?.requiredByAdmin && (
-                    <span className='mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700'>
-                      {t('MFA required')}
-                    </span>
-                  )}
-                </p>
-                <div className='flex justify-end lg:items-start pt-1'>
-                  <UserRowActionsMenu
-                    user={user}
-                    t={t}
-                    isOpen={actionsMenuKey === userRowKey(user)}
-                    onToggle={(open) => setActionsMenuKey(open ? userRowKey(user) : null)}
-                    onEdit={() => openEdit(user)}
-                    onResetPassword={() => setPasswordUser(user)}
-                    onToggleMfaRequirement={() => toggleUserMfaRequirement(user)}
-                    onResetMfa={() => resetMfa(user)}
-                    onDelete={() => deleteUser(user)}
-                    onOpenPatientInsurance={() => navigate('/patients', { state: { openPatientId: user.profileId } })}
-                    onOpenDoctorProfile={() => navigate('/doctor-list', { state: { openDoctorId: user.profileId } })}
-                    onOpenReceptionistProfile={() => navigate(`/edit-receptionist/${user.profileId}`)}
-                  />
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+          <ExportButton onExport={exportUsers} disabled={!filteredUsers.length} />
+          <Button variant='secondary' size='sm' onClick={refreshUsers} disabled={refreshing} leadingIcon={<RefreshCw aria-hidden='true' className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />}>
+            {t('Refresh')}
+          </Button>
+        </>
+      }
+    >
+      <div className='mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4'>
+        <StatCard label={t('All users')} value={localizeDigits(counts.all)} onClick={() => setRoleFilter('all')} />
+        <StatCard label={t('Patients')} value={localizeDigits(counts.patient)} onClick={() => navigate('/patients')} />
+        <StatCard label={t('Doctors')} value={localizeDigits(counts.doctor)} onClick={() => navigate('/doctor-list')} />
+        <StatCard label={t('Receptionists')} value={localizeDigits(counts.receptionist)} onClick={() => navigate('/receptionist-list')} />
       </div>
 
-      {creatingUser && (
-        <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4'>
-          <div className='w-full max-w-2xl bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden'>
-            <div className='flex items-center justify-between px-5 py-4 border-b bg-gray-50'>
-              <h2 className='font-bold text-gray-900 flex items-center gap-2'><Plus className='w-5 h-5 text-blue-600' />{t('Add patient')}</h2>
-              <button onClick={closeCreate} className='text-gray-500 hover:text-gray-700'><X className='w-5 h-5' /></button>
-            </div>
-            <p className='mx-5 mt-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900'>
-              {t('Quick patient registration note')}{' '}
-              <button type='button' onClick={() => { closeCreate(); goAddDoctor() }} className='font-semibold underline'>{t('Add doctor')}</button>
-              {' '}{t('Quick patient registration note middle')}{' '}
-              {t('Quick patient registration note receptionist')}{' '}
-              <button type='button' onClick={() => { closeCreate(); goAddReceptionist() }} className='font-semibold underline'>{t('Add receptionist')}</button>.
-            </p>
-            <div className='p-5 grid grid-cols-1 sm:grid-cols-2 gap-4'>
-              <label className='text-sm font-medium text-gray-700'>
-                {t('Name')}
-                <input value={createForm.name} onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-              </label>
-              <label className='text-sm font-medium text-gray-700'>
-                {t('Email')}
-                <input type='email' value={createForm.email} onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-              </label>
-              <label className='text-sm font-medium text-gray-700'>
-                {t('Phone')}
-                <input value={createForm.phone} onChange={(event) => setCreateForm((prev) => ({ ...prev, phone: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-              </label>
-              <label className='text-sm font-medium text-gray-700'>
-                {t('Password')}
-                <input type='password' value={createForm.password} onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))} placeholder={t('Minimum 8 characters')} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-              </label>
-
-              {createForm.profileType === 'patient' && (
-                <>
-                  <label className='text-sm font-medium text-gray-700'>
-                    {t('Gender')}
-                    <select value={createForm.gender} onChange={(event) => setCreateForm((prev) => ({ ...prev, gender: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500'>
-                      <option value='Not Selected'>{t('Not Selected')}</option>
-                      <option value='Female'>{t('Female')}</option>
-                      <option value='Male'>{t('Male')}</option>
-                    </select>
-                  </label>
-                  <label className='text-sm font-medium text-gray-700'>
-                    {t('Date of Birth')}
-                    <input type='date' value={createForm.dob} onChange={(event) => setCreateForm((prev) => ({ ...prev, dob: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-                  </label>
-                  <label className='text-sm font-medium text-gray-700'>
-                    {t('Address Line 1')}
-                    <input value={createForm.address.line1} onChange={(event) => setCreateForm((prev) => ({ ...prev, address: { ...prev.address, line1: event.target.value } }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-                  </label>
-                  <label className='text-sm font-medium text-gray-700'>
-                    {t('Address Line 2')}
-                    <input value={createForm.address.line2} onChange={(event) => setCreateForm((prev) => ({ ...prev, address: { ...prev.address, line2: event.target.value } }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-                  </label>
-                </>
-              )}
-            </div>
-            <div className='px-5 py-4 border-t bg-gray-50 flex justify-end gap-2'>
-              <button onClick={closeCreate} className='px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-100'>{t('Cancel')}</button>
-              <button onClick={saveNewUser} disabled={saving} className='px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:bg-blue-300'>{saving ? t('Creating...') : t('Create patient')}</button>
-            </div>
-          </div>
+      <div className='mb-4 grid grid-cols-1 gap-3 rounded-card border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_13rem_13rem_auto] lg:items-end'>
+        <div className='relative sm:col-span-2 lg:col-span-1'>
+          <Field label={t('Search')}>
+            <Input className='ps-10' value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t('Search name, email, phone, ID, speciality…')} />
+          </Field>
+          <Search aria-hidden='true' className='pointer-events-none absolute bottom-3.5 start-3 size-4 text-ink-3' />
         </div>
-      )}
+        <Field label={t('Role')}>
+          <Select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+            <option value='all'>{t('All roles')}</option>
+            <option value='patient'>{t('Patients only')}</option>
+            <option value='doctor'>{t('Doctors only')}</option>
+            <option value='receptionist'>{t('Receptionists only')}</option>
+          </Select>
+        </Field>
+        <Field label={t('Insurance')}>
+          <Select value={insuranceFilter} onChange={(event) => setInsuranceFilter(event.target.value)}>
+            <option value='all'>{t('Insurance: all')}</option>
+            <option value='with'>{t('With insurance')}</option>
+            <option value='without'>{t('Without insurance')}</option>
+          </Select>
+        </Field>
+        <p className='pb-2.5 text-body-sm text-ink-3'>{`${t('Showing')} ${localizeDigits(filteredUsers.length)} ${t('of')} ${localizeDigits(users.length)}`}</p>
+      </div>
 
-      {editingUser && (
-        <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4'>
-          <div className='w-full max-w-2xl bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden'>
-            <div className='flex items-center justify-between px-5 py-4 border-b bg-gray-50'>
-              <h2 className='font-bold text-gray-900 flex items-center gap-2'><UserCog className='w-5 h-5 text-blue-600' />{t('Edit')} {getUserRoleLabel(editingUser, t)}</h2>
-              <button onClick={closeEdit} className='text-gray-500 hover:text-gray-700'><X className='w-5 h-5' /></button>
-            </div>
-            <div className='p-5 grid grid-cols-1 sm:grid-cols-2 gap-4'>
-              <label className='text-sm font-medium text-gray-700'>
-                {t('Name')}
-                <input value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-              </label>
-              <label className='text-sm font-medium text-gray-700'>
-                {t('Email')}
-                <input type='email' value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-              </label>
-              <label className='text-sm font-medium text-gray-700'>
-                {t('Phone')}
-                <input value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-              </label>
+      <BulkBar count={selection.count} onClear={() => setSelected([])}>
+        <Button size='sm' variant='secondary' onClick={() => runBulk((list) => bulkUserStatus(list, true))} leadingIcon={<UserCheck aria-hidden='true' className='size-4' />}>{t('Activate')}</Button>
+        <Button size='sm' variant='secondary' onClick={() => runBulk((list) => bulkUserStatus(list, false))} leadingIcon={<UserX aria-hidden='true' className='size-4' />}>{t('Deactivate')}</Button>
+        <Button size='sm' variant='secondary' onClick={() => runBulk((list) => bulkUserMfa(list, true))} leadingIcon={<ShieldCheck aria-hidden='true' className='size-4' />}>{t('Require MFA')}</Button>
+        <Button size='sm' variant='secondary' onClick={() => runBulk((list) => bulkUserMfa(list, false))} leadingIcon={<ShieldOff aria-hidden='true' className='size-4' />}>{t('Make MFA optional')}</Button>
+      </BulkBar>
 
-              {editingUser.profileType === 'patient' && (
-                <>
-                  <label className='text-sm font-medium text-gray-700'>
-                    {t('Gender')}
-                    <select value={form.gender} onChange={(event) => setForm((prev) => ({ ...prev, gender: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500'>
-                      <option value='Not Selected'>{t('Not Selected')}</option>
-                      <option value='Female'>{t('Female')}</option>
-                      <option value='Male'>{t('Male')}</option>
-                    </select>
-                  </label>
-                  <label className='text-sm font-medium text-gray-700'>
-                    {t('Date of Birth')}
-                    <input type='date' value={form.dob} onChange={(event) => setForm((prev) => ({ ...prev, dob: event.target.value }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-                  </label>
-                  <label className='text-sm font-medium text-gray-700'>
-                    {t('Address Line 1')}
-                    <input value={form.address.line1} onChange={(event) => setForm((prev) => ({ ...prev, address: { ...prev.address, line1: event.target.value } }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-                  </label>
-                  <label className='text-sm font-medium text-gray-700'>
-                    {t('Address Line 2')}
-                    <input value={form.address.line2} onChange={(event) => setForm((prev) => ({ ...prev, address: { ...prev.address, line2: event.target.value } }))} className='mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-                  </label>
-                </>
-              )}
-            </div>
-            <div className='px-5 py-4 border-t bg-gray-50 flex justify-end gap-2'>
-              <button onClick={closeEdit} className='px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-100'>{t('Cancel')}</button>
-              <button onClick={saveUser} disabled={saving} className='px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:bg-blue-300'>{saving ? t('Saving...') : t('Save Changes')}</button>
-            </div>
+      <div className='rounded-card border border-line bg-surface'>
+        {loading ? (
+          <SkeletonGroup className='space-y-3 p-4'>
+            {[0, 1, 2, 3].map((key) => <Skeleton key={key} className='h-14 w-full' />)}
+          </SkeletonGroup>
+        ) : filteredUsers.length === 0 ? (
+          <EmptyState
+            icon={<UsersRound aria-hidden='true' />}
+            title={t('No users match')}
+            description={t('Try another search or add a new account.')}
+            action={
+              <div className='flex flex-wrap justify-center gap-2'>
+                <Button onClick={openCreatePatient} leadingIcon={<UserRound aria-hidden='true' className='size-4' />}>{t('Add patient')}</Button>
+                <Button variant='secondary' onClick={goAddDoctor} leadingIcon={<Stethoscope aria-hidden='true' className='size-4' />}>{t('Add doctor')}</Button>
+              </div>
+            }
+          />
+        ) : (
+          <>
+            <label className='flex items-center gap-3 rounded-t-card border-b border-line bg-surface-sunken px-4 py-2.5 text-caption font-semibold text-ink-3'>
+              <SelectBox label={t('Select all')} checked={selection.all} indeterminate={selection.some} onChange={(on) => setSelected(on ? visibleKeys : [])} />
+              {t('Select all')}
+            </label>
+            <ul className='divide-y divide-line'>
+              {filteredUsers.map((user) => {
+                const key = userRowKey(user)
+                return (
+                  <li key={key} className='flex flex-wrap items-start gap-x-4 gap-y-3 px-4 py-3.5'>
+                    <span className='pt-3'>
+                      <SelectBox label={`${t('Select')} ${nameOf(user)}`} checked={selected.includes(key)} onChange={(on) => setSelected((previous) => (on ? [...previous, key] : previous.filter((value) => value !== key)))} />
+                    </span>
+                    <div className='flex min-w-0 flex-1 basis-52 items-center gap-3'>
+                      {user.image ? (
+                        <img className='size-11 shrink-0 rounded-full border border-line bg-surface-sunken object-cover' src={user.image} alt='' />
+                      ) : (
+                        <span aria-hidden='true' className='flex size-11 shrink-0 items-center justify-center rounded-full bg-primary-soft font-bold text-brand'>
+                          {nameOf(user)?.charAt(0)?.toUpperCase() || '?'}
+                        </span>
+                      )}
+                      <div className='min-w-0'>
+                        <p className='truncate font-semibold text-ink'>{nameOf(user)}</p>
+                        <Badge tone={roleTones[user.profileType]}>{getUserRoleLabel(user, t)}</Badge>
+                      </div>
+                    </div>
+                    <div className='min-w-0 flex-1 basis-52 space-y-0.5 text-body-sm text-ink-2'>
+                      <p className='flex min-w-0 items-center gap-1.5'>
+                        <Mail aria-hidden='true' className='size-4 shrink-0 text-ink-3' />
+                        <span dir='ltr' className='truncate'>{user.email}</span>
+                      </p>
+                      <p className='flex items-center gap-1.5 text-ink-3'>
+                        <Phone aria-hidden='true' className='size-4 shrink-0' />
+                        <span dir='ltr'>{user.phone || t('No phone')}</span>
+                      </p>
+                      <p className='text-caption text-ink-3'>{getUserIdentifier(user, t)}</p>
+                    </div>
+                    <div className='min-w-0 flex-1 basis-40'>
+                      {user.profileType !== 'patient' ? (
+                        <span className='text-ink-3'>—</span>
+                      ) : user.insurance?.enabled ? (
+                        <div className='space-y-1'>
+                          <InsuranceStatusBadge insurance={user.insurance} />
+                          <p className='truncate text-caption text-ink-3' title={user.insurance.provider}>
+                            {user.insurance.provider || t('Provider not set')}
+                          </p>
+                        </div>
+                      ) : (
+                        <Badge>{t('None on file')}</Badge>
+                      )}
+                    </div>
+                    <div className='flex flex-1 basis-36 flex-wrap items-center gap-1'>
+                      <Badge tone={user.isActive ? 'success' : 'danger'} dot>{user.isActive ? t('Active') : t('Disabled')}</Badge>
+                      <Badge tone={user.mfa?.enabled ? 'brand' : 'neutral'}>{user.mfa?.enabled ? t('MFA On') : t('MFA Off')}</Badge>
+                      {user.mfa?.requiredByAdmin && <Badge tone='warning'>{t('MFA required')}</Badge>}
+                    </div>
+                    <UserRowActionsMenu
+                      user={user}
+                      t={t}
+                      isOpen={actionsMenuKey === key}
+                      onToggle={(open) => setActionsMenuKey(open ? key : null)}
+                      onEdit={() => openEdit(user)}
+                      onResetPassword={() => setPasswordUser(user)}
+                      onToggleMfaRequirement={() => toggleUserMfaRequirement(user)}
+                      onResetMfa={() => confirmResetMfa(user)}
+                      onDelete={() => confirmDelete(user)}
+                      onOpenPatientInsurance={() => navigate('/patients', { state: { openPatientId: user.profileId } })}
+                      onOpenDoctorProfile={() => navigate('/doctor-list', { state: { openDoctorId: user.profileId } })}
+                      onOpenReceptionistProfile={() => navigate(`/edit-receptionist/${user.profileId}`)}
+                    />
+                  </li>
+                )
+              })}
+            </ul>
+          </>
+        )}
+      </div>
+
+      <Modal open={creatingUser} onClose={closeCreate} title={t('Add patient')} size='lg'>
+        <form onSubmit={saveNewUser}>
+          <p className='mb-4 rounded-control bg-info-soft px-3 py-2 text-caption text-info-ink'>
+            {t('Quick patient registration note')}{' '}
+            <button type='button' onClick={() => { closeCreate(); goAddDoctor() }} className='cursor-pointer font-semibold underline'>{t('Add doctor')}</button>
+            {' '}{t('Quick patient registration note middle')}{' '}
+            {t('Quick patient registration note receptionist')}{' '}
+            <button type='button' onClick={() => { closeCreate(); goAddReceptionist() }} className='cursor-pointer font-semibold underline'>{t('Add receptionist')}</button>.
+          </p>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <Field label={t('Name')} required>
+              <Input data-autofocus required value={createForm.name} onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))} />
+            </Field>
+            <Field label={t('Email')} required>
+              <Input dir='ltr' style={{ textAlign: 'start' }} required type='email' value={createForm.email} onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))} />
+            </Field>
+            <Field label={t('Phone')} required>
+              <Input dir='ltr' style={{ textAlign: 'start' }} required type='tel' value={createForm.phone} onChange={(event) => setCreateForm((prev) => ({ ...prev, phone: event.target.value }))} />
+            </Field>
+            <Field label={t('Password')} required hint={t('Minimum 8 characters')}>
+              <Input required type='password' autoComplete='new-password' value={createForm.password} onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))} />
+            </Field>
+            <PatientFields form={createForm} setForm={setCreateForm} t={t} />
           </div>
-        </div>
-      )}
-
-      {passwordUser && (
-        <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4'>
-          <div className='w-full max-w-md bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden'>
-            <div className='flex items-center justify-between px-5 py-4 border-b bg-gray-50'>
-              <h2 className='font-bold text-gray-900 flex items-center gap-2'><KeyRound className='w-5 h-5 text-amber-600' />{t('Reset Password')}</h2>
-              <button onClick={closePassword} className='text-gray-500 hover:text-gray-700'><X className='w-5 h-5' /></button>
-            </div>
-            <div className='p-5'>
-              <p className='text-sm text-gray-600 mb-3'>
-                {t('Set new password for')} <span className='font-semibold text-gray-900'>{passwordUser.name}</span>.
-              </p>
-              <input
-                type='password'
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                placeholder={t('Minimum 8 characters')}
-                className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
-              />
-            </div>
-            <div className='px-5 py-4 border-t bg-gray-50 flex justify-end gap-2'>
-              <button onClick={closePassword} className='px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-100'>{t('Cancel')}</button>
-              <button onClick={savePassword} disabled={saving} className='px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold text-sm hover:bg-amber-700 disabled:bg-amber-300'>{saving ? t('Resetting...') : t('Reset Password')}</button>
-            </div>
+          <div className='mt-5 flex justify-end gap-2'>
+            <Button variant='secondary' onClick={closeCreate}>{t('Cancel')}</Button>
+            <Button type='submit' loading={saving}>{t('Create patient')}</Button>
           </div>
-        </div>
-      )}
-    </div>
+        </form>
+      </Modal>
+
+      <Modal open={Boolean(editingUser)} onClose={closeEdit} title={editingUser ? `${t('Edit')}: ${nameOf(editingUser)}` : ''} size='lg'>
+        {editingUser && (
+          <form onSubmit={saveUser}>
+            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+              <Field label={t('Name')} hint={editingUser.profileType !== 'patient' ? t('Saved in both languages automatically.') : undefined}>
+                <Input data-autofocus value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+              </Field>
+              <Field label={t('Email')}>
+                <Input dir='ltr' style={{ textAlign: 'start' }} type='email' value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
+              </Field>
+              <Field label={t('Phone')}>
+                <Input dir='ltr' style={{ textAlign: 'start' }} type='tel' value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
+              </Field>
+              {editingUser.profileType === 'patient' && <PatientFields form={form} setForm={setForm} t={t} />}
+            </div>
+            <div className='mt-5 flex justify-end gap-2'>
+              <Button variant='secondary' onClick={closeEdit}>{t('Cancel')}</Button>
+              <Button type='submit' loading={saving}>{t('Save Changes')}</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal open={Boolean(passwordUser)} onClose={closePassword} title={t('Reset Password')} size='sm'>
+        {passwordUser && (
+          <form onSubmit={savePassword}>
+            <Field label={`${t('Set new password for')} ${nameOf(passwordUser)}`} hint={t('Minimum 8 characters')}>
+              <Input data-autofocus required type='password' autoComplete='new-password' value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+            </Field>
+            <div className='mt-5 flex justify-end gap-2'>
+              <Button variant='secondary' onClick={closePassword}>{t('Cancel')}</Button>
+              <Button type='submit' loading={saving}>{t('Reset Password')}</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(confirm)}
+        title={confirm?.title}
+        body={confirm?.body}
+        confirmLabel={confirm?.confirmLabel}
+        danger={confirm?.danger}
+        busy={saving}
+        onConfirm={runConfirm}
+        onClose={() => setConfirm(null)}
+      />
+    </AdminPage>
   )
 }
 

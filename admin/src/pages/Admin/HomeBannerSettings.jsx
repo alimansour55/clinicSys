@@ -1,61 +1,55 @@
 import React, { useContext, useEffect, useState } from 'react'
+import { CalendarDays, ImagePlus, Save, Settings2, ToggleLeft, Upload, UserRound } from 'lucide-react'
 import { AdminContext } from '../../context/AdminContext'
-import { CalendarDays, ImagePlus, Loader2, Save, Settings2, ToggleLeft, Upload, UserRound } from 'lucide-react'
+import { useLanguage } from '../../i18n'
+import BilingualField from '../../components/BilingualField'
+import { AdminPage } from '../../components/admin/AdminPage'
+import { ColorField, FormSection, ImagePicker, LivePreview, ToggleRow, useFilePreview } from '../../components/admin/SiteContentForm'
+import { Button } from '../../components/ui'
+import { appendBilingualGroup, bilingualGroupFromRecord, bilingualText } from '../../utils/bilingualValue'
+
+const TEXT_FIELDS = ['title', 'appointmentsButtonText', 'profileButtonText']
 
 const defaults = {
   title: 'Book Appointment\nWith 100+ Trusted Doctors',
-  backgroundColor: '#169b8a',
-  showImage: true,
-  showAppointmentsButton: true,
   appointmentsButtonText: 'My appointments',
-  showProfileButton: true,
   profileButtonText: 'My profile'
 }
 
-const ToggleRow = ({ checked, onChange, label, description }) => (
-  <label className='flex items-start justify-between gap-4 rounded-lg border border-gray-200 bg-white p-4 cursor-pointer hover:bg-gray-50 transition'>
-    <span>
-      <span className='block text-sm font-semibold text-gray-900'>{label}</span>
-      <span className='block text-xs text-gray-500 mt-1'>{description}</span>
-    </span>
-    <input
-      type='checkbox'
-      checked={checked}
-      onChange={(event) => onChange(event.target.checked)}
-      className='mt-1 h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary'
-    />
-  </label>
-)
+const defaultOptions = { backgroundColor: '#169b8a', showImage: true, showAppointmentsButton: true, showProfileButton: true }
 
 const HomeBannerSettings = () => {
-  const { aToken, siteSettings, getSiteSettings, updateHomeBannerSettings } = useContext(AdminContext)
-  const [form, setForm] = useState(defaults)
+  const { aToken, siteSettings, getSiteSettings, updateHomeBannerSettings, translatePreview } = useContext(AdminContext)
+  const { t, language } = useLanguage()
+  const [text, setText] = useState(() => bilingualGroupFromRecord(defaults, TEXT_FIELDS))
+  const [options, setOptions] = useState(defaultOptions)
   const [bannerImage, setBannerImage] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [previewLanguage, setPreviewLanguage] = useState(language)
 
   useEffect(() => {
     if (aToken) getSiteSettings()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aToken])
 
+  const savedBanner = siteSettings?.homeBanner
   useEffect(() => {
-    if (siteSettings?.homeBanner) {
-      const savedBanner = siteSettings.homeBanner
-      const fallbackTitle = [savedBanner.titleLineOne, savedBanner.titleLineTwo].filter(Boolean).join('\n')
-      setForm({ ...defaults, ...savedBanner, title: savedBanner.title || fallbackTitle || defaults.title })
-    }
-  }, [siteSettings])
+    if (!savedBanner) return
+    const fallbackTitle = [savedBanner.titleLineOne, savedBanner.titleLineTwo].filter(Boolean).join('\n')
+    setText(bilingualGroupFromRecord({ ...defaults, ...savedBanner, title: savedBanner.title || fallbackTitle || defaults.title }, TEXT_FIELDS))
+    setOptions({ ...defaultOptions, ...savedBanner })
+  }, [savedBanner])
 
-  const updateField = (field, value) => {
-    setForm((previous) => ({ ...previous, [field]: value }))
-  }
+  const setField = (field) => (value) => setText((previous) => ({ ...previous, [field]: value }))
+  const setOption = (field) => (value) => setOptions((previous) => ({ ...previous, [field]: value }))
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     setSaving(true)
-
     const formData = new FormData()
-    Object.entries(form).forEach(([key, value]) => formData.append(key, value))
+    appendBilingualGroup(formData, text)
+    formData.append('backgroundColor', options.backgroundColor)
+    ;['showImage', 'showAppointmentsButton', 'showProfileButton'].forEach((key) => formData.append(key, options[key]))
     if (bannerImage) formData.append('bannerImage', bannerImage)
 
     const success = await updateHomeBannerSettings(formData)
@@ -63,125 +57,71 @@ const HomeBannerSettings = () => {
     setSaving(false)
   }
 
-  const imagePreview = bannerImage ? URL.createObjectURL(bannerImage) : siteSettings?.homeBanner?.bannerImage
-  const titleLines = form.title.split('\n').filter(Boolean)
+  const imagePreview = useFilePreview(bannerImage, savedBanner?.bannerImage)
+  const shown = (field) => bilingualText(text[field], previewLanguage)
+  const titleLines = shown('title').split('\n').filter(Boolean)
 
   return (
-    <div className='min-h-screen bg-gray-50 p-3 sm:p-5 md:p-6 lg:p-8'>
-      <div className='max-w-6xl'>
-        <div className='mb-6'>
-          <h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2'>
-            <ImagePlus className='w-6 h-6 text-primary' />
-            Home Banner Settings
-          </h1>
-          <p className='mt-2 text-sm text-gray-600 ms-8'>
-            Control the appointment banner shown below the doctors section on the patient website.
-          </p>
+    <AdminPage icon={ImagePlus} title={t('Home Banner Settings')} description={t('Control the appointment banner shown below the doctors section on the patient website.')}>
+      <form onSubmit={handleSubmit} className='grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_400px]'>
+        <div className='min-w-0 space-y-5'>
+          <FormSection title={t('Text Content')} icon={Settings2}>
+            <BilingualField label={t('Headline')} value={text.title} onChange={setField('title')} translate={translatePreview} multiline required hint={t('Each new line starts a new line on the banner.')} />
+            <BilingualField label={t('Appointments button text')} value={text.appointmentsButtonText} onChange={setField('appointmentsButtonText')} translate={translatePreview} />
+            <BilingualField label={t('Profile button text')} value={text.profileButtonText} onChange={setField('profileButtonText')} translate={translatePreview} />
+          </FormSection>
+
+          <FormSection title={t('Image and Style')} icon={Upload}>
+            <ImagePicker label={t('Doctor banner image')} preview={imagePreview} onPick={setBannerImage} hint={t('Upload the doctor image shown beside the headline')} imageClassName='h-44' />
+            <ColorField label={t('Background color')} value={options.backgroundColor} onChange={setOption('backgroundColor')} />
+          </FormSection>
+
+          <FormSection title={t('Visibility')} icon={ToggleLeft}>
+            <div className='grid grid-cols-1 gap-3 md:grid-cols-2'>
+              <ToggleRow checked={options.showImage} onChange={setOption('showImage')} label={t('Doctor image')} description={t('Show the image beside the headline.')} />
+              <ToggleRow checked={options.showAppointmentsButton} onChange={setOption('showAppointmentsButton')} label={t('Appointments button')} description={t('Show for signed-in patients.')} />
+              <ToggleRow checked={options.showProfileButton} onChange={setOption('showProfileButton')} label={t('Profile button')} description={t('Show for signed-in patients.')} />
+            </div>
+          </FormSection>
         </div>
 
-        <form onSubmit={handleSubmit} className='grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-5'>
-          <div className='space-y-5'>
-            <div className='bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm'>
-              <h2 className='text-base sm:text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2'>
-                <Settings2 className='w-5 h-5 text-primary' />
-                Text Content
-              </h2>
-
-              <div>
-                <label className='block text-sm font-semibold text-gray-700 mb-2'>Headline</label>
-                <textarea
-                  value={form.title}
-                  onChange={(event) => updateField('title', event.target.value)}
-                  rows={3}
-                  className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary resize-none'
-                  required
-                />
-              </div>
-
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4'>
-                <div>
-                  <label className='block text-sm font-semibold text-gray-700 mb-2'>Appointments button text</label>
-                  <input value={form.appointmentsButtonText} onChange={(event) => updateField('appointmentsButtonText', event.target.value)} className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary' />
-                </div>
-                <div>
-                  <label className='block text-sm font-semibold text-gray-700 mb-2'>Profile button text</label>
-                  <input value={form.profileButtonText} onChange={(event) => updateField('profileButtonText', event.target.value)} className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary' />
-                </div>
-              </div>
-            </div>
-
-            <div className='bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm'>
-              <h2 className='text-base sm:text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2'>
-                <Upload className='w-5 h-5 text-primary' />
-                Image and Style
-              </h2>
-
-              <div>
-                <label className='block text-sm font-semibold text-gray-700 mb-2'>Doctor banner image</label>
-                <label className='flex min-h-48 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4 text-center hover:border-primary hover:bg-primary/5 transition'>
-                  {imagePreview ? (
-                    <img src={imagePreview} alt='Banner preview' className='h-44 w-full object-contain' />
-                  ) : (
-                    <span className='flex flex-col items-center gap-2 text-sm text-gray-500'>
-                      <Upload className='w-6 h-6 text-primary' />
-                      Upload the right-side doctor image
-                    </span>
-                  )}
-                  <input type='file' accept='image/*' hidden onChange={(event) => setBannerImage(event.target.files[0] || null)} />
-                </label>
-              </div>
-
-              <div className='mt-4'>
-                <label className='block text-sm font-semibold text-gray-700 mb-2'>Background color</label>
-                <div className='flex items-center gap-3'>
-                  <input type='color' value={form.backgroundColor} onChange={(event) => updateField('backgroundColor', event.target.value)} className='h-11 w-16 rounded border border-gray-300 bg-white p-1' />
-                  <input value={form.backgroundColor} onChange={(event) => updateField('backgroundColor', event.target.value)} className='w-full max-w-xs border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary' />
-                </div>
+        <LivePreview
+          description={t('Approximate homepage banner.')}
+          language={previewLanguage}
+          onLanguage={setPreviewLanguage}
+          footer={
+            <Button type='submit' fullWidth loading={saving} leadingIcon={<Save aria-hidden='true' className='size-4' />}>
+              {t('Save Home Banner')}
+            </Button>
+          }
+        >
+          <div className='flex min-h-64 items-center justify-between gap-4 overflow-hidden rounded-card p-5 text-white' style={{ backgroundColor: options.backgroundColor }}>
+            <div className='min-w-0'>
+              {titleLines.map((line, index) => (
+                <p key={`${line}-${index}`} className={`text-2xl font-bold leading-tight ${index > 0 ? 'mt-2' : ''}`}>
+                  {line}
+                </p>
+              ))}
+              <div className='mt-5 flex flex-wrap gap-2'>
+                {options.showAppointmentsButton && (
+                  <span className='inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-gray-600'>
+                    <CalendarDays aria-hidden='true' className='size-4' />
+                    {shown('appointmentsButtonText')}
+                  </span>
+                )}
+                {options.showProfileButton && (
+                  <span className='inline-flex items-center gap-2 rounded-full border border-white/70 px-3 py-1.5 text-sm font-semibold'>
+                    <UserRound aria-hidden='true' className='size-4' />
+                    {shown('profileButtonText')}
+                  </span>
+                )}
               </div>
             </div>
-
-            <div className='bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm'>
-              <h2 className='text-base sm:text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2'>
-                <ToggleLeft className='w-5 h-5 text-primary' />
-                Visibility
-              </h2>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-                <ToggleRow checked={form.showImage} onChange={(value) => updateField('showImage', value)} label='Doctor image' description='Show the right-side image.' />
-                <ToggleRow checked={form.showAppointmentsButton} onChange={(value) => updateField('showAppointmentsButton', value)} label='Appointments button' description='Show for signed-in patients.' />
-                <ToggleRow checked={form.showProfileButton} onChange={(value) => updateField('showProfileButton', value)} label='Profile button' description='Show for signed-in patients.' />
-              </div>
-            </div>
+            {options.showImage && imagePreview && <img src={imagePreview} alt='' className='max-h-56 w-28 self-end object-contain' />}
           </div>
-
-          <div className='bg-white border border-gray-200 rounded-xl shadow-sm h-fit xl:sticky xl:top-5 overflow-hidden'>
-            <div className='p-4 sm:p-5 border-b border-gray-100'>
-              <h2 className='text-base sm:text-lg font-semibold text-gray-900'>Live Preview</h2>
-              <p className='text-sm text-gray-500 mt-1'>Approximate homepage banner.</p>
-            </div>
-
-            <div className='p-4'>
-              <div className='rounded-lg overflow-hidden text-white p-5 min-h-72 flex items-center justify-between gap-4' style={{ backgroundColor: form.backgroundColor }}>
-                <div className='min-w-0'>
-                  {titleLines.map((line, index) => (
-                    <p key={`${line}-${index}`} className={`text-3xl font-bold leading-tight ${index > 0 ? 'mt-2' : ''}`}>{line}</p>
-                  ))}
-                  <div className='mt-5 flex flex-wrap gap-2'>
-                    {form.showAppointmentsButton && <span className='inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-600'><CalendarDays className='w-4 h-4' />{form.appointmentsButtonText}</span>}
-                    {form.showProfileButton && <span className='inline-flex items-center gap-2 rounded-full border border-white/70 px-4 py-2 text-sm font-semibold text-white'><UserRound className='w-4 h-4' />{form.profileButtonText}</span>}
-                  </div>
-                </div>
-                {form.showImage && imagePreview && <img src={imagePreview} alt='' className='max-h-56 w-32 object-contain self-end' />}
-              </div>
-
-              <button type='submit' disabled={saving} className='mt-4 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:bg-gray-300 transition'>
-                {saving ? <Loader2 className='w-4 h-4 animate-spin' /> : <Save className='w-4 h-4' />}
-                Save Home Banner
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+        </LivePreview>
+      </form>
+    </AdminPage>
   )
 }
 

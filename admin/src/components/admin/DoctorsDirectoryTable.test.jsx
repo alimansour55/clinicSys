@@ -70,7 +70,7 @@ describe('DoctorsDirectoryTable', () => {
 
   it('shows loading state', () => {
     const { container } = renderTable({ ...defaultProps(), doctorsLoading: true })
-    expect(container.querySelector('.animate-spin')).toBeTruthy()
+    expect(container.querySelector('.animate-shimmer')).toBeTruthy()
   })
 
   it('shows empty state when no doctors match', () => {
@@ -107,7 +107,7 @@ describe('DoctorsDirectoryTable', () => {
     const setSortBy = vi.fn()
     const setSortDir = vi.fn()
     const { container } = renderTable({ ...defaultProps(), setSortBy, setSortDir })
-    fireEvent.change(within(container).getByDisplayValue('Name A → Z'), {
+    fireEvent.change(within(container).getByDisplayValue('Name A to Z'), {
       target: { value: 'fees:desc' },
     })
     expect(setSortBy).toHaveBeenCalledWith('fees')

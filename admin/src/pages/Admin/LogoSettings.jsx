@@ -1,29 +1,69 @@
-import React, { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
+import { Image as ImageIcon, RotateCcw, Save, Sparkles, Upload, X } from 'lucide-react'
 import { AdminContext } from '../../context/AdminContext'
+import { useLanguage } from '../../i18n'
 import { assets } from '../../assets/assets'
-import { Image as ImageIcon, Loader2, RotateCcw, Save, Sparkles } from 'lucide-react'
+import { AdminPage, ConfirmDialog } from '../../components/admin/AdminPage'
+import { Badge, Button, Card, CardBody, CardHeader, Field, Input, notify } from '../../components/ui'
 import { patientHeaderLogoClassName } from '../../utils/brandingLogo'
 import { DEFAULT_APP_DISPLAY_NAME } from '../../utils/appDisplayName'
 
+const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']
+
 const LogoSettings = () => {
   const { aToken, siteSettings, getSiteSettings, updateBrandingSettings } = useContext(AdminContext)
+  const { t } = useLanguage()
   const [altText, setAltText] = useState(DEFAULT_APP_DISPLAY_NAME)
   const [file, setFile] = useState(null)
+  const [filePreview, setFilePreview] = useState('')
   const [saving, setSaving] = useState(false)
+  const [settled, setSettled] = useState(false)
+  const [confirmingRemove, setConfirmingRemove] = useState(false)
+  const fileInput = useRef(null)
+
+  const loadSettings = async () => {
+    setSettled(false)
+    await getSiteSettings()
+    setSettled(true)
+  }
 
   useEffect(() => {
-    if (aToken) getSiteSettings()
+    if (aToken) loadSettings()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aToken])
 
+  const savedAltText = siteSettings?.branding?.altText
   useEffect(() => {
-    if (siteSettings?.branding?.altText) {
-      setAltText(siteSettings.branding.altText)
-    }
-  }, [siteSettings?.branding?.altText])
+    if (savedAltText) setAltText(savedAltText)
+  }, [savedAltText])
 
+  /* One object URL per chosen file, released when the file changes or the page closes. */
+  useEffect(() => {
+    if (!file) {
+      setFilePreview('')
+      return undefined
+    }
+    const url = URL.createObjectURL(file)
+    setFilePreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
+  /* Saving before the current settings are known would overwrite the alt text with the default. */
+  const settingsKnown = Boolean(siteSettings?.branding)
   const customUrl = siteSettings?.branding?.headerLogoUrl
-  const previewSrc = file ? URL.createObjectURL(file) : customUrl || assets.site_default_logo
+  const previewSrc = filePreview || customUrl || assets.site_default_logo
+
+  const onPickFile = (event) => {
+    const picked = event.target.files?.[0]
+    /* Cleared so choosing the same file again still fires a change. */
+    event.target.value = ''
+    if (!picked) return
+    if (!ACCEPTED_TYPES.includes(picked.type)) {
+      notify.error(t('Choose a PNG, JPG, WebP or SVG file'))
+      return
+    }
+    setFile(picked)
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -31,107 +71,119 @@ const LogoSettings = () => {
     let ok
     if (file) {
       const formData = new FormData()
-      formData.append('altText', altText)
+      formData.append('altText', altText.trim())
       formData.append('headerLogo', file)
       ok = await updateBrandingSettings(formData)
     } else {
-      ok = await updateBrandingSettings({ altText })
+      ok = await updateBrandingSettings({ altText: altText.trim() })
     }
     if (ok) setFile(null)
     setSaving(false)
   }
 
-  const handleResetToDefault = async () => {
-    const confirmed = window.confirm('Remove the custom logo everywhere and restore the default mark?')
-    if (!confirmed) return
+  const handleRemoveLogo = async () => {
     setSaving(true)
-    await updateBrandingSettings({
-      altText,
-      clearHeaderLogo: true
-    })
-    setFile(null)
+    const ok = await updateBrandingSettings({ altText: altText.trim(), clearHeaderLogo: true })
+    if (ok) setFile(null)
     setSaving(false)
+    setConfirmingRemove(false)
   }
 
+  let status = { tone: 'neutral', label: t('Clinivo mark (default)'), text: t('No logo is uploaded, so the patient site, staff portal and sign-in screen all show the Clinivo mark.') }
+  if (file) status = { tone: 'warning', label: t('Not saved yet'), text: t('This is a preview of the file you chose. Nobody else sees it until you save.') }
+  else if (customUrl) status = { tone: 'success', label: t('Your logo'), text: t('Your uploaded logo is showing on the patient site, staff portal and sign-in screen.') }
+
   return (
-    <div className='min-h-screen bg-gray-50 p-3 sm:p-5 md:p-6 lg:p-8'>
-      <div className='max-w-3xl'>
-        <div className='mb-6'>
-          <h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2'>
-            <Sparkles className='w-6 h-6 text-primary' />
-            Site logo
-          </h1>
-          <p className='mt-2 text-sm text-gray-600 ms-8'>
-            Upload your logo for the patient website, staff portal header, and sign-in screen. Size on the site is fixed for a consistent layout. Use <strong>Save logo</strong> after choosing a file.
-          </p>
+    <AdminPage
+      title={t('Site logo')}
+      description={t('Upload your logo for the patient website, staff portal header and sign-in screen. Its size on the site is fixed to keep the layout consistent.')}
+      icon={Sparkles}
+      width='max-w-3xl'
+    >
+      {settled && !settingsKnown && (
+        <div role='alert' className='mb-5 flex flex-wrap items-center justify-between gap-3 rounded-card bg-danger-soft px-4 py-3 text-body-sm text-danger-ink'>
+          <span className='min-w-0'>{t('These settings could not be loaded, so nothing can be saved yet.')}</span>
+          <Button variant='secondary' size='sm' onClick={loadSettings}>{t('Try again')}</Button>
         </div>
+      )}
 
-        <form onSubmit={handleSubmit} className='space-y-6'>
-          <div className='bg-white border border-gray-200 rounded-xl p-5 shadow-sm'>
-            <h2 className='text-base font-semibold text-gray-900 mb-4 flex items-center gap-2'>
-              <ImageIcon className='w-5 h-5 text-primary' />
-              Preview (same size as patient header)
-            </h2>
-            <div className='rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-inner'>
-              <div className='flex min-h-[3.5rem] items-center border-b border-gray-100 bg-gray-50/80'>
-                <img
-                  src={previewSrc}
-                  alt={altText || 'Site logo'}
-                  className={patientHeaderLogoClassName}
-                />
+      <form onSubmit={handleSubmit} className='space-y-5'>
+        <Card>
+          <CardHeader
+            headingLevel={2}
+            className='flex-wrap'
+            title={
+              <span className='flex items-center gap-2'>
+                <ImageIcon aria-hidden='true' className='size-5 shrink-0 text-brand' />
+                {t('Preview at the size of the patient header')}
+              </span>
+            }
+            action={settingsKnown ? <Badge tone={status.tone} dot>{status.label}</Badge> : null}
+          />
+          <CardBody className='space-y-3'>
+            <div className='flex min-h-16 items-center overflow-hidden rounded-control border border-line bg-surface px-4 py-3'>
+              <img src={previewSrc} alt={altText || t('Site logo')} className={patientHeaderLogoClassName} />
+            </div>
+            {settingsKnown && <p className='text-body-sm text-ink-2'>{status.text}</p>}
+            <p className='text-caption text-ink-3'>
+              {t('In dark theme every logo, the Clinivo mark included, sits on a small white plate so it stays readable.')}
+            </p>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardBody className='space-y-5'>
+            <div>
+              <p className='text-body-sm font-medium text-ink'>{t('Logo image')}</p>
+              <input ref={fileInput} type='file' accept={ACCEPTED_TYPES.join(',')} onChange={onPickFile} className='hidden' />
+              <div className='mt-1.5 flex flex-wrap items-center gap-2'>
+                <Button variant='secondary' onClick={() => fileInput.current?.click()} leadingIcon={<Upload aria-hidden='true' className='size-4' />}>
+                  {t('Choose a file')}
+                </Button>
+                {file && (
+                  <>
+                    <span dir='ltr' className='min-w-0 max-w-full truncate text-body-sm text-ink-2'>{file.name}</span>
+                    <Button variant='ghost' size='sm' onClick={() => setFile(null)} leadingIcon={<X aria-hidden='true' className='size-4' />}>
+                      {t('Discard chosen file')}
+                    </Button>
+                  </>
+                )}
               </div>
-              <p className='mt-3 text-xs text-gray-500'>
-                {customUrl || file ? 'Custom logo' : 'Default logo (shown when no custom image is saved)'}
-              </p>
-            </div>
-          </div>
-
-          <div className='bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-5'>
-            <div>
-              <label className='block text-sm font-semibold text-gray-700 mb-2'>Logo image</label>
-              <input
-                type='file'
-                accept='image/png,image/jpeg,image/webp,image/svg+xml'
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className='block w-full text-sm text-gray-600 file:me-4 file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary/90'
-              />
-              <p className='mt-2 text-xs text-gray-500'>PNG, JPG, WebP, or SVG. Prefer a horizontal mark with clear margins.</p>
+              <p className='mt-1.5 text-caption text-ink-3'>{t('PNG, JPG, WebP or SVG. A horizontal mark with clear margins works best.')}</p>
             </div>
 
-            <div>
-              <label className='block text-sm font-semibold text-gray-700 mb-2'>Alt text (accessibility)</label>
-              <input
-                type='text'
-                value={altText}
-                onChange={(e) => setAltText(e.target.value)}
-                className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary'
-                placeholder={DEFAULT_APP_DISPLAY_NAME}
-              />
-            </div>
-          </div>
+            <Field label={t('Alt text (accessibility)')} hint={t('Read out by screen readers, and shown if the image cannot load.')}>
+              <Input type='text' value={altText} onChange={(event) => setAltText(event.target.value)} placeholder={DEFAULT_APP_DISPLAY_NAME} />
+            </Field>
+          </CardBody>
+        </Card>
 
-          <div className='flex flex-wrap items-center gap-3'>
-            <button
-              type='submit'
-              disabled={saving}
-              className='inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50'
-            >
-              {saving ? <Loader2 className='w-4 h-4 animate-spin' /> : <Save className='w-4 h-4' />}
-              {saving ? 'Saving…' : 'Save logo'}
-            </button>
-            <button
-              type='button'
-              disabled={saving || (!customUrl && !file)}
-              onClick={handleResetToDefault}
-              className='inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50'
-            >
-              <RotateCcw className='w-4 h-4' />
-              Use default logo
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className='flex flex-wrap items-center gap-3'>
+          <Button type='submit' loading={saving} disabled={!settingsKnown} leadingIcon={<Save aria-hidden='true' className='size-4' />}>
+            {t('Save logo')}
+          </Button>
+          <Button
+            variant='secondary'
+            disabled={saving || !customUrl}
+            onClick={() => setConfirmingRemove(true)}
+            leadingIcon={<RotateCcw aria-hidden='true' className='size-4' />}
+          >
+            {t('Remove logo')}
+          </Button>
+        </div>
+      </form>
+
+      <ConfirmDialog
+        open={confirmingRemove}
+        title={t('Remove this logo?')}
+        body={t('The patient site, staff portal and sign-in screen go back to the Clinivo mark straight away.')}
+        confirmLabel={t('Remove logo')}
+        danger
+        busy={saving}
+        onConfirm={handleRemoveLogo}
+        onClose={() => setConfirmingRemove(false)}
+      />
+    </AdminPage>
   )
 }
 
