@@ -1,165 +1,111 @@
 import React, { useContext, useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { toast } from 'react-toastify'
-import { ArrowLeft, Mail, ShieldCheck } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
+import { useLanguage } from '../i18n'
+import { Button, notify } from '../components/ui'
 import OtpCodeInput from '../components/OtpCodeInput'
-import CountdownTimer from '../components/CountdownTimer'
+import { AuthShell, FormError, NETWORK_ERROR, ResendCountdown, useServerText } from '../components/account/accountUi'
 
 const AccountVerify = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { backendUrl, setToken } = useContext(AppContext)
+  const { t, localizeDigits } = useLanguage()
+  const say = useServerText()
 
   const verificationToken = location.state?.verificationToken || ''
-  const [status, setStatus] = useState({
-    email: location.state?.email || '',
-    emailVerified: false,
-    accountVerified: false,
-    otpExpiresInMinutes: 10
-  })
-  const [emailCode, setEmailCode] = useState('')
-  const [loadingEmail, setLoadingEmail] = useState(false)
-  const [loadingResend, setLoadingResend] = useState(false)
+  const [status, setStatus] = useState({ email: location.state?.email || '', otpExpiresInMinutes: 10 })
+  const [code, setCode] = useState('')
+  const [codeKey, setCodeKey] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const backToLogin = (message) => {
+    if (message) notify.info(say(message))
+    navigate('/login?mode=login', { replace: true })
+  }
 
   useEffect(() => {
     if (!verificationToken) {
-      navigate('/login')
+      backToLogin()
       return
     }
-    refreshStatus()
-  }, [verificationToken, navigate])
-
-  const refreshStatus = async () => {
-    try {
-      const { data } = await axios.post(`${backendUrl}/api/user/verify-account/status`, {
-        verificationToken
+    axios.post(`${backendUrl}/api/user/verify-account/status`, { verificationToken })
+      .then(({ data }) => {
+        if (data.success) setStatus(data)
+        else if (data.sessionExpired) backToLogin(data.message)
       })
-      if (data.success) {
-        setStatus(data)
-        if (data.accountVerified && data.token) {
-          localStorage.setItem('token', data.token)
-          setToken(data.token)
-          navigate('/')
-        }
-      }
-    } catch (error) {
-      console.log(error)
-    }
-  }
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once for this verification session
+  }, [verificationToken, backendUrl])
 
-  const finishIfVerified = (data) => {
-    setStatus((prev) => ({ ...prev, ...data }))
+  const finish = (data) => {
     if (data.token) {
       localStorage.setItem('token', data.token)
       setToken(data.token)
-      toast.success('Account verified! Welcome.')
-      navigate('/')
+      notify.success(t('Account verified! Welcome.'))
+      navigate('/', { replace: true })
+    } else {
+      backToLogin(data.message)
     }
   }
 
-  const verifyEmail = async (e) => {
-    e.preventDefault()
-    if (emailCode.length !== 6) {
-      toast.error('Enter the 6-digit email code')
-      return
-    }
-    setLoadingEmail(true)
+  const verifyEmail = async (event) => {
+    event.preventDefault()
+    if (code.length !== 6) return setError(t('Enter the 6-digit code'))
+    setLoading(true)
+    setError('')
     try {
-      const { data } = await axios.post(`${backendUrl}/api/user/verify-account/verify-email`, {
-        verificationToken,
-        code: emailCode
-      })
+      const { data } = await axios.post(`${backendUrl}/api/user/verify-account/verify-email`, { verificationToken, code })
       if (data.success) {
-        toast.success(data.message)
-        finishIfVerified(data)
+        finish(data)
+      } else if (data.sessionExpired) {
+        backToLogin(data.message)
       } else {
-        toast.error(data.message)
+        setError(say(data.message))
+        setCode('')
+        setCodeKey((key) => key + 1)
       }
-    } catch (error) {
-      toast.error(error.message)
+    } catch {
+      setError(say(NETWORK_ERROR))
     } finally {
-      setLoadingEmail(false)
+      setLoading(false)
     }
   }
 
   const resendCode = async () => {
-    setLoadingResend(true)
     try {
-      const { data } = await axios.post(`${backendUrl}/api/user/verify-account/resend`, {
-        verificationToken,
-        channel: 'email'
-      })
+      const { data } = await axios.post(`${backendUrl}/api/user/verify-account/resend`, { verificationToken, channel: 'email' })
+      if (data.signInRequired || data.sessionExpired) return backToLogin(data.message)
       if (data.success) {
-        if (data.token) {
-          finishIfVerified(data)
-          return
-        }
-        toast.success(data.message || 'Code sent')
-        setStatus((prev) => ({ ...prev, ...data }))
+        notify.success(say(data.message))
+        setError('')
       } else {
-        toast.error(data.message)
+        setError(say(data.message))
       }
-    } catch (error) {
-      toast.error(error.message)
-    } finally {
-      setLoadingResend(false)
+    } catch {
+      setError(say(NETWORK_ERROR))
     }
   }
 
   return (
-    <div className='min-h-[80vh] flex items-center justify-center px-4 py-8'>
-      <div className='w-full max-w-lg rounded-xl border bg-white p-6 shadow-lg sm:p-8'>
-        <button
-          type='button'
-          onClick={() => navigate('/login')}
-          className='mb-4 flex items-center gap-2 text-gray-600 transition-colors hover:text-gray-800'
-        >
-          <ArrowLeft size={18} />
-          <span className='text-sm'>Back to login</span>
-        </button>
-
-        <div className='mb-6 text-center'>
-          <ShieldCheck className='mx-auto mb-2 h-10 w-10 text-primary' />
-          <h1 className='text-xl font-semibold text-gray-800 sm:text-2xl'>Verify your account</h1>
-          <p className='mt-2 text-xs text-gray-600 sm:text-sm'>
-            Enter the code we sent to your email. It expires in {status.otpExpiresInMinutes} minutes.
-          </p>
+    <AuthShell
+      title={t('Verify your account')}
+      description={localizeDigits(String(t('Enter the code we sent to your email. It expires in {{n}} minutes.')).replace('{{n}}', status.otpExpiresInMinutes))}
+      onBack={() => backToLogin()}
+      backLabel={t('Back to login')}
+    >
+      <form onSubmit={verifyEmail} className='space-y-4'>
+        {status.email && <p dir='ltr' className='text-center text-body-sm font-medium text-brand'>{status.email}</p>}
+        <OtpCodeInput key={codeKey} onChange={setCode} disabled={loading} autoFocus />
+        <FormError>{error}</FormError>
+        <Button type='submit' fullWidth loading={loading}>{t('Verify email')}</Button>
+        <div className='text-center'>
+          <ResendCountdown seconds={60} onResend={resendCode} />
         </div>
-
-        <form onSubmit={verifyEmail} className='rounded-lg border border-gray-200 p-4'>
-          <div className='mb-3 flex items-center gap-2 text-sm font-medium text-gray-800'>
-            <Mail className='h-4 w-4 text-primary' />
-            Email code
-            {status.emailVerified && (
-              <span className='ms-auto rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700'>Verified</span>
-            )}
-          </div>
-          <p className='mb-3 text-xs text-gray-500'>Sent to {status.email}</p>
-          {!status.emailVerified && (
-            <>
-              <OtpCodeInput onChange={setEmailCode} disabled={loadingEmail} />
-              <button
-                type='submit'
-                disabled={loadingEmail}
-                className='mt-4 w-full rounded-md bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary/90 disabled:bg-gray-400'
-              >
-                {loadingEmail ? 'Verifying…' : 'Verify email'}
-              </button>
-            </>
-          )}
-        </form>
-
-        <div className='mt-6 text-center'>
-          <CountdownTimer
-            duration={60}
-            onResend={() => !loadingResend && resendCode()}
-          />
-          <p className='mt-2 text-[11px] text-gray-500'>Resend waits 60 seconds between requests</p>
-        </div>
-      </div>
-    </div>
+      </form>
+    </AuthShell>
   )
 }
 

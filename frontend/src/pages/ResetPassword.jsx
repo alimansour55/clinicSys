@@ -1,127 +1,83 @@
-import { useState, useContext, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Lock, Eye, EyeOff } from "lucide-react";
-import { AppContext } from "../context/AppContext";
-import { toast } from "react-toastify";
+import { useContext, useEffect, useState } from 'react'
+import axios from 'axios'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { AppContext } from '../context/AppContext'
+import { useLanguage } from '../i18n'
+import { Button, Field, notify } from '../components/ui'
+import { AuthShell, FormError, NETWORK_ERROR, PasswordChecklist, PasswordInput, meetsPolicy, usePasswordPolicy, useServerText } from '../components/account/accountUi'
 
 const ResetPassword = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { resetPassword } = useContext(AppContext);
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { backendUrl } = useContext(AppContext)
+  const { t } = useLanguage()
+  const say = useServerText()
+  const policy = usePasswordPolicy()
 
-  const email = location.state?.email || "";
-  const otp = location.state?.otp || "";
+  const email = location.state?.email || ''
+  const otp = location.state?.otp || ''
 
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [codeExpired, setCodeExpired] = useState(false)
 
-  // Redirect if no email/otp
   useEffect(() => {
-    if (!email || !otp) navigate("/email-verify");
-  }, [email, otp, navigate]);
+    if (!email || !otp) navigate('/email-verify', { replace: true })
+  }, [email, otp, navigate])
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setError('')
+    if (!meetsPolicy(newPassword, policy)) return setError(t('Please choose a password that meets all the requirements'))
+    if (newPassword !== confirmPassword) return setError(t('Passwords do not match'))
 
-    if (newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
+    setLoading(true)
+    try {
+      const { data } = await axios.post(`${backendUrl}/api/user/reset-password`, { email, otp, newPassword })
+      if (data.success) {
+        // The code must not stay in browser history once it has done its job.
+        window.history.replaceState({}, '')
+        notify.success(say(data.message))
+        navigate('/login?mode=login', { replace: true })
+      } else {
+        setError(say(data.message))
+        // A password the policy refused can be retried. A dead code cannot, so offer the way out.
+        if (!/^Password/.test(data.message || '') && !/different/.test(data.message || '')) setCodeExpired(true)
+      }
+    } catch {
+      setError(say(NETWORK_ERROR))
+    } finally {
+      setLoading(false)
     }
-
-    if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-
-    setLoading(true);
-    await resetPassword(email, otp, newPassword, navigate);
-    setLoading(false);
-  };
+  }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-8">
-      <form 
-        onSubmit={handleSubmit} 
-        className="w-full max-w-md p-6 sm:p-8 border rounded-xl shadow-lg bg-white"
-      >
-
-        {/* Back Button */}
-        <button type="button" onClick={() => navigate("/otp-verify", { state: { email } })} className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors">
-          <ArrowLeft size={18} className="rtl:-scale-x-100 sm:w-5 sm:h-5" />
-          <span className="text-sm sm:text-base">Back</span>
-        </button>
-
-        {/* Title */}
-        <h1 className="text-xl sm:text-2xl font-semibold text-center mb-2 text-gray-800">
-          New Password
-        </h1>
-        <p className="text-center text-gray-600 text-xs sm:text-sm mb-6">
-          Create a strong password
-        </p>
-
-        {/* New Password */}
-        <div className="mb-4">
-          <label className="block text-xs sm:text-sm font-medium mb-1.5 text-gray-700">
-            New Password
-          </label>
-          <div className="relative" data-input-field>
-            <Lock size={16} className="field-icon absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]" />
-            <input
-              type={showNew ? "text" : "password"}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter new password"
-              required
-              className="w-full min-h-[44px] ps-10 pe-10 py-2.5 sm:py-3 text-base sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-            />
-
-            <button type="button" onClick={() => setShowNew(!showNew)} className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-              {showNew ? <EyeOff size={18} className="sm:w-5 sm:h-5" /> : <Eye size={18} className="sm:w-5 sm:h-5" />}
-            </button>
-          </div>
+    <AuthShell
+      title={t('Choose a new password')}
+      description={t('Other devices will be signed out when you change it.')}
+      onBack={() => navigate('/otp-verify', { state: { email } })}
+    >
+      <form onSubmit={handleSubmit} className='space-y-4'>
+        <div>
+          <Field label={t('New password')} required>
+            <PasswordInput value={newPassword} onChange={setNewPassword} autoComplete='new-password' />
+          </Field>
+          <PasswordChecklist password={newPassword} policy={policy} />
         </div>
-
-        {/* Confirm Password */}
-        <div className="mb-6">
-          <label className="block text-xs sm:text-sm font-medium mb-1.5 text-gray-700">
-            Confirm Password
-          </label>
-          <div className="relative" data-input-field>
-            <Lock size={16} className="field-icon absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]" />
-            <input
-              type={showConfirm ? "text" : "password"}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
-              required
-              className="w-full min-h-[44px] ps-10 pe-10 py-2.5 sm:py-3 text-base sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-            />
-
-            <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-              {showConfirm ? <EyeOff size={18} className="sm:w-5 sm:h-5" /> : <Eye size={18} className="sm:w-5 sm:h-5" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className={`w-full py-2.5 sm:py-3 rounded-md text-white text-sm sm:text-base font-medium transition-all ${
-            loading 
-              ? "bg-gray-400 cursor-not-allowed" 
-              : "bg-primary hover:bg-primary/90 active:scale-[0.98]"
-          }`}
-        >
-          {loading ? "Resetting..." : "Reset Password"}
-        </button>
-
+        <Field label={t('Confirm new password')} required>
+          <PasswordInput value={confirmPassword} onChange={setConfirmPassword} autoComplete='new-password' />
+        </Field>
+        <FormError>{error}</FormError>
+        {codeExpired ? (
+          <Button type='button' fullWidth variant='secondary' onClick={() => navigate('/email-verify')}>{t('Request a new code')}</Button>
+        ) : (
+          <Button type='submit' fullWidth loading={loading}>{t('Change password')}</Button>
+        )}
       </form>
-    </div>
-  );
-};
+    </AuthShell>
+  )
+}
 
-export default ResetPassword;
+export default ResetPassword

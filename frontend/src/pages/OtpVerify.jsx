@@ -1,129 +1,90 @@
-import { useRef, useState, useContext, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Mail } from "lucide-react";
-import { AppContext } from "../context/AppContext";
-import { toast } from "react-toastify";
-import CountdownTimer from "../components/CountdownTimer";
+import { useContext, useEffect, useState } from 'react'
+import axios from 'axios'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { AppContext } from '../context/AppContext'
+import { useLanguage } from '../i18n'
+import { Button, notify } from '../components/ui'
+import OtpCodeInput from '../components/OtpCodeInput'
+import { AuthShell, FormError, NETWORK_ERROR, ResendCountdown, useServerText } from '../components/account/accountUi'
 
 const OtpVerify = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { verifyPasswordResetOtp, sendPasswordResetOtp } = useContext(AppContext);
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { backendUrl } = useContext(AppContext)
+  const { t, localizeDigits } = useLanguage()
+  const say = useServerText()
 
-  const email = location.state?.email || "";
-  const inputRefs = useRef([]);
-  const [loading, setLoading] = useState(false);
+  const email = location.state?.email || ''
+  const minutes = location.state?.otpExpiresInMinutes || 10
+  const [code, setCode] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [restart, setRestart] = useState(false)
+  const [codeKey, setCodeKey] = useState(0)
 
-  // Redirect if no email
   useEffect(() => {
-    if (!email) navigate("/email-verify");
-  }, [email, navigate]);
+    if (!email) navigate('/email-verify', { replace: true })
+  }, [email, navigate])
 
-  // Auto-focus next input
-  const handleInput = (e, index) => {
-    if (e.target.value && index < 5) {
-      inputRefs.current[index + 1].focus();
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (code.length !== 6) {
+      setError(t('Enter the 6-digit code'))
+      return
     }
-  };
-
-  // Backspace handler
-  const handleKeyDown = (e, index) => {
-    if (e.key === "Backspace" && !e.target.value && index > 0) {
-      inputRefs.current[index - 1].focus();
+    setLoading(true)
+    setError('')
+    try {
+      const { data } = await axios.post(`${backendUrl}/api/user/verify-reset-otp`, { email, otp: code })
+      if (data.success) {
+        navigate('/reset-password', { state: { email, otp: code }, replace: true })
+      } else {
+        setError(say(data.message))
+        setRestart(Boolean(data.restart))
+        setCode('')
+        setCodeKey((key) => key + 1)
+      }
+    } catch {
+      setError(say(NETWORK_ERROR))
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
-  // Paste handler
-  const handlePaste = (e) => {
-    const paste = e.clipboardData.getData("text").split("");
-    paste.forEach((char, i) => {
-      if (inputRefs.current[i]) inputRefs.current[i].value = char;
-    });
-    inputRefs.current[Math.min(5, paste.length - 1)]?.focus();
-  };
-
-  // Submit OTP
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const otp = inputRefs.current.map((input) => input.value).join("");
-    
-    if (otp.length !== 6) {
-      toast.error("Please enter 6-digit OTP");
-      return;
-    }
-
-    setLoading(true);
-    await verifyPasswordResetOtp(email, otp, navigate);
-    setLoading(false);
-  };
-
-  // Resend OTP
   const handleResend = async () => {
-    await sendPasswordResetOtp(email, navigate);
-  };
+    try {
+      const { data } = await axios.post(`${backendUrl}/api/user/send-reset-otp`, { email })
+      if (data.success) {
+        notify.success(say(data.message))
+        setError('')
+        setRestart(false)
+        setCode('')
+        setCodeKey((key) => key + 1)
+      } else {
+        setError(say(data.message))
+      }
+    } catch {
+      setError(say(NETWORK_ERROR))
+    }
+  }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-8">
-      <form onSubmit={handleSubmit} className="w-full max-w-md p-6 sm:p-8 border rounded-xl shadow-lg bg-white">
-        
-        {/* Back Button */}
-        <button type="button" onClick={() => navigate("/email-verify")} className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors">
-          <ArrowLeft size={18} className="rtl:-scale-x-100 sm:w-5 sm:h-5" />
-          <span className="text-sm sm:text-base">Back</span>
-        </button>
-
-        {/* Title */}
-        <h1 className="text-xl sm:text-2xl font-semibold text-center mb-2 text-gray-800">
-          Verify OTP
-        </h1>
-        <p className="text-center text-gray-600 text-xs sm:text-sm mb-2">
-          Enter 6-digit code sent to
-        </p>
-        
-        {/* Email Display */}
-        <div className="flex items-center justify-center gap-2 text-primary mb-6">
-          <Mail size={14} className="sm:w-4 sm:h-4" />
-          <span className="font-medium text-xs sm:text-sm break-all">{email}</span>
+    <AuthShell
+      title={t('Check your email')}
+      description={localizeDigits(String(t('If this email has an account, a 6-digit code is on its way. It works for {{n}} minutes. Check your spam folder too.')).replace('{{n}}', minutes))}
+      onBack={() => navigate('/email-verify')}
+    >
+      <form onSubmit={handleSubmit} className='space-y-4'>
+        <p dir='ltr' className='text-center text-body-sm font-medium break-all text-brand'>{email}</p>
+        <OtpCodeInput key={codeKey} onChange={setCode} disabled={loading} autoFocus />
+        <FormError>{error}</FormError>
+        {!restart && <Button type='submit' fullWidth loading={loading}>{t('Continue')}</Button>}
+        <div className='text-center'>
+          <ResendCountdown seconds={location.state?.resendAfterSeconds || 60} onResend={handleResend} />
         </div>
-
-        {/* OTP Inputs - Responsive */}
-        <div className="flex justify-between gap-1.5 sm:gap-2 mb-6" onPaste={handlePaste} data-input-field>
-          {[...Array(6)].map((_, i) => (
-            <input
-              key={i}
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength="1"
-              ref={(el) => (inputRefs.current[i] = el)}
-              onInput={(e) => handleInput(e, i)}
-              onKeyDown={(e) => handleKeyDown(e, i)}
-              className="h-11 w-10 min-h-[44px] min-w-[44px] sm:h-12 sm:w-12 md:h-14 md:w-14 text-center text-lg sm:text-xl md:text-2xl border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-            />
-          ))}
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className={`w-full py-2.5 sm:py-3 rounded-md text-white text-sm sm:text-base font-medium mb-4 transition-all ${
-            loading 
-              ? "bg-gray-400 cursor-not-allowed" 
-              : "bg-primary hover:bg-primary/90 active:scale-[0.98]"
-          }`}
-        >
-          {loading ? "Verifying..." : "Verify OTP"}
-        </button>
-
-        {/* Countdown Timer */}
-        <div className="text-center">
-          <CountdownTimer duration={120} onResend={handleResend} />
-        </div>
-
       </form>
-    </div>
-  );
-};
+    </AuthShell>
+  )
+}
 
-export default OtpVerify;
+export default OtpVerify
