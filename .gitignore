@@ -18,3 +18,4 @@ screenshots/UploadersConfig.json
 screenshots/History.db
 screenshots/Backup/
 screenshots/Logs/
+screenshots/Screenshots/**/WINWORD_*.png
