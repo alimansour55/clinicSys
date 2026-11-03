@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /my-profile
+Disallow: /my-appointments
+Disallow: /medical-history
+Disallow: /insurance
+Disallow: /email-verify
+Disallow: /otp-verify
+Disallow: /account-verify
+Disallow: /reset-password
+Disallow: /api/
+
+Sitemap: https://www.clinivo.shop/sitemap.xml

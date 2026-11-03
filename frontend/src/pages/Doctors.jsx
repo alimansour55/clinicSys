@@ -372,7 +372,7 @@ const Doctors = () => {
         </div>
       </div>
 
-      <div className='mt-6 grid gap-8 lg:grid-cols-[17rem_1fr]'>
+      <div className='mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[17rem_1fr]'>
         <aside aria-label={t('Filters')} className='hidden lg:block'>
           <div className='sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto rounded-card border border-line bg-surface p-5 shadow-e1'>
             <div className='mb-4 flex items-center justify-between'>

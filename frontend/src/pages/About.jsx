@@ -69,7 +69,7 @@ const About = () => {
         </ol>
       </section>
 
-      <section aria-labelledby='ways-title' className='mt-section grid gap-8 lg:grid-cols-2 lg:items-center'>
+      <section aria-labelledby='ways-title' className='mt-section grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-center'>
         <div>
           <h2 id='ways-title' className='font-display text-display text-ink'>{t('Seen your way')}</h2>
           <p className='mt-4 text-body text-ink-2'>{t('Each doctor chooses which kinds of visit they offer. The doctors page shows only what is really available.')}</p>

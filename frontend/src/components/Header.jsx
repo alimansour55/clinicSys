@@ -47,8 +47,8 @@ const Header = ({ catalog }) => {
       />
       <PulseLine />
 
-      <div className='mx-auto grid w-full max-w-7xl items-center gap-10 px-gutter pb-14 pt-10 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-20 lg:pt-20'>
-        <div className='animate-rise'>
+      <div className='mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-10 px-gutter pb-14 pt-10 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-20 lg:pt-20'>
+        <div className='min-w-0'>
           <p className='inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3 py-1 text-caption font-semibold text-ink-2 shadow-e1 backdrop-blur'>
             <span className='size-1.5 rounded-full bg-accent' aria-hidden='true' />
             {stats.doctors > 0
@@ -99,7 +99,7 @@ const Header = ({ catalog }) => {
           </div>
         </div>
 
-        <div className='relative animate-rise [animation-delay:120ms]'>
+        <div className='relative min-w-0 animate-rise [animation-delay:120ms]'>
           {hero.heroImage && (
             <img
               src={optimizedImage(hero.heroImage, 900)}
