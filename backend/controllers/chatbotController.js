@@ -388,6 +388,10 @@ export const postChatbotMessage = async (req, res) => {
     }
 
     const intent = detectIntent(userText)
+    // "Another day: tomorrow" already says which day, so go straight to it.
+    if (intent === 'change_time' && context.docId && entities.day) {
+      return respondWithDoctorSlots({ res, base, context, entities, language })
+    }
     if (intent && NAVIGATION_ACTIONS[intent]) {
       const replyI18n = inBothLanguages((lang) => buildIntentReply({ intent, language: lang, siteName }))
       return res.json({

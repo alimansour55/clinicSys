@@ -73,7 +73,7 @@ const SPECIALTY_RULES = [
     specialty: 'Gastroenterologist',
     terms: [
       'stomach', 'tummy', 'belly', 'abdomen', 'abdominal', 'nausea', 'nauseous', 'vomit*', 'throwing up', 'diarrhea', 'diarrhoea', 'constipation', 'constipated', 'digest*', 'liver', 'heartburn', 'acid reflux', 'reflux', 'colon', 'gastro*', 'food poisoning', 'bloating',
-      'معده', 'معدتي', 'بطن', 'مغص', 'غثيان', 'قيء', 'ترجيع', 'برجع', 'بترجع', 'اسهال', 'امساك', 'هضم', 'كبد', 'قولون', 'حموضه', 'انتفاخ', 'تسمم غذائي', 'جهاز هضمي', 'طبيب باطنه', 'دكتور باطنه', 'باطنه',
+      'معده', 'معدتي', 'بطن', 'مغص', 'غثيان', 'قيء', 'ترجيع', 'برجع', 'بترجع', 'اسهال', 'امساك', 'هضم', 'كبد', 'قولون', 'حموضه', 'انتفاخ', 'تسمم غذائي', 'جهاز هضمي', 'الجهاز الهضمي', 'طبيب باطنه', 'دكتور باطنه', 'باطنه',
       'batn', 'batny', 'batni', 'ma3da', 'ma3dety', 'ma3dti', 'ma8as', 'maghas', 'mo8s', 'es-hal', 'eshal', 'ershal', 'emsak', '2oloon', 'qoloon', '7umoda', '7omoda', 'targee3'
     ]
   },
@@ -90,7 +90,7 @@ const SPECIALTY_RULES = [
     general: true,
     terms: [
       'fever', 'feverish', 'flu', 'influenza', 'cold', 'cough', 'coughing', 'caught a cold', 'sore throat', 'throat', 'checkup', 'check-up', 'check up', 'chills', 'ear', 'earache', 'sinus', 'runny nose', 'urine', 'kidney', 'diabetes', 'general doctor', 'general physician', 'general practitioner', 'family doctor', 'gp',
-      'حمي', 'سخونه', 'سخونيه', 'سخن', 'سخنه', 'حراره', 'برد', 'كحه', 'سعال', 'انفلونزا', 'زكام', 'رشح', 'زور', 'زوري', 'التهاب حلق', 'التهاب زور', 'كشف عام', 'دكتور عام', 'طبيب عام', 'طب عام', 'ودن', 'وداني', 'اذن', 'جيوب', 'بول', 'كلي', 'سكر',
+      'حمي', 'سخونه', 'سخونيه', 'سخن', 'سخنه', 'حراره', 'برد', 'كحه', 'سعال', 'انفلونزا', 'زكام', 'رشح', 'زور', 'زوري', 'التهاب حلق', 'التهاب زور', 'كشف عام', 'دكتور عام', 'طبيب عام', 'طب عام', 'الطب العام', 'ودن', 'وداني', 'اذن', 'جيوب', 'بول', 'كلي', 'سكر',
       'so5ona', 'so5onia', 'so5onya', 'sokhona', 'sokhonia', 'sa5an', 'ka7a', 'kohha', 'zokam', 'zor', 'zoor', 'bard', 'wedn', 'ferver'
     ]
   }
