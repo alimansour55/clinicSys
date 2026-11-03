@@ -25,7 +25,7 @@ const HomeAddressForm = ({ areas, initial, areaLabel, onSubmit, t }) => {
   }
 
   return (
-    <form onSubmit={submit} className='animate-rise space-y-3 rounded-card border border-line bg-surface p-3 shadow-e1'>
+    <form onSubmit={submit} noValidate className='animate-rise space-y-3 rounded-card border border-line bg-surface p-3 shadow-e1'>
       <Field label={t('assistant.homeArea')} required>
         <Select value={address.area} onChange={update('area')}>
           <option value=''>{t('assistant.homeAreaPlaceholder')}</option>

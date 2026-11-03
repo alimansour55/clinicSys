@@ -1670,7 +1670,7 @@ const ChatbotWidget = () => {
               fullWidth
               onClick={() => {
                 setOpen(false)
-                navigate('/login')
+                navigate('/login?mode=login')
               }}
             >
               {t('assistant.login')}
