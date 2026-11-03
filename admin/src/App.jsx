@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo } from 'react'
 import Login from './pages/Login'
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
+import { ToastViewport } from './components/ui/Toast';
 import { AdminContext } from './context/AdminContext';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
@@ -160,12 +161,8 @@ const App = () => {
       <LanguagePolicySync policy={activeLanguagePolicy} />
       <LanguageDomSync />
       <ScrollToTop />
-      <ToastContainer
-        position='top-right'
+      <ToastViewport
         limit={2}
-        autoClose={3500}
-        closeOnClick
-        draggable={false}
         style={{ pointerEvents: 'none' }}
         toastStyle={{ pointerEvents: 'auto' }}
       />
@@ -274,12 +271,8 @@ const App = () => {
       <LanguagePolicySync policy={activeLanguagePolicy} />
       <LanguageDomSync />
       <Login />
-      <ToastContainer
-        position='top-right'
+      <ToastViewport
         limit={2}
-        autoClose={3500}
-        closeOnClick
-        draggable={false}
         style={{ pointerEvents: 'none' }}
         toastStyle={{ pointerEvents: 'auto' }}
       />

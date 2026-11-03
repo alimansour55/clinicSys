@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { DoctorContext } from '../context/DoctorContext'
 import { ReceptionistContext } from '../context/ReceptionistContext'
 import { LanguageToggle, useLanguage } from '../i18n'
+import { ThemeToggle } from './ui/ThemeToggle'
 import { ChevronDown, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { staffHeaderLogoClassName } from '../utils/brandingLogo'
@@ -102,6 +103,8 @@ const Navbar = () => {
 
       <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
         <LanguageToggle compact />
+
+        <ThemeToggle />
 
         <NotificationBell />
 

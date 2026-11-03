@@ -8,6 +8,7 @@ import {
   normalizeRoleLanguagePolicy,
   resolveLanguageForPolicy,
 } from "./utils/languageAvailability.js";
+import { areas } from "./i18n/loadAreas.js";
 
 export const LANGUAGES = {
   en: { label: "English", shortLabel: "EN", dir: "ltr", locale: "en-US" },
@@ -542,8 +543,11 @@ const ar = {
   "Booking complete message": "تم حجز موعدك بنجاح. نتمنى لك الشفاء العاجل!",
 };
 
-const dictionaries = { en: {}, ar };
-const reverseAr = Object.fromEntries(Object.entries(ar).map(([key, value]) => [value, key]));
+const dictionaries = { en: areas.en, ar: { ...ar, ...areas.ar } };
+/* Base entries come last so an area repeating an Arabic string cannot change its English. */
+const reverseAr = Object.fromEntries(
+  [...Object.entries(areas.ar), ...Object.entries(ar)].map(([key, value]) => [value, key])
+);
 
 const preserveCaseKey = (text) => {
   if (dictionaries.ar[text]) return text;
@@ -562,7 +566,7 @@ export const translateString = (value, language = getStoredLanguage()) => {
   const canonical = reverseAr[text] || preserveCaseKey(text);
   let out;
   if (language === "en") {
-    out = `${leading}${canonical}${trailing}`;
+    out = `${leading}${dictionaries.en[canonical] ?? canonical}${trailing}`;
   } else {
     out = `${leading}${dictionaries.ar[canonical] || text}${trailing}`;
   }
@@ -640,7 +644,7 @@ export const LanguageProvider = ({ children }) => {
   }, [languagePolicy, allowedLanguages, language]);
 
   const value = useMemo(() => {
-    const direction = "ltr";
+    const direction = LANGUAGES[language].dir;
     const toggleLanguage = () => {
       const idx = allowedLanguages.indexOf(language);
       const next = allowedLanguages[(idx + 1) % allowedLanguages.length];
@@ -649,7 +653,7 @@ export const LanguageProvider = ({ children }) => {
     return {
       language,
       direction,
-      isRtl: false,
+      isRtl: direction === "rtl",
       languagePolicy,
       allowedLanguages,
       setLanguagePolicy,
@@ -664,10 +668,10 @@ export const LanguageProvider = ({ children }) => {
 
   useEffect(() => {
     document.documentElement.lang = language;
-    document.documentElement.dir = "ltr";
-    document.body.dir = "ltr";
-    document.body.classList.remove("rtl");
-  }, [language]);
+    document.documentElement.dir = value.direction;
+    document.body.dir = value.direction;
+    document.body.classList.toggle("rtl", value.isRtl);
+  }, [language, value.direction, value.isRtl]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 };

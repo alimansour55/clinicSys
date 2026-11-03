@@ -14,7 +14,7 @@ import MyAppointments from './pages/MyAppointments'
 import Appointment from './pages/Appointment'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
-import { ToastContainer } from 'react-toastify'
+import { ToastViewport } from './components/ui/Toast'
 import EmailVerify from './pages/EmailVerify'
 import OtpVerify from './pages/OtpVerify'
 import AccountVerify from './pages/AccountVerify'
@@ -38,7 +38,7 @@ const App = () => {
       <LanguagePolicySync policy={patientLanguagePolicy} />
       <LanguageDomSync />
       <ScrollToTop />
-      {createPortal(<ToastContainer position='top-right' />, document.body)}
+      {createPortal(<ToastViewport />, document.body)}
       <Navbar />
       {/* Add routes to file and import it here */}
       <Routes location={location} key={location.pathname}>

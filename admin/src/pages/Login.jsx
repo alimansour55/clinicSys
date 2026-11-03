@@ -8,6 +8,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { ReceptionistContext } from '../context/ReceptionistContext'
 import { useNavigate } from 'react-router-dom'
 import { LanguageToggle, useLanguage } from '../i18n'
+import { ThemeToggle } from '../components/ui/ThemeToggle'
 import MfaSetupBox from '../components/MfaSetupBox'
 import { assets } from '../assets/assets'
 import { staffLoginLogoClassName } from '../utils/brandingLogo'
@@ -210,7 +211,8 @@ const Login = () => {
             className={logoImgClassName}
           />
         </div>
-        <div dir='ltr' className='w-full flex justify-end'>
+        <div dir='ltr' className='w-full flex items-center justify-end gap-2'>
+          <ThemeToggle />
           <LanguageToggle compact />
         </div>
 

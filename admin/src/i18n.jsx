@@ -6,6 +6,7 @@ import {
   normalizeRoleLanguagePolicy,
   resolveLanguageForPolicy,
 } from "./utils/languageAvailability.js";
+import { areas } from "./i18n/loadAreas.js";
 
 export const LANGUAGES = {
   en: { label: "English", shortLabel: "EN", dir: "ltr", locale: "en-US" },
@@ -714,8 +715,11 @@ const ar = {
   "Network Error": "خطأ في الشبكة",
 };
 
-const dictionaries = { en: {}, ar };
-const reverseAr = Object.fromEntries(Object.entries(ar).map(([key, value]) => [value, key]));
+const dictionaries = { en: areas.en, ar: { ...ar, ...areas.ar } };
+/* Base entries come last so an area repeating an Arabic string cannot change its English. */
+const reverseAr = Object.fromEntries(
+  [...Object.entries(areas.ar), ...Object.entries(ar)].map(([key, value]) => [value, key])
+);
 
 const preserveCaseKey = (text) => {
   if (dictionaries.ar[text]) return text;
@@ -734,7 +738,7 @@ const translateString = (value, language = getStoredLanguage()) => {
   const canonical = reverseAr[text] || preserveCaseKey(text);
   let out;
   if (language === "en") {
-    out = `${leading}${canonical}${trailing}`;
+    out = `${leading}${dictionaries.en[canonical] ?? canonical}${trailing}`;
   } else {
     out = `${leading}${dictionaries.ar[canonical] || text}${trailing}`;
   }

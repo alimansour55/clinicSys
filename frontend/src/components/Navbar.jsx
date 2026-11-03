@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import { LanguageToggle, useLanguage } from '../i18n'
+import { ThemeToggle } from './ui/ThemeToggle'
 import PatientNotificationBell from './PatientNotificationBell'
 import { patientDrawerLogoClassName, patientHeaderLogoClassName } from '../utils/brandingLogo'
 import { resolveLogoAltText } from '../utils/siteSettingsBranding'
@@ -125,6 +126,8 @@ const Navbar = () => {
                   <LanguageToggle compact />
                 </div>
 
+                <ThemeToggle />
+
                 <PatientNotificationBell />
 
                 <div className='group relative'>
@@ -187,6 +190,7 @@ const Navbar = () => {
                 <div className='rounded-full border border-teal-100 bg-white p-0.5 shadow-sm'>
                   <LanguageToggle compact />
                 </div>
+                <ThemeToggle />
                 <PatientNotificationBell />
               </div>
             </>
@@ -195,6 +199,7 @@ const Navbar = () => {
               <div className='rounded-full border border-teal-100 bg-white p-1 shadow-sm'>
                 <LanguageToggle compact />
               </div>
+              <ThemeToggle />
               <button
                 type='button'
                 onClick={() => navigate('/login?mode=login')}
@@ -316,7 +321,10 @@ const Navbar = () => {
                   <Languages className='h-4 w-4 text-primary' />
                   {t('Language')}
                 </div>
-                <LanguageToggle />
+                <div className='flex items-center justify-between gap-3'>
+                  <LanguageToggle />
+                  <ThemeToggle />
+                </div>
               </div>
 
               {!token && (
