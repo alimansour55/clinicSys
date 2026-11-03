@@ -52,7 +52,7 @@ const DAY_PARTS = [
 const SOONEST_TERMS = ['soonest', 'earliest', 'asap', 'as soon as possible', 'first available', 'right now', 'now', 'اقرب', 'اقرب ميعاد', 'اقرب معاد', 'اقرب وقت', 'اسرع', 'دلوقتي', 'حالا', 'delwa2ty', 'dlw2ty', 'a2rab']
 
 const SCHEDULE_TERMS = [
-  'available', 'availability', 'appointment', 'slot', 'time', 'schedule', 'when', 'book', 'booking', 'another day', 'different day', 'specific day', 'this week',
+  'available', 'availability', 'appointment', 'slot', 'what time', 'schedule', 'book', 'booking', 'another day', 'different day', 'specific day', 'this week',
   'موعد', 'مواعيد', 'ميعاد', 'معاد', 'متاح', 'متاحه', 'حجز', 'احجز', 'وقت', 'اوقات', 'امتي', 'يوم', 'تاريخ', 'الساعه',
   'me3ad', 'ma3ad', 'mia3ad', 'a7gez', '7agz', 'emta'
 ]

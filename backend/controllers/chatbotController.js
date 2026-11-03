@@ -13,6 +13,7 @@ import {
 import { isAiConfigured, understandWithAI } from '../services/chatbotOpenAIService.js'
 import {
   PAIN_LOCATION_OPTIONS,
+  buildBookingPrompt,
   buildIntentReply,
   buildManipulationReply,
   buildMedicalAdviceReply,
@@ -20,11 +21,13 @@ import {
   countUserTurns,
   detectIntent,
   inBothLanguages,
+  isBareBookRequest,
   isGreetingOnly,
   needsMoreSymptomInfo,
   parseDoctorPreference,
   parseVisitType,
-  specialtyLabels
+  specialtyLabels,
+  wantsToBook
 } from '../services/chatbotConversation.js'
 import { buildEmergencyAdvice, detectManipulation, detectRedFlag, isMedicalAdviceRequest } from '../services/chatbotSafety.js'
 import { resolveReplyLanguage } from '../services/chatbotText.js'
@@ -387,7 +390,8 @@ export const postChatbotMessage = async (req, res) => {
       return res.json({ ...base, ...bilingual(replyI18n, language), intent: 'medical_advice' })
     }
 
-    const intent = detectIntent(userText)
+    const confirming = context.step === 'confirming_booking'
+    const intent = isBareBookRequest(userText) && !confirming ? null : detectIntent(userText)
     // "Another day: tomorrow" already says which day, so go straight to it.
     if (intent === 'change_time' && context.docId && entities.day) {
       return respondWithDoctorSlots({ res, base, context, entities, language })
@@ -472,6 +476,16 @@ export const postChatbotMessage = async (req, res) => {
         intent: 'follow_up',
         understood: publicEntities(entities),
         followUp: needsPainLocation ? { kind: 'pain_location', options: PAIN_LOCATION_OPTIONS } : null
+      })
+    }
+
+    // "I want to book" or "tomorrow": they know what they want to do, just not who for yet.
+    if (!specialty && (wantsToBook(userText) || isSchedulingQuery(userText))) {
+      return res.json({
+        ...base,
+        ...bilingual(inBothLanguages((lang) => buildBookingPrompt({ language: lang })), language),
+        intent: 'ask_need',
+        understood: publicEntities(entities)
       })
     }
 

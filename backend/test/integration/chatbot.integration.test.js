@@ -217,6 +217,38 @@ describe('specialties with no doctors', () => {
   })
 })
 
+describe('asking to book without saying what for', () => {
+  it.each([
+    ['I want to book an appointment', 'en'],
+    ['book', 'en'],
+    ['عايز احجز ميعاد', 'ar'],
+    ['احجز', 'ar'],
+    ['بكرة', 'ar'],
+    ['ana 3ayez a7gez', 'ar']
+  ])('%s', async (text, language) => {
+    vi.stubEnv('OPENAI_API_KEY', 'test-key')
+    const { body } = await say(text, { language })
+    expect(body.intent).toBe('ask_need')
+    expect(body.action).toBeNull()
+    expect(body.showDoctorPicker).toBe(false)
+    expect(create).not.toHaveBeenCalled()
+  })
+
+  it('still reads "book it" as yes at the confirmation step', async () => {
+    const { body } = await say('book it', { bookingContext: { step: 'confirming_booking' } })
+    expect(body.action).toBe('affirm')
+  })
+
+  it('does not offer sympathy for a plain request', async () => {
+    await addDentist()
+    const direct = await say('I need a dentist tomorrow')
+    expect(direct.body.replyI18n.en).not.toMatch(/sorry/i)
+    expect(direct.body.replyI18n.ar).not.toContain('سلامة')
+    const complaint = await say('my tooth hurts')
+    expect(complaint.body.replyI18n.en).toMatch(/sorry/i)
+  })
+})
+
 describe('unclear input and other turns', () => {
   it.each(['asdfgh', 'ههههه', '??'])('asks again for: %s', async (text) => {
     const { body } = await say(text)

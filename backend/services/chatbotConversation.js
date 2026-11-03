@@ -126,13 +126,46 @@ export const parseVisitType = (text = '') => {
   return VISIT_TYPE_RULES.find(({ terms }) => hasAnyTerm(norm, terms))?.type || null
 }
 
+const BOOKING_TERMS = [
+  'book', 'booking', 'appointment', 'an appointment', 'see a doctor', 'need a doctor', 'want a doctor', 'schedule',
+  'احجز', 'احجزلي', 'حجز', 'ميعاد', 'معاد', 'موعد', 'عايز دكتور', 'عايزه دكتور', 'محتاج دكتور', 'محتاجه دكتور', 'كشف',
+  'a7gez', '7agz', 'me3ad', 'ma3ad', 'mia3ad', '3ayez doctor', 'ayez doctor'
+]
+const BARE_BOOK = /^(احجز|احجزلي|احجز لي|a7gez|book it|book)$/
+
+/** Wants to book but has not said what for. */
+export const wantsToBook = (text = '') => hasAnyTerm(normalizeText(text), BOOKING_TERMS)
+
+/** "Book" on its own is a request to start, except at the confirmation step where it means yes. */
+export const isBareBookRequest = (text = '') => BARE_BOOK.test(normalizeText(text))
+
+const DOCTOR_WORDS = [
+  'doctor', 'dr', 'dentist', 'pediatrician', 'dermatologist', 'gynecologist', 'neurologist', 'cardiologist', 'psychiatrist', 'gastroenterologist', 'ophthalmologist', 'physician', 'specialist',
+  'دكتور', 'دكتوره', 'طبيب', 'طبيبه', 'دكتور اسنان', 'doctora'
+]
+const COMPLAINT_WORDS = [
+  'pain', 'hurt', 'hurts', 'ache', 'fever', 'cough', 'rash', 'sick', 'bleeding', 'swollen', 'toothache', 'headache',
+  'الم', 'وجع', 'وجعني', 'واجعني', 'بيوجعني', 'بتوجعني', 'عندي', 'سخونيه', 'سخونه', 'كحه', 'صداع', 'مغص', 'wag3', 'waga3', '3andy', 'andy'
+]
+
+/** "A dentist tomorrow" is a request, not a complaint, so it should not get sympathy. */
+export const isDirectDoctorRequest = (text = '') => {
+  const norm = normalizeText(text)
+  return hasAnyTerm(norm, DOCTOR_WORDS) && !hasAnyTerm(norm, COMPLAINT_WORDS)
+}
+
+export const buildBookingPrompt = ({ language = 'en' }) =>
+  language === 'ar'
+    ? 'تمام، أحجزلك من هنا. قولي بتشتكي من إيه أو محتاج دكتور إيه؟'
+    : "Happy to book that for you. What's bothering you, or which kind of doctor do you need?"
+
 export const specialtyLabels = {
   Dentist: { en: 'dentist', ar: 'دكتور أسنان', section: 'طب الأسنان' },
   Ophthalmologist: { en: 'ophthalmologist (eye doctor)', ar: 'دكتور عيون', section: 'العيون' },
   Pediatricians: { en: 'pediatrician', ar: 'دكتور أطفال', section: 'طب الأطفال' },
   Cardiologist: { en: 'cardiologist', ar: 'دكتور قلب', section: 'أمراض القلب' },
   Dermatologist: { en: 'dermatologist', ar: 'دكتور جلدية', section: 'الجلدية' },
-  Gynecologist: { en: 'gynecologist', ar: 'دكتورة نسا وتوليد', section: 'النساء والتوليد' },
+  Gynecologist: { en: 'gynecologist', ar: 'دكتور نسا وتوليد', section: 'النساء والتوليد' },
   Orthopedic: { en: 'orthopedic doctor', ar: 'دكتور عظام', section: 'العظام' },
   Neurologist: { en: 'neurologist', ar: 'دكتور مخ وأعصاب', section: 'طب الأعصاب' },
   Gastroenterologist: { en: 'gastroenterologist', ar: 'دكتور جهاز هضمي', section: 'الجهاز الهضمي' },
@@ -261,6 +294,12 @@ export const buildRuleBasedReply = ({
     return ar
       ? 'ألف سلامة عليك. احكيلي أكتر شوية: من إمتى وإيه اللي حاسس بيه؟ عندك سخونية، كحة، وجع في مكان معين، أو دوخة؟'
       : "I'm sorry you're not feeling well. Can you tell me a bit more? How long has it been, and do you have a fever, a cough, pain somewhere, or dizziness?"
+  }
+
+  if (suggestedSpecialty && isDirectDoctorRequest(userText)) {
+    return ar
+      ? `تمام. دول الدكاترة المتاحين في ${specialtyLabels[suggestedSpecialty]?.section || suggestedSpecialty}. اختار دكتور أو دوس على ميعاد على طول.`
+      : `Of course. Here's who's available. Choose a doctor or tap a time.`
   }
 
   if (suggestedSpecialty) {
