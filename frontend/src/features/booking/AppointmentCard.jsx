@@ -69,7 +69,7 @@ const RatingForm = ({ appointment, onSubmit }) => {
             type='button'
             onClick={() => setRating(star)}
             aria-pressed={rating === star}
-            aria-label={localizeDigits(fill(t('Rate n out of 5'), { n: star }))}
+            aria-label={localizeDigits(fill(t('Rate {{n}} out of 5'), { n: star }))}
             className='rounded-full p-1 hover:bg-surface'
           >
             <Star className={cx('h-6 w-6', rating >= star ? 'fill-current' : 'fill-none')} aria-hidden='true' />

@@ -137,7 +137,7 @@ export default {
     'Cancel visit': 'إلغاء الزيارة',
     '{{amount}} goes back to your card. Banks usually take 5 to 10 days to show it.': 'سيعود {{amount}} إلى بطاقتك. تستغرق البنوك عادة من ٥ إلى ١٠ أيام لإظهاره.',
     'You will not be charged.': 'لن يتم خصم أي مبلغ.',
-    'Rate n out of 5': 'تقييم {{n}} من ٥',
+    'Rate {{n}} out of 5': 'تقييم {{n}} من ٥',
     'Download PDF': 'تنزيل PDF',
     'Date and time': 'التاريخ والوقت',
     'Resend OTP': 'إعادة إرسال الرمز',
