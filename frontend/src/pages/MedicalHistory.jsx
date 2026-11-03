@@ -1,203 +1,164 @@
 import React, { useContext, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Save, ShieldCheck } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { useLanguage } from '../i18n'
-import { ClipboardList, HeartPulse, Save, ShieldCheck } from 'lucide-react'
+import { Button, Card, CardBody, EmptyState, Field, Skeleton, SkeletonGroup, Textarea, notify } from '../components/ui'
+import { useAccountApi, useServerText } from '../components/account/accountApi'
+import { QuickChips } from '../components/account/QuickChips'
+import { toggleInText } from '../components/account/hubLogic'
 
-const emptyHistory = {
-  conditions: '',
-  allergies: '',
-  surgeries: '',
-  familyHistory: '',
-  socialHistory: '',
-  notes: ''
-}
+const emptyHistory = { conditions: '', allergies: '', surgeries: '', familyHistory: '', socialHistory: '', notes: '' }
 
 const fields = [
-  {
-    name: 'conditions',
-    labelKey: 'Medical Conditions',
-    hintKey: 'Chronic conditions, current diagnoses, or recurring concerns'
-  },
-  {
-    name: 'allergies',
-    labelKey: 'Allergies',
-    hintKey: 'Medicine, food, environmental, or other known allergies'
-  },
-  {
-    name: 'surgeries',
-    labelKey: 'Surgeries',
-    hintKey: 'Past operations, procedures, or hospital stays'
-  },
-  {
-    name: 'familyHistory',
-    labelKey: 'Family History',
-    hintKey: 'Inherited conditions or major family health patterns'
-  },
-  {
-    name: 'socialHistory',
-    labelKey: 'Social History',
-    hintKey: 'Smoking, alcohol, activity level, occupation, or lifestyle notes'
-  },
-  {
-    name: 'notes',
-    labelKey: 'Additional Notes',
-    hintKey: 'Anything else your care team should know'
-  }
+  { name: 'allergies', labelKey: 'Allergies', hintKey: 'Medicine, food, environmental, or other known allergies', chips: 'allergies' },
+  { name: 'conditions', labelKey: 'Medical Conditions', hintKey: 'Chronic conditions, current diagnoses, or recurring concerns', chips: 'conditions' },
+  { name: 'surgeries', labelKey: 'Surgeries', hintKey: 'Past operations, procedures, or hospital stays' },
+  { name: 'familyHistory', labelKey: 'Family History', hintKey: 'Inherited conditions or major family health patterns' },
+  { name: 'socialHistory', labelKey: 'Social History', hintKey: 'Smoking, alcohol, activity level, occupation, or lifestyle notes' },
+  { name: 'notes', labelKey: 'Additional Notes', hintKey: 'Anything else your care team should know' }
 ]
+
+const pickFields = (source = {}) => fields.reduce((acc, { name }) => ({ ...acc, [name]: source[name] || '' }), {})
 
 const MedicalHistory = () => {
   const navigate = useNavigate()
-  const { token, getMedicalHistory, saveMedicalHistory } = useContext(AppContext)
-  const { t, language, localizeDigits } = useLanguage()
+  const { token, loadUserProfileData } = useContext(AppContext)
+  const { t, language, localizeDigits, formatPercent } = useLanguage()
+  const api = useAccountApi()
+  const say = useServerText()
   const [history, setHistory] = useState(emptyHistory)
-  const [initialHistory, setInitialHistory] = useState(emptyHistory)
+  const [saved, setSaved] = useState(emptyHistory)
+  const [meta, setMeta] = useState({})
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const fillT = (key, vars = {}) => {
-    let s = String(t(key))
-    Object.entries(vars || {}).forEach(([k, v]) => {
-      s = s.split(`{{${k}}}`).join(String(v))
-    })
-    return localizeDigits(s)
+  const hasChanges = JSON.stringify(history) !== JSON.stringify(saved)
+  const filled = fields.filter(({ name }) => String(history[name]).trim()).length
+  const percent = Math.round((filled / fields.length) * 100)
+
+  const load = async () => {
+    setLoading(true)
+    setLoadFailed(false)
+    const data = await api('get', '/api/user/medical-history')
+    if (data.success) {
+      const values = pickFields(data.medicalHistory)
+      setHistory(values)
+      setSaved(values)
+      setMeta(data.medicalHistory || {})
+    } else {
+      setLoadFailed(true)
+    }
+    setLoading(false)
   }
 
-  const hasExistingHistory = Object.values(initialHistory).some((value) => String(value || '').trim())
-  const hasChanges = JSON.stringify(history) !== JSON.stringify(initialHistory)
+  useEffect(() => {
+    if (!token) {
+      navigate('/login?mode=login', { replace: true })
+      return
+    }
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loads when the session changes
+  }, [token])
 
-  const updateField = (field, value) => {
-    setHistory((prev) => ({ ...prev, [field]: value }))
-  }
+  // Long answers are easy to lose by closing a tab, so warn first.
+  useEffect(() => {
+    if (!hasChanges) return undefined
+    const warn = (event) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [hasChanges])
 
-  const formatUpdatedAtDisplay = (updatedAt) => {
-    if (!updatedAt) return null
-    const d = new Date(updatedAt)
-    if (!Number.isFinite(d.getTime())) return null
-    const locale = language === 'ar' ? 'ar-EG' : 'en-US'
-    return d.toLocaleString(locale, { dateStyle: 'short', timeStyle: 'medium' })
-  }
-
-  const updatedBadgeText = () => {
-    const formatted = formatUpdatedAtDisplay(initialHistory.updatedAt)
-    if (!formatted) return t('Not updated yet')
-    return fillT('Last updated: {{time}}', { time: formatted })
+  const updatedText = () => {
+    if (!meta.updatedAt) return t('Not updated yet')
+    const when = new Date(meta.updatedAt).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    const who = meta.updatedBy && meta.updatedBy !== 'patient' ? t('by your doctor') : ''
+    return `${localizeDigits(String(t('Last updated: {{time}}')).replace('{{time}}', when))} ${who}`.trim()
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     setSaving(true)
-
-    const savedHistory = await saveMedicalHistory(history, hasExistingHistory ? 'put' : 'post')
-    if (savedHistory) {
-      const normalized = { ...emptyHistory, ...savedHistory }
-      setHistory(normalized)
-      setInitialHistory(normalized)
-    }
-
+    const data = await api('put', '/api/user/medical-history', { medicalHistory: history })
     setSaving(false)
+    if (!data.success) return notify.error(say(data.message))
+    const values = pickFields(data.medicalHistory)
+    setHistory(values)
+    setSaved(values)
+    setMeta(data.medicalHistory)
+    notify.success(say(data.message))
+    loadUserProfileData()
   }
-
-  useEffect(() => {
-    const loadHistory = async () => {
-      if (!token) {
-        navigate('/login')
-        return
-      }
-
-      setLoading(true)
-      const medicalHistory = await getMedicalHistory()
-      const normalized = { ...emptyHistory, ...(medicalHistory || {}) }
-      setHistory(normalized)
-      setInitialHistory(normalized)
-      setLoading(false)
-    }
-
-    loadHistory()
-  }, [token])
 
   if (loading) {
     return (
-      <div className='max-w-5xl mx-auto mt-8 animate-pulse'>
-        <div className='h-8 bg-gray-200 rounded w-56 mb-4'></div>
-        <div className='grid md:grid-cols-2 gap-4'>
-          {[...Array(6)].map((_, index) => (
-            <div key={index} className='h-36 bg-gray-100 border border-gray-200 rounded-lg'></div>
-          ))}
-        </div>
-      </div>
+      <main className='py-8'>
+        <SkeletonGroup label={t('Loading...')}>
+          <Skeleton className='mb-4 h-10 w-56' />
+          <div className='grid gap-4 md:grid-cols-2'>
+            {[...Array(6)].map((_, index) => <Skeleton key={index} className='h-40 rounded-card' />)}
+          </div>
+        </SkeletonGroup>
+      </main>
+    )
+  }
+
+  if (loadFailed) {
+    return (
+      <main className='py-12'>
+        <EmptyState title={t('We could not open your medical history')} description={t('Please check your connection and try again.')} action={<Button onClick={load}>{t('Try again')}</Button>} />
+      </main>
     )
   }
 
   return (
-    <div className='max-w-5xl mx-auto mt-8 mb-12'>
-      <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-5 mb-6'>
-        <div>
-          <div className='flex items-center gap-3'>
-            <span className='p-2 bg-primary/10 text-primary rounded-lg'>
-              <ClipboardList className='w-5 h-5' />
-            </span>
-            <h1 className='text-xl sm:text-2xl font-bold text-gray-900'>
-              <span className='text-primary'>{t('Medical History')}</span>
-            </h1>
-          </div>
-          <p className='text-sm text-gray-600 mt-2 max-w-2xl'>
-            {t('Keep your health background up to date so doctors can review the right context before and after visits.')}
-          </p>
+    <main className='mx-auto max-w-5xl pt-6 pb-24'>
+      <Link to='/my-profile' className='mb-4 inline-flex min-h-9 items-center gap-2 text-body-sm text-ink-2 hover:text-ink'>
+        <ArrowLeft className='size-4 rtl:-scale-x-100' aria-hidden='true' /> {t('Your health space')}
+      </Link>
+      <header className='mb-6'>
+        <h1 className='font-display text-display text-ink'>{t('Medical History')}</h1>
+        <p className='mt-2 max-w-2xl text-body-sm text-ink-2'>{t('Keep your health background up to date so doctors can review the right context before and after visits.')}</p>
+        <div className='mt-3 flex flex-wrap items-center gap-3 text-caption text-ink-2'>
+          <span className='inline-flex items-center gap-1.5'><ShieldCheck className='size-4 text-brand' aria-hidden='true' /> {updatedText()}</span>
+          <span>·</span>
+          <span>{localizeDigits(String(t('{{n}} complete')).replace('{{n}}', formatPercent(percent)))}</span>
         </div>
-
-        <div className='flex items-center gap-2 text-xs sm:text-sm text-gray-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2'>
-          <ShieldCheck className='w-4 h-4 text-primary' />
-          <span>{updatedBadgeText()}</span>
-        </div>
-      </div>
+      </header>
 
       <form onSubmit={handleSubmit}>
-        <div className='grid md:grid-cols-2 gap-4'>
+        <div className='grid gap-4 md:grid-cols-2'>
           {fields.map((field) => (
-            <label key={field.name} className='block border border-gray-200 rounded-lg p-4 bg-white'>
-              <span className='flex items-center gap-2 font-semibold text-gray-900 text-sm sm:text-base'>
-                <HeartPulse className='w-4 h-4 text-primary' />
-                {t(field.labelKey)}
-              </span>
-              <span className='block text-xs sm:text-sm text-gray-500 mt-1 mb-3'>{t(field.hintKey)}</span>
-              <div data-input-field>
-                <textarea
-                  value={history[field.name] || ''}
-                  onChange={(event) => updateField(field.name, event.target.value)}
-                  className='w-full min-h-28 resize-y border border-gray-200 rounded-lg p-3 text-base text-gray-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 sm:text-sm'
-                  placeholder={t('Write here')}
-                />
-              </div>
-            </label>
+            <Card key={field.name} variant='flat'>
+              <CardBody>
+                <Field label={t(field.labelKey)} hint={t(field.hintKey)}>
+                  <Textarea
+                    dir='auto'
+                    rows={4}
+                    maxLength={5000}
+                    value={history[field.name]}
+                    onChange={(event) => setHistory((current) => ({ ...current, [field.name]: event.target.value }))}
+                    placeholder={t('Write here')}
+                  />
+                </Field>
+                {field.chips && (
+                  <QuickChips group={field.chips} value={history[field.name]} onToggle={(item) => setHistory((current) => ({ ...current, [field.name]: toggleInText(current[field.name], item) }))} />
+                )}
+              </CardBody>
+            </Card>
           ))}
         </div>
 
-        <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 pt-5 border-t'>
-          <p className='text-xs sm:text-sm text-gray-500'>
-            {t('You can update this anytime. Doctors may also add notes after appointments.')}
-          </p>
-
-          <button
-            type='submit'
-            disabled={saving || !hasChanges}
-            className='inline-flex items-center justify-center gap-2 bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed'
-          >
-            {saving ? (
-              <>
-                <span className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin'></span>
-                {t('Saving...')}
-              </>
-            ) : (
-              <>
-                <Save className='w-4 h-4' />
-                {t('Save History')}
-              </>
-            )}
-          </button>
+        <div className='sticky bottom-0 z-10 mt-6 flex flex-col gap-3 border-t border-line bg-canvas py-4 sm:flex-row sm:items-center sm:justify-between'>
+          <p className='text-caption text-ink-2'>{t('You can update this anytime. Doctors may also add notes after appointments.')}</p>
+          <Button type='submit' loading={saving} disabled={!hasChanges} leadingIcon={<Save className='size-4' />}>{t('Save History')}</Button>
         </div>
       </form>
-    </div>
+    </main>
   )
 }
 

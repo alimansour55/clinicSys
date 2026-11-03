@@ -29,7 +29,7 @@ const twilioFetch = async (path, body) => {
   const data = await response.json()
   if (!response.ok) {
     const message = data.message || data.error_message || 'Twilio Verify request failed'
-    console.error('Twilio Verify error:', data)
+    console.error('Twilio Verify error: HTTP', response.status, 'code', data.code)
     throw new Error(message)
   }
   return data

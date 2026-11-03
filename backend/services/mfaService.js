@@ -60,7 +60,38 @@ const verifyTotpCode = (secret, code, window = 1) => {
   return false
 }
 
-const buildOtpAuthUrl = ({ secret, accountName, issuer = 'ClinicSys' }) => {
+/** Same check as verifyTotpCode, but returns the matched time step so the caller can refuse a replay. */
+const matchTotpStep = (secret, code, window = 1) => {
+  const normalizedCode = String(code || '').replace(/\s+/g, '')
+  if (!/^\d{6}$/.test(normalizedCode)) return 0
+
+  const currentStep = Math.floor(Date.now() / 1000 / 30)
+  for (let offset = -window; offset <= window; offset += 1) {
+    if (generateTotpCode(secret, currentStep + offset) === normalizedCode) return currentStep + offset
+  }
+
+  return 0
+}
+
+const RECOVERY_CODE_COUNT = 8
+const RECOVERY_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+
+const hashRecoveryCode = (code) =>
+  crypto
+    .createHmac('sha256', String(process.env.JWT_SECRET || ''))
+    .update(String(code || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase())
+    .digest('hex')
+
+/** Returns the codes to show once, and the hashes to store. */
+const generateRecoveryCodes = () => {
+  const codes = Array.from({ length: RECOVERY_CODE_COUNT }, () => {
+    const chars = Array.from({ length: 10 }, () => RECOVERY_ALPHABET[crypto.randomInt(RECOVERY_ALPHABET.length)])
+    return `${chars.slice(0, 5).join('')}-${chars.slice(5).join('')}`
+  })
+  return { codes, hashes: codes.map(hashRecoveryCode) }
+}
+
+const buildOtpAuthUrl = ({ secret, accountName, issuer = 'Clinivo' }) => {
   const label = encodeURIComponent(`${issuer}:${accountName}`)
   const params = new URLSearchParams({
     secret,
@@ -73,24 +104,10 @@ const buildOtpAuthUrl = ({ secret, accountName, issuer = 'ClinicSys' }) => {
   return `otpauth://totp/${label}?${params.toString()}`
 }
 
-const buildQrCodeUrl = (otpauthUrl) => {
-  const params = new URLSearchParams({
-    size: '420x420',
-    margin: '24',
-    data: otpauthUrl
-  })
+// The QR code is drawn in the browser. Never put otpauthUrl in a URL for a third-party QR service: it contains the secret.
+const buildMfaSetupPayload = ({ secret, accountName }) => ({
+  secret,
+  otpauthUrl: buildOtpAuthUrl({ secret, accountName })
+})
 
-  return `https://api.qrserver.com/v1/create-qr-code/?${params.toString()}`
-}
-
-const buildMfaSetupPayload = ({ secret, accountName }) => {
-  const otpauthUrl = buildOtpAuthUrl({ secret, accountName })
-
-  return {
-    secret,
-    otpauthUrl,
-    qrCodeUrl: buildQrCodeUrl(otpauthUrl)
-  }
-}
-
-export { buildMfaSetupPayload, generateMfaSecret, generateTotpCode, verifyTotpCode }
+export { buildMfaSetupPayload, generateMfaSecret, generateRecoveryCodes, generateTotpCode, hashRecoveryCode, matchTotpStep, verifyTotpCode }

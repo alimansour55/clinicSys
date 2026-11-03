@@ -1,3 +1,4 @@
+import { clientIp } from '../services/authThrottleService.js'
 import {
   confirmSignupEmailVerification,
   confirmSignupPhoneVerification,
@@ -6,15 +7,15 @@ import {
 } from '../services/signupVerificationService.js'
 
 const handleError = (res, error) => {
-  console.log(error)
-  const message = error.code === 'RESEND_COOLDOWN' ? error.message : error.message || 'Request failed'
-  return res.json({ success: false, message })
+  // Errors raised on purpose carry a code or status. Anything else is internal and stays out of the response.
+  const expected = error.code === 'RESEND_COOLDOWN' || error.statusCode
+  if (!expected) console.error('Signup verification:', error.message)
+  return res.json({ success: false, message: expected ? error.message : 'Something went wrong. Please try again.' })
 }
 
 export const sendSignupEmailCode = async (req, res) => {
   try {
-    const { email } = req.body
-    const result = await sendSignupEmailVerification(email)
+    const result = await sendSignupEmailVerification(req.body?.email, { ip: clientIp(req) })
     return res.json({ success: true, ...result })
   } catch (error) {
     return handleError(res, error)
@@ -23,7 +24,7 @@ export const sendSignupEmailCode = async (req, res) => {
 
 export const confirmSignupEmailCode = async (req, res) => {
   try {
-    const { email, code } = req.body
+    const { email, code } = req.body || {}
     const result = await confirmSignupEmailVerification(email, code)
     return res.json({ success: true, ...result })
   } catch (error) {
@@ -33,8 +34,7 @@ export const confirmSignupEmailCode = async (req, res) => {
 
 export const sendSignupPhoneCode = async (req, res) => {
   try {
-    const { phone } = req.body
-    const result = await sendSignupPhoneVerification(phone)
+    const result = await sendSignupPhoneVerification(req.body?.phone, { ip: clientIp(req) })
     return res.json({ success: true, ...result })
   } catch (error) {
     return handleError(res, error)
@@ -43,7 +43,7 @@ export const sendSignupPhoneCode = async (req, res) => {
 
 export const confirmSignupPhoneCode = async (req, res) => {
   try {
-    const { phone, code } = req.body
+    const { phone, code } = req.body || {}
     const result = await confirmSignupPhoneVerification(phone, code)
     return res.json({ success: true, ...result })
   } catch (error) {

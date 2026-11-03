@@ -1,5 +1,6 @@
 import React from 'react'
 import { EGYPT_DIAL_CODE, parseEgyptLocalDigits } from '../utils/egyptPhone'
+import { useLanguage } from '../i18n'
 
 const EgyptFlag = () => (
   <svg
@@ -22,14 +23,16 @@ const EgyptPhoneInput = ({
   className = '',
   inputClassName = '',
 }) => {
+  const { t } = useLanguage()
   const handleChange = (e) => {
     onChange(parseEgyptLocalDigits(e.target.value))
   }
 
+  // Phone numbers read left to right in every language.
   return (
-    <div className={`flex overflow-hidden rounded-md border-2 border-gray-300 bg-white transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 ${className}`} data-input-field>
+    <div dir='ltr' className={`flex overflow-hidden rounded-control border border-field bg-surface transition focus-within:border-primary focus-within:outline-2 focus-within:outline-primary/30 ${className}`} data-input-field>
       <div
-        className='flex shrink-0 items-center gap-2 border-e border-gray-200 bg-gray-50 px-3 text-sm text-gray-700'
+        className='flex shrink-0 items-center gap-2 border-e border-line bg-surface-sunken px-3 text-body-sm text-ink-2'
         aria-hidden='true'
       >
         <EgyptFlag />
@@ -47,9 +50,9 @@ const EgyptPhoneInput = ({
         maxLength={10}
         placeholder='10 1234 5678'
         pattern='1[0125][0-9]{8}'
-        title='Egyptian mobile: 10 digits starting with 10, 11, 12, or 15'
-        className={`min-w-0 flex-1 border-0 bg-transparent px-3 py-2.5 text-sm outline-none focus:ring-0 sm:py-3 sm:text-base tabular-nums ${inputClassName}`}
-        aria-label='Egyptian mobile number without country code'
+        title={t('Egyptian mobile: 10 digits starting with 10, 11, 12 or 15')}
+        className={`min-h-11 min-w-0 flex-1 border-0 bg-transparent px-3 text-body-sm text-ink outline-none tabular-nums placeholder:text-ink-3 focus:ring-0 ${inputClassName}`}
+        aria-label={t('Egyptian mobile number without country code')}
       />
     </div>
   )

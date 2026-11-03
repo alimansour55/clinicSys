@@ -24,6 +24,10 @@ export const sendSms = async ({ to, body }) => {
   }
 
   if (!twilioConfigured()) {
+    // The body holds a one-time code, which must never reach production logs.
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SMS is not available right now')
+    }
     console.log('[SMS dev mode] To:', toE164Number)
     console.log('[SMS dev mode] Message:', body)
     return { delivered: false, devMode: true }
@@ -44,8 +48,7 @@ export const sendSms = async ({ to, body }) => {
   })
 
   if (!response.ok) {
-    const errText = await response.text()
-    console.error('Twilio SMS error:', errText)
+    console.error('Twilio SMS error: HTTP', response.status)
     throw new Error('Failed to send SMS. Check Twilio configuration.')
   }
 

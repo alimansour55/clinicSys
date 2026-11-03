@@ -1,209 +1,145 @@
-import React, { useContext, useEffect, useRef, useState } from 'react'
-import { toast } from 'react-toastify'
-import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
-import { CreditCard, FileUp, Check } from 'lucide-react'
+import React, { useContext, useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Save } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
-import { getInsuranceStatus, insuranceStatusLabel, insuranceStatusTone, isInsuranceExpired } from '../utils/insuranceVerification'
-
-const emptyInsurance = {
-  enabled: false,
-  provider: '',
-  fullName: '',
-  birthDate: '',
-  idNumber: '',
-  expiryDate: '',
-  medicalCardPhoto: ''
-}
+import { useLanguage } from '../i18n'
+import { Badge, Button, Card, CardBody, CardFooter, Skeleton, SkeletonGroup, notify } from '../components/ui'
+import { FormError } from '../components/account/accountUi'
+import { useAccountApi, useServerText } from '../components/account/accountApi'
+import InsuranceFields from '../components/account/InsuranceFields'
+import { emptyInsurance, insuranceProblem } from '../components/account/insuranceForm'
+import { getInsuranceStatus, insuranceStatusLabel, isInsuranceExpired } from '../utils/insuranceVerification'
 
 const today = new Date().toISOString().split('T')[0]
 
-const Insurance = () => {
-  const { token, userData, saveInsurance, backendUrl, loadUserProfileData } = useContext(AppContext)
-  const navigate = useNavigate()
-  const [insurance, setInsurance] = useState(emptyInsurance)
-  const [cardFile, setCardFile] = useState(null)
-  const cardFileInputRef = useRef(null)
-  const [saving, setSaving] = useState(false)
-  const [providers, setProviders] = useState([])
+const STATUS_TONES = { approved: 'success', declined: 'danger', pending: 'warning', none: 'neutral' }
 
-  /** Receptionist/admin may update insurance on the server; reload profile when this page is opened. */
+const STATUS_NOTES = {
+  pending: 'Your insurance is on file and waiting for reception desk review.',
+  approved: 'Your insurance is approved and can be used when you book.',
+  declined: 'Please correct your details and save them for another review.'
+}
+
+const pick = (source = {}) => ({
+  provider: source.provider || '',
+  fullName: source.fullName || '',
+  birthDate: source.birthDate || '',
+  idNumber: source.idNumber || '',
+  expiryDate: source.expiryDate || ''
+})
+
+const Insurance = () => {
+  const { token, userData, loadUserProfileData } = useContext(AppContext)
+  const { t } = useLanguage()
+  const api = useAccountApi()
+  const say = useServerText()
+  const navigate = useNavigate()
+  const [enabled, setEnabled] = useState(false)
+  const [values, setValues] = useState(emptyInsurance)
+  const [cardFile, setCardFile] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
   useEffect(() => {
-    if (!token) return
+    if (!token) {
+      navigate('/login?mode=login', { replace: true })
+      return
+    }
+    // Reception may have reviewed the card, so reload rather than trust what is in memory.
     loadUserProfileData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load fresh insurance from API on visit
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load fresh insurance on each visit
   }, [token])
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await axios.get(`${backendUrl}/api/user/insurance-providers`)
-        if (!cancelled && data.success && Array.isArray(data.providers)) setProviders(data.providers)
-      } catch {
-        if (!cancelled) setProviders([])
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [backendUrl])
-
-  useEffect(() => {
-    setInsurance({ ...emptyInsurance, ...(userData?.insurance || {}) })
+    setEnabled(Boolean(userData?.insurance?.enabled))
+    setValues(pick(userData?.insurance))
   }, [userData])
 
-  useEffect(() => {
-    if (!token) navigate('/login?mode=login')
-  }, [token])
+  if (!userData) {
+    return (
+      <main className='py-8'>
+        <SkeletonGroup label={t('Loading...')}>
+          <Skeleton className='mx-auto h-96 max-w-3xl rounded-card' />
+        </SkeletonGroup>
+      </main>
+    )
+  }
+
+  const stored = userData.insurance || {}
+  const status = getInsuranceStatus(stored)
+  const existingCard = stored.medicalCardPhoto || ''
+  const expired = stored.enabled && isInsuranceExpired(stored.expiryDate)
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-
-    if (insurance.enabled && (!insurance.provider || !insurance.fullName || !insurance.birthDate || !insurance.idNumber || !insurance.expiryDate)) {
-      toast.error('Please complete all insurance fields including provider')
-      return
-    }
-
-    if (insurance.enabled && !cardFile && !insurance.medicalCardPhoto) {
-      toast.error('Please attach the medical card')
-      return
+    setError('')
+    if (enabled) {
+      const problem = insuranceProblem(values, { file: cardFile, hasExistingCard: Boolean(existingCard) })
+      if (problem) return setError(say(problem))
     }
 
     const formData = new FormData()
-    formData.append('insuranceEnabled', insurance.enabled)
-    formData.append('insuranceProvider', insurance.provider)
-    formData.append('insuranceFullName', insurance.fullName)
-    formData.append('insuranceBirthDate', insurance.birthDate)
-    formData.append('insuranceIdNumber', insurance.idNumber)
-    formData.append('insuranceExpiryDate', insurance.expiryDate)
-    if (cardFile) formData.append('insuranceCardPhoto', cardFile)
+    formData.append('insuranceEnabled', enabled)
+    if (enabled) {
+      formData.append('insuranceProvider', values.provider)
+      formData.append('insuranceFullName', values.fullName)
+      formData.append('insuranceBirthDate', values.birthDate)
+      formData.append('insuranceIdNumber', values.idNumber)
+      formData.append('insuranceExpiryDate', values.expiryDate)
+      if (cardFile) formData.append('insuranceCardPhoto', cardFile)
+    }
 
     setSaving(true)
-    const saved = await saveInsurance(formData)
-    if (saved) {
-      setInsurance({ ...emptyInsurance, ...saved })
-      setCardFile(null)
-    }
+    const data = await api('post', '/api/user/update-insurance', formData)
     setSaving(false)
+    if (!data.success) return setError(say(data.message))
+    notify.success(say(data.message))
+    setCardFile(null)
+    await loadUserProfileData()
   }
 
   return (
-    <div className='min-h-[70vh] py-8'>
-      <div className='max-w-3xl mx-auto bg-white border border-gray-200 rounded-lg p-5 sm:p-7 shadow-sm'>
-        <div className='flex items-center gap-3 mb-6'>
-          <div className='w-11 h-11 rounded-lg bg-primary/10 text-primary flex items-center justify-center'>
-            <CreditCard className='w-6 h-6' />
-          </div>
-          <div>
-            <h1 className='text-2xl font-bold text-gray-900'>Insurance</h1>
-            <p className='text-sm text-gray-500'>Add or edit your medical insurance details.</p>
-          </div>
+    <main className='mx-auto max-w-3xl pt-6 pb-12'>
+      <Link to='/my-profile' className='mb-4 inline-flex min-h-9 items-center gap-2 text-body-sm text-ink-2 hover:text-ink'>
+        <ArrowLeft className='size-4 rtl:-scale-x-100' aria-hidden='true' /> {t('Your health space')}
+      </Link>
+      <header className='mb-6 flex flex-wrap items-start justify-between gap-3'>
+        <div>
+          <h1 className='font-display text-display text-ink'>{t('Insurance')}</h1>
+          <p className='mt-2 text-body-sm text-ink-2'>{t('Add or edit your medical insurance details.')}</p>
         </div>
+        {stored.enabled && <Badge tone={STATUS_TONES[status]} dot>{insuranceStatusLabel(status, t)}</Badge>}
+      </header>
 
-        {userData?.insurance?.enabled && (
-          <div className={`mb-5 rounded-lg border px-4 py-3 text-sm ${insuranceStatusTone(getInsuranceStatus(userData.insurance))}`}>
-            <p className='font-semibold'>{insuranceStatusLabel(getInsuranceStatus(userData.insurance))}</p>
-            {getInsuranceStatus(userData.insurance) === 'pending' && (
-              <p className='mt-1 text-xs opacity-90'>Your insurance is on file and waiting for reception desk review.</p>
+      {stored.enabled && (
+        <div className='mb-5 space-y-1 rounded-control bg-surface-sunken px-4 py-3 text-body-sm text-ink-2'>
+          {STATUS_NOTES[status] && <p>{t(STATUS_NOTES[status])}</p>}
+          {status === 'declined' && stored.declineReason && <p dir='auto'><span className='font-semibold text-danger-ink'>{t('Reason')}: </span>{stored.declineReason}</p>}
+          {expired && <p className='font-semibold text-danger-ink'>{t('Your card expiry date has passed. Please update your details.')}</p>}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <Card>
+          <CardBody className='space-y-5'>
+            <label className='flex min-h-11 cursor-pointer items-center gap-3 text-body-sm font-semibold text-ink'>
+              <input type='checkbox' checked={enabled} onChange={(event) => setEnabled(event.target.checked)} className='size-5 accent-primary' />
+              <span>
+                {t('Use my insurance')}
+                <span className='block text-caption font-normal text-ink-2'>{t('Turn this off to remove your insurance and your card from your account.')}</span>
+              </span>
+            </label>
+            {enabled && (
+              <InsuranceFields values={values} onChange={setValues} file={cardFile} onFileChange={setCardFile} existingCardUrl={existingCard} today={today} />
             )}
-            {getInsuranceStatus(userData.insurance) === 'declined' && userData.insurance.declineReason && (
-              <p className='mt-1 text-xs opacity-90'>Reason: {userData.insurance.declineReason}</p>
-            )}
-            {isInsuranceExpired(userData.insurance.expiryDate) && (
-              <p className='mt-1 text-xs font-semibold'>Your card expiry date has passed. Please update your details.</p>
-            )}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className='space-y-5'>
-          <button
-            type='button'
-            role='checkbox'
-            aria-checked={insurance.enabled}
-            onClick={() => setInsurance((prev) => ({ ...prev, enabled: !prev.enabled }))}
-            className='flex w-full min-h-[44px] items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-start transition active:bg-gray-100'
-          >
-            <span>
-              <span className='block text-sm font-semibold text-gray-800'>Add Insurance</span>
-              <span className='block text-xs text-gray-500'>Turn this on when you want insurance used on your profile.</span>
-            </span>
-            <span
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition ${
-                insurance.enabled ? 'border-primary bg-primary text-white' : 'border-gray-300 bg-white'
-              }`}
-              aria-hidden='true'
-            >
-              {insurance.enabled ? <Check className='h-3.5 w-3.5' strokeWidth={3} /> : null}
-            </span>
-          </button>
-
-          {insurance.enabled && (
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-              <div className='sm:col-span-2' data-input-field>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Insurance provider *</label>
-                <select
-                  value={insurance.provider}
-                  onChange={(e) => setInsurance((prev) => ({ ...prev, provider: e.target.value }))}
-                  className='w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white'
-                  required
-                >
-                  <option value=''>Select provider</option>
-                  {providers.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className='sm:col-span-2' data-input-field>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Full Name *</label>
-                <input value={insurance.fullName} onChange={(e) => setInsurance((prev) => ({ ...prev, fullName: e.target.value }))} className='w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20' required />
-              </div>
-              <div data-input-field>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Birth Date *</label>
-                <input type='date' max={today} value={insurance.birthDate} onChange={(e) => setInsurance((prev) => ({ ...prev, birthDate: e.target.value }))} className='date-field-input w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20' required />
-              </div>
-              <div data-input-field>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>ID Number *</label>
-                <input value={insurance.idNumber} onChange={(e) => setInsurance((prev) => ({ ...prev, idNumber: e.target.value }))} className='w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20' required />
-              </div>
-              <div data-input-field>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Expiry Date *</label>
-                <input type='date' value={insurance.expiryDate} onChange={(e) => setInsurance((prev) => ({ ...prev, expiryDate: e.target.value }))} className='date-field-input w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20' required />
-              </div>
-              <div>
-                <span className='block text-sm font-medium text-gray-700 mb-1'>Photo of Medical Card *</span>
-                <button
-                  type='button'
-                  onClick={() => cardFileInputRef.current?.click()}
-                  className='flex min-h-[44px] w-full items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2.5 text-start text-sm text-gray-600 transition hover:border-primary active:bg-gray-50'
-                >
-                  <FileUp className='h-4 w-4 shrink-0' />
-                  <span className='truncate'>{cardFile ? cardFile.name : insurance.medicalCardPhoto ? 'Replace attached card' : 'Attach file'}</span>
-                </button>
-                <input
-                  ref={cardFileInputRef}
-                  type='file'
-                  accept='image/*,.pdf'
-                  className='sr-only'
-                  tabIndex={-1}
-                  aria-hidden
-                  onChange={(e) => setCardFile(e.target.files?.[0] || null)}
-                />
-                {insurance.medicalCardPhoto && (
-                  <a className='inline-block mt-2 text-sm text-primary underline' href={insurance.medicalCardPhoto} target='_blank' rel='noreferrer'>View current card</a>
-                )}
-              </div>
-            </div>
-          )}
-
-          <button disabled={saving} className='rounded-full bg-primary text-white px-8 py-3 text-sm font-semibold disabled:bg-gray-400'>
-            {saving ? 'Saving...' : 'Save Insurance'}
-          </button>
-        </form>
-      </div>
-    </div>
+            <FormError>{error}</FormError>
+          </CardBody>
+          <CardFooter>
+            <Button type='submit' loading={saving} leadingIcon={<Save className='size-4' />}>{t('Save Insurance')}</Button>
+          </CardFooter>
+        </Card>
+      </form>
+    </main>
   )
 }
 

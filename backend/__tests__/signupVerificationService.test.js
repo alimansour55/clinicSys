@@ -22,6 +22,12 @@ vi.mock('../utils/emailUtils.js', () => ({
   normalizeEmail: (e) => String(e || '').trim().toLowerCase(),
   findOneByEmail: vi.fn(),
 }))
+vi.mock('../services/authThrottleService.js', () => ({
+  consumeQuota: vi.fn().mockResolvedValue(true),
+  getLockMinutes: vi.fn().mockResolvedValue(0),
+  recordFailure: vi.fn().mockResolvedValue({ attemptsLeft: 4, locked: false }),
+  clearFailures: vi.fn().mockResolvedValue(),
+}))
 vi.mock('../services/twilioVerifyService.js', () => ({
   isTwilioVerifyConfigured: vi.fn(() => false),
   startPhoneVerification: vi.fn(),
@@ -52,13 +58,26 @@ describe('signupVerificationService', () => {
   })
 
   describe('sendSignupEmailVerification', () => {
-    it('returns proof when already verified', async () => {
+    it('never returns a proof without a code, even for a record already verified', async () => {
       findOneByEmail.mockResolvedValue(null)
       signupVerificationModel.findOne.mockResolvedValue({ verified: true })
 
       const result = await sendSignupEmailVerification('user@example.com')
-      expect(result.alreadyVerified).toBe(true)
-      expect(result.verificationToken).toBeTruthy()
+      expect(result.verificationToken).toBeUndefined()
+      expect(result.otpExpiresInMinutes).toBeGreaterThan(0)
+    })
+
+    it('answers a registered email exactly like a new one, and sends no code', async () => {
+      findOneByEmail.mockResolvedValue(null)
+      signupVerificationModel.findOne.mockResolvedValue(null)
+      const fresh = await sendSignupEmailVerification('new@example.com')
+
+      findOneByEmail.mockResolvedValue({ _id: 'existing' })
+      signupVerificationModel.findOneAndUpdate.mockClear()
+      const known = await sendSignupEmailVerification('taken@example.com')
+
+      expect(known).toEqual(fresh)
+      expect(signupVerificationModel.findOneAndUpdate.mock.calls[0][1].otp).toBe('')
     })
 
     it('enforces resend cooldown', async () => {

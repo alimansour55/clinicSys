@@ -7,11 +7,15 @@ import userModel from '../models/userModel.js'
 import signupVerificationModel from '../models/signupVerificationModel.js'
 import { findOneByEmail, normalizeEmail } from '../utils/emailUtils.js'
 import { isValidEgyptPhone, normalizeEgyptPhone } from '../utils/egyptPhone.js'
-import { generateOtp, getOtpExpiryMs } from './accountVerificationService.js'
+import { generateOtp, getOtpExpiryMs, OTP_MAX_ATTEMPTS } from './accountVerificationService.js'
+import { clearFailures, consumeQuota, getLockMinutes, recordFailure } from './authThrottleService.js'
 import { checkPhoneVerification, isTwilioVerifyConfigured, startPhoneVerification } from './twilioVerifyService.js'
 
 const PROOF_EXPIRES_IN = '30m'
 const RESEND_COOLDOWN_MS = 60 * 1000
+const HOUR = 60 * 60 * 1000
+const SEND_LIMIT_PER_KEY = 6
+const SEND_LIMIT_PER_IP = 20
 
 const canResend = (sentAt) => !sentAt || Date.now() - sentAt >= RESEND_COOLDOWN_MS
 
@@ -53,37 +57,84 @@ const sendSignupEmailOtpMessage = async (email, otp) => {
   })
 }
 
-export const sendSignupEmailVerification = async (rawEmail) => {
+/** The owner of a registered email gets a nudge instead of a code, and the caller sees the normal reply. */
+const sendAlreadyRegisteredNotice = async (email) => {
+  const brand = getPublicAppBrand()
+  await transporter.sendMail({
+    from: process.env.SENDER_EMAIL,
+    to: email,
+    subject: `${brand}: you already have an account`,
+    html: `<p>Someone, probably you, tried to sign up with this email. You already have an account, so no code is needed.</p><p>Sign in, or use "Forgot password" if you cannot remember your password. If this was not you, you can ignore this email.</p><p>${brand}</p>`
+  })
+}
+
+const checkSendQuota = async (key, ip) => {
+  const allowed =
+    (await consumeQuota('signup-send', key, { max: SEND_LIMIT_PER_KEY, windowMs: HOUR })) &&
+    (await consumeQuota('signup-send-ip', ip, { max: SEND_LIMIT_PER_IP, windowMs: HOUR }))
+  if (!allowed) {
+    throw Object.assign(new Error('Too many codes requested. Please try again later.'), { code: 'RESEND_COOLDOWN' })
+  }
+}
+
+/** Wrong guesses count against the code. The fifth destroys it, so a six-digit code cannot be brute forced. */
+const checkPendingCode = async (key, otp, invalidMessage, expiredMessage) => {
+  const lockMinutes = await getLockMinutes('signup-otp', key)
+  if (lockMinutes) {
+    throw Object.assign(new Error(`Too many attempts. Please try again in ${lockMinutes} minutes.`), { statusCode: 429 })
+  }
+
+  const pending = await signupVerificationModel.findOne({ key })
+  if (!pending || !pending.otp || pending.otp !== otp) {
+    const { locked } = await recordFailure('signup-otp', key, { max: OTP_MAX_ATTEMPTS })
+    if (locked && pending) await signupVerificationModel.findOneAndUpdate({ key }, { otp: '', otpExpireAt: 0 })
+    throw Object.assign(new Error(invalidMessage), { statusCode: 400 })
+  }
+  if (!pending.otpExpireAt || pending.otpExpireAt < Date.now()) {
+    throw Object.assign(new Error(expiredMessage), { statusCode: 400 })
+  }
+  await clearFailures('signup-otp', key)
+}
+
+export const sendSignupEmailVerification = async (rawEmail, { ip = 'unknown' } = {}) => {
   const email = normalizeEmail(rawEmail)
   if (!validator.isEmail(email)) {
     throw Object.assign(new Error('Enter a valid email'), { statusCode: 400 })
   }
 
-  const existing = await findOneByEmail(userModel, email)
-  if (existing) {
-    throw Object.assign(new Error('Email already registered'), { statusCode: 400 })
+  const key = `email:${email}`
+  const expiryMs = getOtpExpiryMs()
+  const reply = {
+    message: 'Verification code sent to your email',
+    otpExpiresInMinutes: Math.round(expiryMs / 60000),
+    resendAfterSeconds: RESEND_COOLDOWN_MS / 1000
   }
 
-  const key = `email:${email}`
   let pending = await signupVerificationModel.findOne({ key })
 
-  if (pending?.verified) {
-    return {
-      alreadyVerified: true,
-      verificationToken: signProof('signup-email', email),
-      message: 'Email already verified'
-    }
-  }
-
+  // A verified record used to return a proof to anyone asking, with no code. Now it simply sends a new code.
   if (pending && !canResend(pending.otpSentAt)) {
     throw Object.assign(new Error('Please wait before requesting a new email code'), {
       code: 'RESEND_COOLDOWN'
     })
   }
 
-  const otp = generateOtp()
+  await checkSendQuota(key, ip)
+
   const now = Date.now()
-  const expiryMs = getOtpExpiryMs()
+  const existing = await findOneByEmail(userModel, email)
+  if (existing) {
+    // Remember the send, so the cooldown behaves the same as for a new email. There is no code to guess.
+    await signupVerificationModel.findOneAndUpdate(
+      { key },
+      { key, type: 'email', otp: '', otpExpireAt: 0, otpSentAt: now, verified: false },
+      { upsert: true, new: true }
+    )
+    await sendAlreadyRegisteredNotice(email).catch((error) => console.error('Signup notice email:', error.message))
+    return reply
+  }
+
+  const otp = generateOtp()
 
   pending = await signupVerificationModel.findOneAndUpdate(
     { key },
@@ -97,30 +148,34 @@ export const sendSignupEmailVerification = async (rawEmail) => {
     },
     { upsert: true, new: true }
   )
+  await clearFailures('signup-otp', key)
 
-  await sendSignupEmailOtpMessage(email, otp)
-
-  return {
-    message: 'Verification code sent to your email',
-    otpExpiresInMinutes: Math.round(expiryMs / 60000)
+  try {
+    await sendSignupEmailOtpMessage(email, otp)
+  } catch (error) {
+    // Do not leave the person waiting out a cooldown for a code that never left.
+    console.error('Signup email:', error.message)
+    await signupVerificationModel.findOneAndUpdate({ key }, { otp: '', otpExpireAt: 0, otpSentAt: 0 })
+    throw Object.assign(new Error('Could not send the email. Please check the address and try again.'), { statusCode: 502 })
   }
+
+  return reply
 }
 
 export const confirmSignupEmailVerification = async (rawEmail, code) => {
   const email = normalizeEmail(rawEmail)
-  const otp = String(code || '').trim()
+  const otp = typeof code === 'string' || typeof code === 'number' ? String(code).trim() : ''
 
   if (!validator.isEmail(email)) {
     throw Object.assign(new Error('Enter a valid email'), { statusCode: 400 })
   }
 
-  const pending = await signupVerificationModel.findOne({ key: `email:${email}` })
-  if (!pending || pending.otp !== otp) {
-    throw Object.assign(new Error('Invalid email verification code'), { statusCode: 400 })
-  }
-  if (!pending.otpExpireAt || pending.otpExpireAt < Date.now()) {
-    throw Object.assign(new Error('Email code has expired. Request a new one.'), { statusCode: 400 })
-  }
+  await checkPendingCode(
+    `email:${email}`,
+    otp,
+    'Invalid email verification code',
+    'Email code has expired. Request a new one.'
+  )
 
   await signupVerificationModel.findOneAndUpdate(
     { key: `email:${email}` },
@@ -133,28 +188,14 @@ export const confirmSignupEmailVerification = async (rawEmail, code) => {
   }
 }
 
-export const sendSignupPhoneVerification = async (rawPhone) => {
+export const sendSignupPhoneVerification = async (rawPhone, { ip = 'unknown' } = {}) => {
   const phone = normalizeEgyptPhone(rawPhone)
   if (!isValidEgyptPhone(phone)) {
     throw Object.assign(new Error('Please enter a valid Egyptian mobile number'), { statusCode: 400 })
   }
 
-  const existing = await userModel.findOne({ phone })
-  if (existing) {
-    throw Object.assign(new Error('Phone number already registered'), { statusCode: 400 })
-  }
-
   const key = `phone:${phone}`
   let pending = await signupVerificationModel.findOne({ key })
-
-  if (pending?.verified) {
-    return {
-      alreadyVerified: true,
-      verificationToken: signProof('signup-phone', phone),
-      message: 'Phone already verified',
-      smsDevMode: !isTwilioVerifyConfigured()
-    }
-  }
 
   if (pending && !canResend(pending.otpSentAt)) {
     throw Object.assign(new Error('Please wait before requesting a new SMS code'), {
@@ -162,8 +203,24 @@ export const sendSignupPhoneVerification = async (rawPhone) => {
     })
   }
 
+  await checkSendQuota(key, ip)
+
   const now = Date.now()
   let smsDevMode = false
+
+  // Same reply as a new number, with no SMS sent: this must not reveal which numbers have accounts, or cost money.
+  if (await userModel.findOne({ phone }).select('_id').lean()) {
+    await signupVerificationModel.findOneAndUpdate(
+      { key },
+      { key, type: 'phone', otp: '', otpExpireAt: 0, otpSentAt: now, verified: false },
+      { upsert: true, new: true }
+    )
+    return {
+      message: 'Verification code sent to your phone',
+      smsDevMode: !isTwilioVerifyConfigured() && process.env.NODE_ENV !== 'production',
+      otpExpiresInMinutes: Math.round(getOtpExpiryMs() / 60000)
+    }
+  }
 
   if (isTwilioVerifyConfigured()) {
     await startPhoneVerification(phone)
@@ -220,27 +277,31 @@ export const sendSignupPhoneVerification = async (rawPhone) => {
 
 export const confirmSignupPhoneVerification = async (rawPhone, code) => {
   const phone = normalizeEgyptPhone(rawPhone)
-  const otp = String(code || '').trim()
+  const otp = typeof code === 'string' || typeof code === 'number' ? String(code).trim() : ''
 
   if (!isValidEgyptPhone(phone)) {
     throw Object.assign(new Error('Please enter a valid Egyptian mobile number'), { statusCode: 400 })
   }
 
   if (isTwilioVerifyConfigured()) {
+    const lockMinutes = await getLockMinutes('signup-otp', `phone:${phone}`)
+    if (lockMinutes) {
+      throw Object.assign(new Error(`Too many attempts. Please try again in ${lockMinutes} minutes.`), { statusCode: 429 })
+    }
     const check = await checkPhoneVerification(phone, otp)
     if (!check.approved) {
-      throw Object.assign(new Error(check.message || 'Invalid SMS verification code'), {
+      await recordFailure('signup-otp', `phone:${phone}`, { max: OTP_MAX_ATTEMPTS })
+      throw Object.assign(new Error('Invalid SMS verification code'), {
         statusCode: 400
       })
     }
   } else {
-    const pending = await signupVerificationModel.findOne({ key: `phone:${phone}` })
-    if (!pending || pending.otp !== otp) {
-      throw Object.assign(new Error('Invalid SMS verification code'), { statusCode: 400 })
-    }
-    if (!pending.otpExpireAt || pending.otpExpireAt < Date.now()) {
-      throw Object.assign(new Error('SMS code has expired. Request a new one.'), { statusCode: 400 })
-    }
+    await checkPendingCode(
+      `phone:${phone}`,
+      otp,
+      'Invalid SMS verification code',
+      'SMS code has expired. Request a new one.'
+    )
     await signupVerificationModel.findOneAndUpdate(
       { key: `phone:${phone}` },
       { verified: true, otp: '', otpExpireAt: 0 }
