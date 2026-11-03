@@ -1,5 +1,8 @@
+import fs from 'fs'
+import { fileURLToPath } from 'url'
 import PDFDocument from 'pdfkit'
 import { getPublicAppBrand } from '../config/publicBrand.js'
+import { TEXT_FONT_FILES, registerTextFonts, writeText } from './pdfTextService.js'
 
 const CURRENCY_LABEL = (process.env.CURRENCY_LABEL || 'EGP').trim() || 'EGP'
 
@@ -38,9 +41,23 @@ const homeVisitAddressLines = (address) => {
   return lines
 }
 
+const loadFontBytes = () => {
+  const bytes = {}
+  for (const [name, file] of Object.entries(TEXT_FONT_FILES)) {
+    try {
+      bytes[name] = fs.readFileSync(fileURLToPath(new URL(`../assets/fonts/${file}`, import.meta.url)))
+    } catch (error) {
+      console.error('PDF font missing, Arabic text will not render', file, error.message)
+    }
+  }
+  return bytes
+}
+const fontBytes = loadFontBytes()
+
 const buildPdfBuffer = (draw) =>
   new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: 'A4' })
+    registerTextFonts(doc, fontBytes)
     const chunks = []
     doc.on('data', (chunk) => chunks.push(chunk))
     doc.on('end', () => resolve(Buffer.concat(chunks)))
@@ -64,7 +81,8 @@ const drawHeader = (doc, title, brand) => {
 
 const drawLabelValue = (doc, label, value) => {
   doc.fontSize(10).fillColor('#6b7280').text(label, { continued: false })
-  doc.fontSize(11).fillColor('#111827').text(String(value || '—'), { indent: 0 })
+  doc.fontSize(11).fillColor('#111827')
+  writeText(doc, String(value || '—'))
   doc.moveDown(0.35)
 }
 
@@ -88,7 +106,8 @@ const drawAppointmentDetails = (doc, appointment) => {
   if (addressLines.length > 0) {
     doc.fontSize(10).fillColor('#6b7280').text('Home visit address')
     addressLines.forEach((line) => {
-      doc.fontSize(11).fillColor('#111827').text(line)
+      doc.fontSize(11).fillColor('#111827')
+      writeText(doc, line)
     })
     doc.moveDown(0.35)
   }
@@ -105,11 +124,15 @@ const drawAmountSummary = (doc, appointment, { showPayment = false } = {}) => {
   const original = Number(appointment.originalAmount ?? appointment.amount ?? 0)
   const discount = Number(appointment.discountAmount || 0)
   const total = Number(appointment.amount ?? 0)
+  // Older home visits did not record the surcharge. Derive it, so the lines still add up to the total.
+  const surcharge = Number(appointment.homeVisitSurcharge) ||
+    (appointment.appointmentType === 'Home Visit' ? Math.max(0, Math.round((total - (original - discount)) * 100) / 100) : 0)
 
   drawLabelValue(doc, 'List amount', formatMoney(original))
   if (discount > 0) {
-    drawLabelValue(doc, 'Discount', `− ${formatMoney(discount)}${appointment.discountReason ? ` (${appointment.discountReason})` : ''}`)
+    drawLabelValue(doc, 'Discount', `- ${formatMoney(discount)}${appointment.discountReason ? ` (${appointment.discountReason})` : ''}`)
   }
+  if (surcharge > 0) drawLabelValue(doc, 'Home visit fee', `+ ${formatMoney(surcharge)}`)
   if (appointment.promoCode) drawLabelValue(doc, 'Promo code', appointment.promoCode)
   doc.fontSize(12).fillColor('#0d9488').text(`Total: ${formatMoney(total)}`, { align: 'left' })
   doc.moveDown(0.5)
@@ -121,6 +144,9 @@ const drawAmountSummary = (doc, appointment, { showPayment = false } = {}) => {
       drawLabelValue(doc, 'Paid on', new Date(appointment.paidAt).toLocaleString('en-GB'))
     }
     if (appointment.paymentNote) drawLabelValue(doc, 'Payment note', appointment.paymentNote)
+    if (appointment.refundStatus && appointment.refundStatus !== 'Not Refunded') {
+      drawLabelValue(doc, 'Refund', `${appointment.refundStatus} (${formatMoney(appointment.refundAmount)})`)
+    }
   } else {
     drawLabelValue(doc, 'Payment status', appointment.paymentStatus || 'Not Paid')
     if (appointment.paymentMethod) drawLabelValue(doc, 'Selected payment', appointment.paymentMethod)
@@ -130,6 +156,54 @@ const drawAmountSummary = (doc, appointment, { showPayment = false } = {}) => {
         : 'Payment is due at the clinic unless you paid online. Please bring this confirmation to your visit.'
     )
   }
+}
+
+const drawPrescriptionSection = (doc, title, value) => {
+  if (!value) return
+  doc.moveDown(0.3)
+  doc.fontSize(12).fillColor('#0d9488').text(title)
+  doc.moveDown(0.15)
+  doc.fontSize(11).fillColor('#111827')
+  String(value).split(/\r?\n/).forEach((line) => writeText(doc, line || ' '))
+}
+
+export async function generatePrescriptionPdf(prescription) {
+  const brand = getPublicAppBrand()
+  const plain = prescription?.toObject ? prescription.toObject() : prescription
+  const patient = plain.userData || {}
+  const doctor = plain.docData || {}
+
+  return buildPdfBuffer((doc) => {
+    drawHeader(doc, 'Prescription', brand)
+    drawLabelValue(doc, 'Reservation #', plain.reservationNumber || plain.appointmentId)
+    drawLabelValue(doc, 'Patient', patient.name || 'Patient')
+    if (patient.patientId) drawLabelValue(doc, 'Patient ID', patient.patientId)
+    drawLabelValue(doc, 'Doctor', doctor.name ? `Dr. ${doctor.name}` : 'Doctor')
+    if (doctor.speciality) drawLabelValue(doc, 'Speciality', doctor.speciality)
+    drawLabelValue(doc, 'Visit date', `${formatAppointmentSlotDate(plain.slotDate)} at ${plain.slotTime || ''}`.trim())
+
+    drawPrescriptionSection(doc, 'Diagnosis', plain.diagnosis)
+    drawPrescriptionSection(doc, 'Symptoms', plain.symptoms)
+
+    const items = plain.medicationItems || []
+    if (items.length > 0) {
+      drawPrescriptionSection(doc, 'Medicines', items.map((item, index) =>
+        `${index + 1}. ${item.name} - ${item.dosage} - ${item.frequency} - ${item.duration}${item.instructions ? ` - ${item.instructions}` : ''}`
+      ).join('\n'))
+    } else {
+      drawPrescriptionSection(doc, 'Medicines', plain.medicines)
+    }
+
+    drawPrescriptionSection(doc, 'Instructions', plain.instructions)
+    drawPrescriptionSection(doc, 'Lab tests', plain.labTests)
+    drawPrescriptionSection(doc, 'Next visit', plain.nextVisit)
+
+    doc.moveDown(1)
+    doc.fontSize(9).fillColor('#9ca3af').text(
+      `Generated ${new Date().toLocaleString('en-GB')} · ${brand}`,
+      { align: 'center' }
+    )
+  })
 }
 
 export async function generateBookingConfirmationPdf(appointment) {

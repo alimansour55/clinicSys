@@ -1,3 +1,4 @@
+import { isValidObjectId } from 'mongoose'
 import appointmentModel from '../models/appointmentModel.js'
 import doctorModel from '../models/doctorModel.js'
 import ratingModel from '../models/ratingModel.js'
@@ -47,16 +48,31 @@ export const attachRatingSummariesToDoctors = async (doctors = []) => {
   })
 }
 
+/** "Mona Ali Hassan" to "Mona A." The public page must not tie a full name to a doctor they saw. */
+export const shortPatientName = (name = '') => {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 1) return parts[0] || ''
+  return `${parts[0]} ${parts[1].charAt(0)}.`
+}
+
+const toPublicRating = (rating) => ({
+  _id: rating._id,
+  rating: rating.rating,
+  comment: rating.comment,
+  patientName: shortPatientName(rating.patientName),
+  createdAt: rating.createdAt
+})
+
 const getDoctorRatings = async (req, res) => {
   try {
     const { docId } = req.params
-    const ratings = await ratingModel.find({ docId }).sort({ createdAt: -1 }).lean()
+    const ratings = await ratingModel.find({ docId }).sort({ createdAt: -1 }).limit(200).lean()
     const summaryMap = await buildSummaryMap([docId])
 
     res.json({
       success: true,
       summary: summaryMap[docId] || { averageRating: 0, ratingCount: 0 },
-      ratings
+      ratings: ratings.map(toPublicRating)
     })
   } catch (error) {
     console.log(error)
@@ -71,7 +87,7 @@ const createRating = async (req, res) => {
     const normalizedRating = normalizeRating(rating)
     const normalizedComment = String(comment || '').trim()
 
-    if (!appointmentId || !normalizedRating) {
+    if (typeof appointmentId !== 'string' || !isValidObjectId(appointmentId) || !normalizedRating) {
       return res.json({ success: false, message: 'Please choose a rating from 1 to 5' })
     }
 

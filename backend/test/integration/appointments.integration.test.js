@@ -3,12 +3,14 @@ import appointmentModel from '../../models/appointmentModel.js'
 import userModel from '../../models/userModel.js'
 import { api, loginPatient, loginDoctor, loginAdmin, loginReceptionist, authHeader, futureBookingSlot } from './helpers/harness.js'
 import { testIds } from './helpers/seed.js'
+import doctorModel from '../../models/doctorModel.js'
 
 describe('T3.9 Appointments', () => {
   it('patient books, lists, and cancels clinic appointment', async () => {
     const loginRes = await loginPatient()
     const token = loginRes.body.token
-    const { slotDate, slotTime } = futureBookingSlot(2)
+    // Tuesday and Thursday are the seed doctor's home-visit days, which block clinic hours.
+    const { slotDate, slotTime } = futureBookingSlot(3)
 
     const bookRes = await api()
       .post('/api/user/book-appointment')
@@ -54,6 +56,7 @@ describe('T3.9 Appointments', () => {
 
 describe('T3.10 Home visit booking + pricing', () => {
   it('books home visit with surcharge', async () => {
+    await doctorModel.updateOne({ _id: testIds.doctorId }, { 'schedule.workingDays': [0, 1, 3, 5, 6] })
     const loginRes = await loginPatient()
     const { slotDate, slotTime } = futureBookingSlot(4)
 

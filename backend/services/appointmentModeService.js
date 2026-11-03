@@ -21,13 +21,20 @@ const getTeleconsultationBaseUrl = () => {
   return String(configuredUrl).replace(/\/+$/, '')
 }
 
-const buildTeleconsultationLink = ({ appointmentId, docId, userId, slotDate, slotTime }) => {
+/** Jitsi opens with the camera on by default, which is wrong for a booked voice call. */
+const VOICE_CALL_ROOM_CONFIG = '#config.startWithVideoMuted=true&config.startAudioOnly=true'
+
+const withVoiceConfig = (link) => (link && !link.includes('#') ? `${link}${VOICE_CALL_ROOM_CONFIG}` : link)
+
+const buildTeleconsultationLink = ({ appointmentId, docId, userId, slotDate, slotTime, appointmentType }) => {
   const roomKey = [appointmentId, docId, userId, slotDate, slotTime]
     .map((part) => String(part || '').replace(/[^a-zA-Z0-9]/g, ''))
     .filter(Boolean)
     .join('-')
 
-  return roomKey ? `${getTeleconsultationBaseUrl()}/clinicsys-${roomKey}` : ''
+  if (!roomKey) return ''
+  const link = `${getTeleconsultationBaseUrl()}/clinicsys-${roomKey}`
+  return appointmentType === 'Voice Call' ? withVoiceConfig(link) : link
 }
 
 const normalizeTeleconsultationLink = (link = '') => {
@@ -54,7 +61,7 @@ const normalizeAppointmentTeleconsultationLink = (appointment) => {
 
   if (!isTeleconsultationType(normalizedAppointment.appointmentType)) return normalizedAppointment
 
-  normalizedAppointment.teleconsultationLink = normalizeTeleconsultationLink(normalizedAppointment.teleconsultationLink)
+  const link = normalizeTeleconsultationLink(normalizedAppointment.teleconsultationLink)
     || buildTeleconsultationLink({
       appointmentId: normalizedAppointment._id,
       docId: normalizedAppointment.docId,
@@ -62,6 +69,7 @@ const normalizeAppointmentTeleconsultationLink = (appointment) => {
       slotDate: normalizedAppointment.slotDate,
       slotTime: normalizedAppointment.slotTime
     })
+  normalizedAppointment.teleconsultationLink = normalizedAppointment.appointmentType === 'Voice Call' ? withVoiceConfig(link) : link
 
   return normalizedAppointment
 }

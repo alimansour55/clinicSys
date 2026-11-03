@@ -34,6 +34,7 @@ const appointmentSchema = new mongoose.Schema({
     amount: { type: Number, required: true },
     originalAmount: { type: Number, default: 0 },
     discountAmount: { type: Number, default: 0 },
+    homeVisitSurcharge: { type: Number, default: 0 },
     discountReason: { type: String, default: '' },
     promoCode: { type: String, default: '' },
     coveredByInsurance: { type: Boolean, default: false },
@@ -66,6 +67,7 @@ const appointmentSchema = new mongoose.Schema({
     refundedAt: { type: Number, default: 0 },
     refundAmount: { type: Number, default: 0 },
     refundNote: { type: String, default: '' },
+    refundAttempts: { type: Number, default: 0 },
     checkedInAt: { type: Number, default: 0 },
     statusUpdatedAt: { type: Number, default: Date.now },
     bookedBy: { type: String, enum: ['Patient', 'Receptionist'], default: 'Patient' },
@@ -76,9 +78,31 @@ const appointmentSchema = new mongoose.Schema({
         checkedBy: { type: String, default: '' },
         note: { type: String, default: '' }
     },
+    rescheduleCount: { type: Number, default: 0 },
+    rescheduleHistory: [{
+        _id: false,
+        fromSlotDate: String,
+        fromSlotTime: String,
+        toSlotDate: String,
+        toSlotTime: String,
+        at: Number,
+        by: String
+    }],
     cancelled: { type: Boolean, default: false },
     isCompleted: {type: Boolean, default: false}
 })
+
+/** The last line of defence against double booking: whichever code path writes, one live appointment per doctor per slot. */
+appointmentSchema.index(
+    { docId: 1, slotDate: 1, slotTime: 1 },
+    { unique: true, partialFilterExpression: { cancelled: false }, name: 'unique_active_doctor_slot' }
+)
+/** Confirming the same Stripe payment twice must find the first appointment, never create a second. */
+appointmentSchema.index(
+    { stripePaymentIntentId: 1 },
+    { unique: true, partialFilterExpression: { stripePaymentIntentId: { $gt: '' } }, name: 'unique_payment_intent' }
+)
+appointmentSchema.index({ userId: 1, date: -1 })
 
 
 const appointmentModel = mongoose.models.appointment || mongoose.model('appointment', appointmentSchema)

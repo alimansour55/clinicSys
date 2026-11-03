@@ -19,10 +19,18 @@ const getPatientEmail = (appointment) => {
   return normalizeEmail(email)
 }
 
+const escapeHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;')
+
 const applyTemplate = (html, vars) => {
   let out = html
   for (const [key, value] of Object.entries(vars)) {
-    out = out.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value ?? ''))
+    const safe = escapeHtml(value)
+    out = out.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), () => safe)
   }
   return out
 }
