@@ -50,7 +50,7 @@ const ResetPassword = () => {
 
         {/* Back Button */}
         <button type="button" onClick={() => navigate("/otp-verify", { state: { email } })} className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors">
-          <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
+          <ArrowLeft size={18} className="rtl:-scale-x-100 sm:w-5 sm:h-5" />
           <span className="text-sm sm:text-base">Back</span>
         </button>
 
@@ -68,17 +68,17 @@ const ResetPassword = () => {
             New Password
           </label>
           <div className="relative" data-input-field>
-            <Lock size={16} className="field-icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]" />
+            <Lock size={16} className="field-icon absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]" />
             <input
               type={showNew ? "text" : "password"}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Enter new password"
               required
-              className="w-full min-h-[44px] pl-10 pr-10 py-2.5 sm:py-3 text-base sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-full min-h-[44px] ps-10 pe-10 py-2.5 sm:py-3 text-base sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
 
-            <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+            <button type="button" onClick={() => setShowNew(!showNew)} className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
               {showNew ? <EyeOff size={18} className="sm:w-5 sm:h-5" /> : <Eye size={18} className="sm:w-5 sm:h-5" />}
             </button>
           </div>
@@ -90,17 +90,17 @@ const ResetPassword = () => {
             Confirm Password
           </label>
           <div className="relative" data-input-field>
-            <Lock size={16} className="field-icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]" />
+            <Lock size={16} className="field-icon absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-[18px] sm:h-[18px]" />
             <input
               type={showConfirm ? "text" : "password"}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm new password"
               required
-              className="w-full min-h-[44px] pl-10 pr-10 py-2.5 sm:py-3 text-base sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-full min-h-[44px] ps-10 pe-10 py-2.5 sm:py-3 text-base sm:text-base border-2 border-gray-300 rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
 
-            <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+            <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
               {showConfirm ? <EyeOff size={18} className="sm:w-5 sm:h-5" /> : <Eye size={18} className="sm:w-5 sm:h-5" />}
             </button>
           </div>

@@ -53,7 +53,7 @@ const Footer = () => {
     'text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500'
 
   const navLinkClass =
-    'group relative z-10 flex w-full items-center justify-between gap-2 rounded-lg py-2.5 pl-3 pr-2 text-left text-[15px] text-slate-700 transition-colors hover:bg-white/80 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/40 active:bg-white/90'
+    'group relative z-10 flex w-full items-center justify-between gap-2 rounded-lg py-2.5 ps-3 pe-2 text-start text-[15px] text-slate-700 transition-colors hover:bg-white/80 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/40 active:bg-white/90'
 
   return (
     <footer

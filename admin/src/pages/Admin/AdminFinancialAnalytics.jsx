@@ -227,8 +227,8 @@ const AdminFinancialAnalytics = () => {
     <div className='min-h-full w-full bg-[#f4f6fb] p-3 sm:p-5 md:p-8'>
       <div className='mx-auto max-w-7xl space-y-8'>
         <header className='relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8'>
-          <div className='pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-100/80 blur-3xl' />
-          <div className='pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-emerald-100/70 blur-3xl' />
+          <div className='pointer-events-none absolute -end-20 -top-20 h-64 w-64 rounded-full bg-indigo-100/80 blur-3xl' />
+          <div className='pointer-events-none absolute -bottom-16 -start-16 h-48 w-48 rounded-full bg-emerald-100/70 blur-3xl' />
           <div className='relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between'>
             <div>
               <div className='mb-3 inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white'>
@@ -328,7 +328,7 @@ const AdminFinancialAnalytics = () => {
             <section className='overflow-hidden rounded-3xl border border-indigo-200/50 bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 p-[1px] shadow-xl shadow-indigo-500/15'>
               <div className='rounded-[23px] bg-white p-5 sm:p-7'>
                 <div className='flex flex-col gap-8 lg:flex-row lg:items-stretch lg:justify-between'>
-                  <div className='max-w-md shrink-0 lg:border-r lg:border-slate-100 lg:pr-8'>
+                  <div className='max-w-md shrink-0 lg:border-e lg:border-slate-100 lg:pe-8'>
                     <div className='mb-2 inline-flex items-center gap-2 text-indigo-700'>
                       <PiggyBank className='h-5 w-5' />
                       <span className='text-xs font-bold uppercase tracking-wider'>{t('Pay doctor')}</span>
@@ -395,7 +395,7 @@ const AdminFinancialAnalytics = () => {
                         <button
                           type='button'
                           onClick={() => setPayMode('percentage')}
-                          className={`rounded-2xl border-2 px-4 py-4 text-left transition ${
+                          className={`rounded-2xl border-2 px-4 py-4 text-start transition ${
                             payMode === 'percentage'
                               ? 'border-indigo-500 bg-indigo-50/90 shadow-md ring-1 ring-indigo-200'
                               : 'border-slate-200 bg-white hover:border-slate-300'
@@ -412,7 +412,7 @@ const AdminFinancialAnalytics = () => {
                         <button
                           type='button'
                           onClick={() => setPayMode('fixed')}
-                          className={`rounded-2xl border-2 px-4 py-4 text-left transition ${
+                          className={`rounded-2xl border-2 px-4 py-4 text-start transition ${
                             payMode === 'fixed'
                               ? 'border-violet-500 bg-violet-50/90 shadow-md ring-1 ring-violet-200'
                               : 'border-slate-200 bg-white hover:border-slate-300'
@@ -429,7 +429,7 @@ const AdminFinancialAnalytics = () => {
                         <button
                           type='button'
                           onClick={() => setPayMode('hybrid')}
-                          className={`rounded-2xl border-2 px-4 py-4 text-left transition sm:col-span-1 ${
+                          className={`rounded-2xl border-2 px-4 py-4 text-start transition sm:col-span-1 ${
                             payMode === 'hybrid'
                               ? 'border-fuchsia-500 bg-fuchsia-50/90 shadow-md ring-1 ring-fuchsia-200'
                               : 'border-slate-200 bg-white hover:border-slate-300'
@@ -601,17 +601,17 @@ const AdminFinancialAnalytics = () => {
               <div className='overflow-x-auto'>
                 <table className='min-w-[980px] w-full text-sm'>
                   <thead>
-                    <tr className='border-b border-slate-200 bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500'>
+                    <tr className='border-b border-slate-200 bg-slate-50 text-start text-xs font-bold uppercase tracking-wide text-slate-500'>
                       <th className='px-5 py-3 sm:px-6'>{t('Doctor')}</th>
                       <th className='px-4 py-3'>{t('Speciality')}</th>
-                      <th className='px-4 py-3 text-right'>{t('Paid revenue')}</th>
-                      <th className='px-4 py-3 text-right'>{t('Outstanding')}</th>
+                      <th className='px-4 py-3 text-end'>{t('Paid revenue')}</th>
+                      <th className='px-4 py-3 text-end'>{t('Outstanding')}</th>
                       <th className='px-4 py-3 text-center'>{t('Paid visits')}</th>
                       <th className='px-4 py-3 text-center'>{t('All appts')}</th>
                       <th className='px-4 py-3 text-center'>{t('Rate')}</th>
                       <th className='px-4 py-3'>{t('Pay model')}</th>
-                      <th className='px-4 py-3 text-right'>{t('Doctor earns (est.)')}</th>
-                      <th className='px-5 py-3 text-right sm:px-6'>{t('Clinic after %')}</th>
+                      <th className='px-4 py-3 text-end'>{t('Doctor earns (est.)')}</th>
+                      <th className='px-5 py-3 text-end sm:px-6'>{t('Clinic after %')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -637,8 +637,8 @@ const AdminFinancialAnalytics = () => {
                             <div className='text-xs text-slate-500'>{r.email || '—'}</div>
                           </td>
                           <td className='px-4 py-3 text-slate-600'>{r.speciality ? t(r.speciality) : '—'}</td>
-                          <td className='px-4 py-3 text-right font-bold text-emerald-800'>{formatMoney(r.paidRevenue)}</td>
-                          <td className='px-4 py-3 text-right font-medium text-amber-800'>{formatMoney(r.outstandingAmount)}</td>
+                          <td className='px-4 py-3 text-end font-bold text-emerald-800'>{formatMoney(r.paidRevenue)}</td>
+                          <td className='px-4 py-3 text-end font-medium text-amber-800'>{formatMoney(r.outstandingAmount)}</td>
                           <td className='px-4 py-3 text-center font-semibold text-slate-800'>{r.paidVisitCount ?? 0}</td>
                           <td className='px-4 py-3 text-center text-slate-600'>{r.totalAppointments}</td>
                           <td className='px-4 py-3 text-center align-middle'>
@@ -676,10 +676,10 @@ const AdminFinancialAnalytics = () => {
                             </span>
                             <p className='mt-1 text-[11px] leading-snug text-slate-500'>{rowComp.detail}</p>
                           </td>
-                          <td className='px-4 py-3 text-right text-base font-black text-indigo-900'>
+                          <td className='px-4 py-3 text-end text-base font-black text-indigo-900'>
                             {r.isFixedMonthly ? `${formatMoney(r.doctorAttributed)}/mo` : formatMoney(r.doctorAttributed)}
                           </td>
-                          <td className='px-5 py-3 text-right text-slate-600 sm:px-6'>
+                          <td className='px-5 py-3 text-end text-slate-600 sm:px-6'>
                             {r.clinicAttributed == null ? '—' : formatMoney(r.clinicAttributed)}
                           </td>
                         </tr>

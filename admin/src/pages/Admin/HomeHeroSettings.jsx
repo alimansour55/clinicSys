@@ -80,7 +80,7 @@ const HomeHeroSettings = () => {
             <LayoutTemplate className='w-6 h-6 text-primary' />
             Home Hero Settings
           </h1>
-          <p className='mt-2 text-sm text-gray-600 ml-8'>
+          <p className='mt-2 text-sm text-gray-600 ms-8'>
             Control the main appointment banner shown on the patient website.
           </p>
         </div>

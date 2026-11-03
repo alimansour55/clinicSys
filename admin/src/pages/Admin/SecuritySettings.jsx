@@ -56,9 +56,9 @@ const NumberInput = ({ label, value, onChange, min, max, suffix }) => (
         max={max}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className='min-w-0 flex-1 rounded-l-lg px-3 py-2.5 text-sm outline-none'
+        className='min-w-0 flex-1 rounded-s-lg px-3 py-2.5 text-sm outline-none'
       />
-      <span className='flex items-center rounded-r-lg border-l border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500'>{suffix}</span>
+      <span className='flex items-center rounded-e-lg border-s border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500'>{suffix}</span>
     </div>
   </div>
 )
@@ -131,7 +131,7 @@ const SecuritySettings = () => {
               <ShieldCheck className='w-6 h-6 text-primary' />
               Security
             </h1>
-            <p className='mt-2 text-sm text-gray-600 ml-8'>
+            <p className='mt-2 text-sm text-gray-600 ms-8'>
               Control MFA, password strength, sessions, audit logs, and retention policies for the clinic platform.
             </p>
           </div>

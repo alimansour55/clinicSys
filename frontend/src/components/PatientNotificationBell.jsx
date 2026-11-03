@@ -108,7 +108,7 @@ const PatientNotificationBell = () => {
       >
         <Bell className='h-5 w-5' strokeWidth={2} />
             {unread > 0 && (
-          <span className='absolute -right-0.5 -top-0.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white'>
+          <span className='absolute -end-0.5 -top-0.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white'>
             {localizeDigits(unread > 99 ? '99+' : String(unread))}
           </span>
         )}
@@ -118,7 +118,7 @@ const PatientNotificationBell = () => {
         <div
           role='dialog'
           aria-label={t('Notifications')}
-          className='absolute right-0 top-full z-[70] mt-2 w-[min(calc(100vw-1.5rem),22rem)] overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-2xl ring-1 ring-black/5'
+          className='absolute end-0 top-full z-[70] mt-2 w-[min(calc(100vw-1.5rem),22rem)] overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-2xl ring-1 ring-black/5'
         >
           <div className='flex items-center justify-between border-b border-teal-50 bg-gradient-to-r from-teal-50/80 to-white px-4 py-3'>
             <p className='text-sm font-bold text-gray-900'>{t('Notifications')}</p>
@@ -152,7 +152,7 @@ const PatientNotificationBell = () => {
                     <button
                       type='button'
                       onClick={() => onRowClick(n)}
-                      className={`flex w-full flex-col gap-1 px-4 py-3 text-left transition hover:bg-teal-50/50 ${n.read ? 'opacity-75' : 'bg-teal-50/50'}`}
+                      className={`flex w-full flex-col gap-1 px-4 py-3 text-start transition hover:bg-teal-50/50 ${n.read ? 'opacity-75' : 'bg-teal-50/50'}`}
                     >
                       <div className='flex items-start justify-between gap-2'>
                         <span className={`text-sm font-semibold leading-snug ${n.read ? 'text-gray-700' : 'text-gray-900'}`}>{titleText}</span>

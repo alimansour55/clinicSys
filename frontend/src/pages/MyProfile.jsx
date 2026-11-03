@@ -394,7 +394,7 @@ const MyProfile = () => {
             </section>
           </div>
 
-          <aside className='space-y-5 border-t border-gray-100 bg-gray-50 p-5 sm:p-7 lg:border-l lg:border-t-0 lg:p-6'>
+          <aside className='space-y-5 border-t border-gray-100 bg-gray-50 p-5 sm:p-7 lg:border-s lg:border-t-0 lg:p-6'>
             <section className='rounded-2xl border border-gray-200 bg-white p-5'>
               <div className='mb-4 flex items-center justify-between'>
                 <h2 className='font-bold text-gray-950'>{t('Profile readiness')}</h2>
@@ -456,7 +456,7 @@ const MyProfile = () => {
                       <div data-input-field>
                         <input value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder={t('6-digit code')} className='w-full rounded-xl border border-gray-200 px-3 py-2.5 text-center text-base font-bold tracking-[0.35em] outline-none focus:border-primary focus:ring-4 focus:ring-teal-50 sm:text-sm' inputMode='numeric' />
                       </div>
-                      <button type='button' onClick={disableMfa} className='inline-flex w-full items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-50'>
+                      <button type='button' onClick={disableMfa} className='inline-flex w-full items-center justify-center rounded-xl border border-eed-200 bg-white px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-50'>
                         {t('Disable MFA')}
                       </button>
                     </>
@@ -468,21 +468,21 @@ const MyProfile = () => {
             <section className='rounded-2xl border border-gray-200 bg-white p-5'>
               <h2 className='mb-4 font-bold text-gray-950'>{t('Connected care')}</h2>
               <div className='space-y-3'>
-                <button onClick={() => navigate('/my-appointments')} className='flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-left transition hover:border-primary/30 hover:bg-teal-50'>
+                <button onClick={() => navigate('/my-appointments')} className='flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-start transition hover:border-primary/30 hover:bg-teal-50'>
                   <CalendarDays className='h-5 w-5 text-primary' />
                   <span>
                     <span className='block text-sm font-bold text-gray-900'>{t('My Appointments')}</span>
                     <span className='block text-xs text-gray-500'>{t('View visits payment prescriptions')}</span>
                   </span>
                 </button>
-                <button onClick={() => navigate('/medical-history')} className='flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-left transition hover:border-primary/30 hover:bg-teal-50'>
+                <button onClick={() => navigate('/medical-history')} className='flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-start transition hover:border-primary/30 hover:bg-teal-50'>
                   <ClipboardList className='h-5 w-5 text-primary' />
                   <span>
                     <span className='block text-sm font-bold text-gray-900'>{t('Medical history')}</span>
                     <span className='block text-xs text-gray-500'>{t('Update allergies conditions notes')}</span>
                   </span>
                 </button>
-                <button onClick={() => navigate('/insurance')} className='flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-left transition hover:border-primary/30 hover:bg-teal-50'>
+                <button onClick={() => navigate('/insurance')} className='flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-start transition hover:border-primary/30 hover:bg-teal-50'>
                   <CreditCard className='h-5 w-5 text-primary' />
                   <span>
                     <span className='block text-sm font-bold text-gray-900'>{userData.insurance?.enabled ? t('Edit insurance') : t('Add insurance')}</span>

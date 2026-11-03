@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { DoctorContext } from '../context/DoctorContext'
 import { ReceptionistContext } from '../context/ReceptionistContext'
 import { LanguageToggle, useLanguage } from '../i18n'
+import { ThemeToggle } from './ui/ThemeToggle'
 import { ChevronDown, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { staffHeaderLogoClassName } from '../utils/brandingLogo'
@@ -81,8 +82,8 @@ const Navbar = () => {
   }
 
   return (
-    <div dir='ltr' className='fixed top-0 left-0 right-0 z-50 flex h-[4.5rem] justify-between items-center border-b bg-white px-4 py-2 shadow-sm md:px-6'>
-      <div className='flex items-center gap-2 md:gap-3 min-w-0'>
+    <div className='fixed top-0 start-0 end-0 z-50 flex h-[4.5rem] justify-between items-center border-b bg-white px-4 py-2 shadow-sm md:px-6'>
+      <div className='flex items-center gap-2 md:gap-3 min-w-0 overflow-hidden'>
         <button
           type='button'
           onClick={goHomeFromLogo}
@@ -103,6 +104,8 @@ const Navbar = () => {
       <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
         <LanguageToggle compact />
 
+        <ThemeToggle />
+
         <NotificationBell />
 
         {rToken && (
@@ -110,7 +113,7 @@ const Navbar = () => {
             <button
               type='button'
               onClick={() => setReceptionistMenuOpen((o) => !o)}
-              className='flex items-center gap-1.5 rounded-full border border-gray-200 bg-white py-1 pl-1 pr-2 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/30'
+              className='flex items-center gap-1.5 rounded-full border border-gray-200 bg-white py-1 ps-1 pe-2 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/30'
               aria-expanded={receptionistMenuOpen}
               aria-haspopup='menu'
             >
@@ -127,7 +130,7 @@ const Navbar = () => {
             {receptionistMenuOpen && (
               <div
                 role='menu'
-                className='absolute right-0 top-full z-[60] mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg ring-1 ring-black/5'
+                className='absolute end-0 top-full z-[60] mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg ring-1 ring-black/5'
               >
                 <div className='border-b border-gray-100 px-3 py-2.5'>
                   <p className='truncate text-sm font-semibold text-gray-900'>{receptionistNavSummary?.name || t('Receptionist')}</p>
@@ -137,7 +140,7 @@ const Navbar = () => {
                   role='menuitem'
                   to='/receptionist-profile'
                   onClick={() => setReceptionistMenuOpen(false)}
-                  className='flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50'
+                  className='flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm font-medium text-gray-700 transition hover:bg-gray-50'
                 >
                   <UserRound className='h-4 w-4 text-primary shrink-0' />
                   {t('My Profile')}
@@ -146,7 +149,7 @@ const Navbar = () => {
                   type='button'
                   role='menuitem'
                   onClick={logout}
-                  className='flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50'
+                  className='flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2.5 text-start text-sm font-medium text-red-600 transition hover:bg-red-50'
                 >
                   <LogOut className='h-4 w-4 shrink-0' />
                   {t('Logout')}
@@ -161,7 +164,7 @@ const Navbar = () => {
             <button
               type='button'
               onClick={() => setDoctorMenuOpen((o) => !o)}
-              className='flex items-center gap-1.5 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-2 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/25'
+              className='flex items-center gap-1.5 rounded-full border border-slate-200 bg-white py-1 ps-1 pe-2 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/25'
               aria-expanded={doctorMenuOpen}
               aria-haspopup='menu'
               aria-label={t('My Profile')}
@@ -179,7 +182,7 @@ const Navbar = () => {
             {doctorMenuOpen && (
               <div
                 role='menu'
-                className='absolute right-0 top-full z-[60] mt-2 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-black/5'
+                className='absolute end-0 top-full z-[60] mt-2 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-black/5'
               >
                 <div className='border-b border-slate-100 px-3 py-2.5'>
                   <p className='truncate text-sm font-semibold text-slate-900'>{doctorNavSummary?.name || t('Doctor')}</p>
@@ -189,7 +192,7 @@ const Navbar = () => {
                   role='menuitem'
                   to='/doctor-profile'
                   onClick={() => setDoctorMenuOpen(false)}
-                  className='flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50'
+                  className='flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm font-medium text-slate-700 transition hover:bg-slate-50'
                 >
                   <UserRound className='h-4 w-4 shrink-0 text-indigo-600' />
                   {t('My Profile')}
@@ -198,7 +201,7 @@ const Navbar = () => {
                   type='button'
                   role='menuitem'
                   onClick={logout}
-                  className='flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50'
+                  className='flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2.5 text-start text-sm font-medium text-red-600 transition hover:bg-red-50'
                 >
                   <LogOut className='h-4 w-4 shrink-0' />
                   {t('Logout')}
@@ -213,7 +216,7 @@ const Navbar = () => {
             <button
               type='button'
               onClick={() => setAdminMenuOpen((o) => !o)}
-              className='flex items-center gap-1.5 rounded-full border border-blue-200 bg-white py-1 pl-1 pr-2 shadow-sm transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary/30'
+              className='flex items-center gap-1.5 rounded-full border border-blue-200 bg-white py-1 ps-1 pe-2 shadow-sm transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary/30'
               aria-expanded={adminMenuOpen}
               aria-haspopup='menu'
               aria-label={t('My account')}
@@ -231,7 +234,7 @@ const Navbar = () => {
             {adminMenuOpen && (
               <div
                 role='menu'
-                className='absolute right-0 top-full z-[60] mt-2 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg ring-1 ring-black/5'
+                className='absolute end-0 top-full z-[60] mt-2 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg ring-1 ring-black/5'
               >
                 <div className='border-b border-gray-100 px-3 py-2.5'>
                   <p className='truncate text-sm font-semibold text-gray-900'>{adminNavSummary?.name || t('Admin')}</p>
@@ -244,7 +247,7 @@ const Navbar = () => {
                   role='menuitem'
                   to='/admin-profile'
                   onClick={() => setAdminMenuOpen(false)}
-                  className='flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50'
+                  className='flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm font-medium text-gray-700 transition hover:bg-gray-50'
                 >
                   <UserRound className='h-4 w-4 shrink-0 text-primary' />
                   {t('My Profile')}
@@ -253,7 +256,7 @@ const Navbar = () => {
                   role='menuitem'
                   to='/security-settings'
                   onClick={() => setAdminMenuOpen(false)}
-                  className='flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50'
+                  className='flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm font-medium text-gray-700 transition hover:bg-gray-50'
                 >
                   <ShieldCheck className='h-4 w-4 shrink-0 text-slate-500' />
                   {t('Security settings')}
@@ -262,7 +265,7 @@ const Navbar = () => {
                   type='button'
                   role='menuitem'
                   onClick={logout}
-                  className='flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50'
+                  className='flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2.5 text-start text-sm font-medium text-red-600 transition hover:bg-red-50'
                 >
                   <LogOut className='h-4 w-4 shrink-0' />
                   {t('Logout')}

@@ -196,7 +196,7 @@ const ReceptionistProfile = () => {
             <UserRound className='w-6 h-6 text-primary' />
             My Profile
           </h1>
-          <p className='text-sm text-gray-600 mt-1 ml-8'>Photo, contact, address, emergency contact, and security</p>
+          <p className='text-sm text-gray-600 mt-1 ms-8'>Photo, contact, address, emergency contact, and security</p>
         </div>
 
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
@@ -390,7 +390,7 @@ const ReceptionistProfile = () => {
                   {mfaStatus?.enabled && !mfaStatus?.required && (
                     <>
                       <input value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder='6-digit code' className='w-full px-3 py-2 text-center text-sm font-bold tracking-[0.35em] border border-gray-200 rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/20' inputMode='numeric' />
-                      <button type='button' onClick={disableMfa} className='w-full px-4 py-2 border border-red-200 bg-white text-red-700 font-semibold rounded-lg hover:bg-red-50 transition'>
+                      <button type='button' onClick={disableMfa} className='w-full px-4 py-2 border border-eed-200 bg-white text-red-700 font-semibold rounded-lg hover:bg-red-50 transition'>
                         Disable MFA
                       </button>
                     </>

@@ -1,6 +1,7 @@
-import clinicModel, { defaultClinicNames } from '../models/clinicModel.js'
+import clinicModel, { clinicBilingualFields, defaultClinicNames } from '../models/clinicModel.js'
 import doctorModel from '../models/doctorModel.js'
 import { logAudit } from '../services/auditService.js'
+import { applyBilingualFields, primaryText, retryPendingBilingual } from '../services/bilingualContentService.js'
 
 const normalizeDoctorIds = (doctorIds) => {
   if (!doctorIds) return []
@@ -31,6 +32,9 @@ const seedDefaultClinics = async () => {
 const getClinics = async (req, res) => {
   try {
     await seedDefaultClinics()
+    await retryPendingBilingual(clinicModel, clinicBilingualFields).catch((error) => {
+      console.warn('clinic translation retry failed', error.message)
+    })
 
     const clinics = await clinicModel.find({}).sort({ name: 1 }).lean()
     const doctors = await doctorModel.find({}).select('-password').populate('clinics').lean()
@@ -63,8 +67,8 @@ const getPublicClinics = async (req, res) => {
 
 const createClinic = async (req, res) => {
   try {
-    const { description = '' } = req.body
-    const name = normalizeClinicName(req.body.name)
+    const name = normalizeClinicName(primaryText(req.body.nameI18n ?? req.body.name))
+    const description = primaryText(req.body.descriptionI18n ?? req.body.description)
 
     if (!name) {
       return res.json({ success: false, message: 'Clinic name is required' })
@@ -75,11 +79,16 @@ const createClinic = async (req, res) => {
       return res.json({ success: false, message: 'Clinic already exists' })
     }
 
-    const clinic = await clinicModel.create({
+    const clinic = new clinicModel({
       name,
       description,
       date: Date.now()
     })
+    await applyBilingualFields(clinic, clinicBilingualFields, {
+      name: req.body.nameI18n ?? name,
+      description: req.body.descriptionI18n ?? description
+    })
+    await clinic.save()
 
     await logAudit({
       action: 'clinic_create',
@@ -99,8 +108,10 @@ const createClinic = async (req, res) => {
 
 const updateClinic = async (req, res) => {
   try {
-    const { clinicId, description = '', active } = req.body
-    const name = normalizeClinicName(req.body.name)
+    const { clinicId, active } = req.body
+    /* Doctors match clinics by this name, so an Arabic-only edit must not rename the clinic */
+    const name = normalizeClinicName(req.body.nameI18n ? req.body.nameI18n.en : req.body.name)
+    const description = primaryText(req.body.descriptionI18n ?? req.body.description)
 
     if (!clinicId) {
       return res.json({ success: false, message: 'Clinic ID is required' })
@@ -120,6 +131,10 @@ const updateClinic = async (req, res) => {
     }
 
     clinic.description = description
+    await applyBilingualFields(clinic, clinicBilingualFields, {
+      name: req.body.nameI18n ?? clinic.name,
+      description: req.body.descriptionI18n ?? description
+    })
     if (typeof active !== 'undefined') {
       clinic.active = active === true || active === 'true'
     }

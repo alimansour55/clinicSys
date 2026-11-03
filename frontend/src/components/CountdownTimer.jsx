@@ -30,7 +30,7 @@ const CountdownTimer = ({ duration = 120, onResend }) => {
   };
 
   return (
-    <div className="text-left text-sm">
+    <div className="text-start text-sm">
       {canResend ? (
         <button type="button" onClick={handleResend} className="text-primary underline cursor-pointer hover:text-primary/80">
           Resend OTP

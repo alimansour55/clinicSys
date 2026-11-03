@@ -234,7 +234,7 @@ const ReceptionistDashboard = () => {
 
           <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
             {lastUpdated && (
-              <p className="text-center text-xs text-slate-400 sm:text-right">
+              <p className="text-center text-xs text-slate-400 sm:text-end">
                 {t("Updated")}{" "}
                 {new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(lastUpdated)}
               </p>
@@ -265,7 +265,7 @@ const ReceptionistDashboard = () => {
             >
               <Icon className={`h-5 w-5 shrink-0 ${variant === "primary" ? "text-white" : "text-primary"}`} />
               <span className="min-w-0 flex-1 truncate">{label}</span>
-              <ArrowRight className={`h-4 w-4 shrink-0 opacity-60 transition group-hover:translate-x-0.5 ${variant === "primary" ? "text-white" : ""}`} />
+              <ArrowRight className={`rtl:-scale-x-100 h-4 w-4 shrink-0 opacity-60 transition group-hover:translate-x-0.5 ${variant === "primary" ? "text-white" : ""}`} />
             </Link>
           ))}
         </div>
@@ -334,12 +334,12 @@ const ReceptionistDashboard = () => {
 
               <div className="border-b border-slate-100 p-4">
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     value={queueSearch}
                     onChange={(e) => setQueueSearch(e.target.value)}
                     placeholder={t("Search by patient, phone, doctor, ref…")}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm outline-none ring-primary/0 transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white ps-10 pe-4 text-sm outline-none ring-primary/0 transition focus:border-primary focus:ring-2 focus:ring-primary/15"
                   />
                 </div>
               </div>
@@ -348,7 +348,7 @@ const ReceptionistDashboard = () => {
                 <div className="px-5 py-16 text-center text-sm text-slate-500">{t("No visits match your filters for today.")}</div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-left text-sm">
+                  <table className="w-full min-w-[720px] text-start text-sm">
                     <thead>
                       <tr className="border-b border-slate-100 bg-white text-xs font-semibold uppercase tracking-wide text-slate-500">
                         <th className="whitespace-nowrap px-5 py-3">{t("Time")}</th>
@@ -357,7 +357,7 @@ const ReceptionistDashboard = () => {
                         <th className="hidden px-5 py-3 lg:table-cell">{t("Location / mode")}</th>
                         <th className="whitespace-nowrap px-5 py-3">{t("Fees")}</th>
                         <th className="px-5 py-3">{t("Status")}</th>
-                        <th className="whitespace-nowrap px-5 py-3 text-right">{t("Actions")}</th>
+                        <th className="whitespace-nowrap px-5 py-3 text-end">{t("Actions")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -409,13 +409,13 @@ const ReceptionistDashboard = () => {
                                 </span>
                               </div>
                             </td>
-                            <td className="whitespace-nowrap px-5 py-3 text-right">
+                            <td className="whitespace-nowrap px-5 py-3 text-end">
                               <Link
                                 to={`/receptionist-appointments?q=${q}`}
                                 className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
                               >
                                 {t("Manage")}
-                                <ArrowRight className="h-3 w-3" />
+                                <ArrowRight className="rtl:-scale-x-100 h-3 w-3" />
                               </Link>
                             </td>
                           </tr>

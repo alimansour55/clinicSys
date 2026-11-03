@@ -201,7 +201,7 @@ const DoctorProfile = () => {
           <div className="flex shrink-0 justify-center lg:justify-start">
             <div className="relative w-full max-w-[280px] overflow-hidden rounded-2xl border-4 border-white bg-white shadow-xl shadow-slate-900/15 ring-1 ring-slate-200/80">
               <img className="aspect-square w-full object-cover" src={profileData.image} alt="" />
-              <RatingBadge summary={profileData.ratingSummary || ratingsData.summary} className="absolute left-3 top-3" />
+              <RatingBadge summary={profileData.ratingSummary || ratingsData.summary} className="absolute start-3 top-3" />
             </div>
           </div>
 
@@ -274,7 +274,7 @@ const DoctorProfile = () => {
               <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">
                 <span className="text-sm font-semibold text-slate-700">Consultation fee</span>
                 <span className="inline-flex overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-slate-900 shadow-inner">
-                  <span className="flex items-center border-r border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600">{currency}</span>
+                  <span className="flex items-center border-e border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600">{currency}</span>
                   <span className="px-3 py-2 text-sm font-bold tabular-nums">{Number(profileData.fees || 0).toLocaleString()}</span>
                 </span>
                 <span className="text-xs text-slate-500">Set by clinic admin</span>
@@ -353,7 +353,7 @@ const DoctorProfile = () => {
                     <button 
                       type='button' 
                       onClick={() => removeLocation(index)} 
-                      className='rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50'
+                      className='rounded-lg border border-eed-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50'
                     >
                       Remove
                     </button>
@@ -438,7 +438,7 @@ const DoctorProfile = () => {
               <p className="mt-1 text-sm text-slate-600">
                 Status: <span className="font-semibold">{mfaStatus?.enabled ? 'Enabled' : 'Not configured'}</span>
                 {mfaStatus?.required && (
-                  <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">Required</span>
+                  <span className="ms-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">Required</span>
                 )}
               </p>
 
@@ -475,7 +475,7 @@ const DoctorProfile = () => {
                         className="rounded-xl border border-slate-200 px-3 py-2 text-center font-semibold tracking-[0.35em]"
                         inputMode="numeric"
                       />
-                      <button type="button" onClick={disableMfa} className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">
+                      <button type="button" onClick={disableMfa} className="rounded-xl border border-eed-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">
                         Disable MFA
                       </button>
                     </>

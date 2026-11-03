@@ -42,7 +42,7 @@ const StaffMobileNav = ({
 
   const initial = (navSummary?.name || roleLabel || '?').trim().charAt(0).toUpperCase() || '?'
   /** Mobile drawer opens from the left edge and expands right (LTR-style slide). */
-  const drawerSide = 'left-0 border-r'
+  const drawerSide = 'start-0 border-e'
   const subtitle = navSummary?.speciality || navSummary?.email || ''
 
   return (

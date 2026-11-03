@@ -1208,8 +1208,8 @@ const ChatbotWidget = () => {
   const panel = (
     <div
       className={`chatbot-panel fixed z-[9998] flex flex-col overflow-hidden border border-gray-200 bg-white shadow-2xl transition-all
-        left-2 right-2 h-[min(85dvh,680px)] min-h-[min(520px,85dvh)] max-h-[min(85dvh,calc(100dvh-5rem))] rounded-2xl
-        sm:left-auto sm:right-6 sm:w-[min(100%,400px)]
+        start-2 end-2 h-[min(85dvh,680px)] min-h-[min(520px,85dvh)] max-h-[min(85dvh,calc(100dvh-5rem))] rounded-2xl
+        sm:start-auto sm:end-6 sm:w-[min(100%,400px)]
         ${open ? 'bottom-[5rem] opacity-100 sm:bottom-6' : 'pointer-events-none bottom-[5.75rem] opacity-0 sm:bottom-24'}
       `}
       dir={isRtl ? 'rtl' : 'ltr'}
@@ -1248,8 +1248,8 @@ const ChatbotWidget = () => {
               <div
                 className={`max-w-[92%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-[13px] leading-relaxed ${
                   msg.role === 'user'
-                    ? 'rounded-br-md bg-primary text-white'
-                    : 'rounded-bl-md border border-gray-200 bg-white text-gray-800 shadow-sm'
+                    ? 'rounded-ee-md bg-primary text-white'
+                    : 'rounded-es-md border border-gray-200 bg-white text-gray-800 shadow-sm'
                 }`}
               >
                 {messageText(msg, chatLang)}
@@ -1303,7 +1303,7 @@ const ChatbotWidget = () => {
                     key={q.id}
                     type="button"
                     onClick={() => handleQuickReply(q)}
-                    className={`rounded-xl border px-3 py-3 text-left text-xs font-semibold leading-snug shadow-sm transition ${
+                    className={`rounded-xl border px-3 py-3 text-start text-xs font-semibold leading-snug shadow-sm transition ${
                       q.isFallback
                         ? 'border-primary bg-primary text-white hover:bg-primary/90'
                         : 'border-emerald-200 bg-white text-emerald-900 hover:border-emerald-400'
@@ -1336,7 +1336,7 @@ const ChatbotWidget = () => {
                     key={q.id}
                     type="button"
                     onClick={() => handleQuickReply(q)}
-                    className="min-h-[3.25rem] rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2.5 text-left text-xs font-semibold leading-snug text-emerald-900 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100"
+                    className="min-h-[3.25rem] rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2.5 text-start text-xs font-semibold leading-snug text-emerald-900 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100"
                   >
                     <span className="line-clamp-2">{q.label}</span>
                   </button>
@@ -1367,7 +1367,7 @@ const ChatbotWidget = () => {
                   key={opt.value}
                   type="button"
                   onClick={() => chooseAppointmentType(opt.value)}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-left text-xs font-semibold text-gray-800 shadow-sm hover:border-primary"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-start text-xs font-semibold text-gray-800 shadow-sm hover:border-primary"
                 >
                   {t(opt.labelKey)}
                 </button>
@@ -1400,7 +1400,7 @@ const ChatbotWidget = () => {
                     type="button"
                     disabled={disabled}
                     onClick={() => !disabled && chooseVisitFeeType(opt.value)}
-                    className={`rounded-xl border px-3 py-3 text-left text-xs font-semibold shadow-sm ${
+                    className={`rounded-xl border px-3 py-3 text-start text-xs font-semibold shadow-sm ${
                       disabled
                         ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400'
                         : 'border-gray-200 bg-white text-gray-800 hover:border-primary'
@@ -1428,7 +1428,7 @@ const ChatbotWidget = () => {
                   key={branch.loc}
                   type="button"
                   onClick={() => chooseLocation(branch)}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-left text-sm font-semibold text-gray-800 shadow-sm hover:border-primary"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-start text-sm font-semibold text-gray-800 shadow-sm hover:border-primary"
                 >
                   <span className="block">{translateLoc(branch.loc)}</span>
                   {branch.slotCount > 0 && (
@@ -1563,8 +1563,8 @@ const ChatbotWidget = () => {
         aria-label={open ? t('Close chat') : t('Open booking assistant')}
         className={
           open
-            ? 'chatbot-launcher chatbot-launcher--open fixed bottom-4 right-3 z-[9999] flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_28px_rgba(14,147,132,0.45)] ring-4 ring-primary/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary-dark hover:shadow-[0_12px_36px_rgba(14,147,132,0.55)] active:scale-95 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14'
-            : 'chatbot-launcher chatbot-launcher--closed group fixed bottom-4 right-3 z-[9999] flex h-[3.75rem] items-center gap-3 overflow-hidden rounded-full border border-white/20 bg-gradient-to-br from-primary via-teal-600 to-primary-dark px-1.5 py-1.5 text-white shadow-[0_10px_36px_rgba(14,147,132,0.42)] transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-white/35 hover:shadow-[0_16px_44px_rgba(14,147,132,0.52)] active:scale-[0.98] max-[380px]:h-14 max-[380px]:w-14 max-[380px]:justify-center max-[380px]:p-0 sm:bottom-6 sm:right-6 sm:h-16 sm:gap-3.5 sm:pl-2 sm:pr-5'
+            ? 'chatbot-launcher chatbot-launcher--open fixed bottom-4 end-3 z-[9999] flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_28px_rgba(14,147,132,0.45)] ring-4 ring-primary/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary-dark hover:shadow-[0_12px_36px_rgba(14,147,132,0.55)] active:scale-95 sm:bottom-6 sm:end-6 sm:h-14 sm:w-14'
+            : 'chatbot-launcher chatbot-launcher--closed group fixed bottom-4 end-3 z-[9999] flex h-[3.75rem] items-center gap-3 overflow-hidden rounded-full border border-white/20 bg-gradient-to-br from-primary via-teal-600 to-primary-dark px-1.5 py-1.5 text-white shadow-[0_10px_36px_rgba(14,147,132,0.42)] transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-white/35 hover:shadow-[0_16px_44px_rgba(14,147,132,0.52)] active:scale-[0.98] max-[380px]:h-14 max-[380px]:w-14 max-[380px]:justify-center max-[380px]:p-0 sm:bottom-6 sm:end-6 sm:h-16 sm:gap-3.5 sm:ps-2 sm:pe-5'
         }
       >
         {open ? (
@@ -1573,12 +1573,12 @@ const ChatbotWidget = () => {
           <>
             <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15 ring-2 ring-white/25 backdrop-blur-sm transition duration-300 group-hover:bg-white/25 group-hover:ring-white/40 sm:h-12 sm:w-12">
               <CalendarClock className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2.25} />
-              <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3">
+              <span className="absolute -end-0.5 -top-0.5 flex h-3 w-3">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-70" />
                 <span className="relative inline-flex h-3 w-3 rounded-full border-2 border-teal-700 bg-emerald-400" />
               </span>
             </span>
-            <span className="chatbot-launcher-copy min-w-0 flex-1 text-left max-[380px]:hidden">
+            <span className="chatbot-launcher-copy min-w-0 flex-1 text-start max-[380px]:hidden">
               <span className="block truncate text-sm font-bold leading-tight tracking-tight sm:text-[0.9375rem]">
                 {t('Medical Booking Assistant')}
               </span>

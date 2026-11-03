@@ -1,0 +1,75 @@
+/* Global defaults built on tokens.css. Kept identical in frontend/ and admin/. */
+
+@layer base {
+  html {
+    background-color: var(--color-canvas);
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    transition:
+      background-color var(--duration-base) var(--ease-standard),
+      color var(--duration-base) var(--ease-standard);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-primary);
+    color: var(--color-on-primary);
+  }
+}
+
+html[lang='ar'] body,
+html[lang='ar'] body * {
+  letter-spacing: 0 !important;
+}
+
+/* Uploaded logos are often dark on transparent: give them a light plate on dark surfaces */
+[data-theme='dark'] .brand-logo {
+  box-sizing: content-box;
+  border-radius: 0.5rem;
+  background-color: #fff;
+  padding: 0.125rem 0.375rem;
+}
+
+/* Toasts: restyles every react-toastify toast, old and new */
+:root {
+  --toastify-color-light: var(--color-surface-raised);
+  --toastify-text-color-light: var(--color-ink);
+  --toastify-color-info: var(--color-info);
+  --toastify-color-success: var(--color-success);
+  --toastify-color-warning: var(--color-warning);
+  --toastify-color-error: var(--color-danger);
+  --toastify-font-family: var(--font-sans);
+  --toastify-toast-bd-radius: var(--radius-control);
+  --toastify-z-index: var(--z-toast);
+}
+
+/* !important: react-toastify's own stylesheet can load after this one */
+.Toastify__toast-container {
+  z-index: var(--z-toast) !important;
+}
+
+.Toastify__toast {
+  box-shadow: var(--shadow-e2);
+  border: 1px solid var(--color-line);
+}
+
+/* Reduced motion: also covers animation classes written before these tokens existed */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

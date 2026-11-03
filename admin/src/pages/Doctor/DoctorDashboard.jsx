@@ -152,7 +152,7 @@ const DoctorDashboard = () => {
       label: t("Cancelled"),
       value: cancelled,
       icon: Ban,
-      tone: "from-rose-500/10 to-red-500/8 border-rose-200/70 text-rose-900",
+      tone: "from-rose-500/10 to-red-500/8 border-eose-200/70 text-rose-900",
       iconBg: "bg-rose-500/12 text-rose-600",
     },
   ];
@@ -243,7 +243,7 @@ const DoctorDashboard = () => {
       {/* Primary KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="group relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-bl-full pointer-events-none" />
+          <div className="absolute top-0 end-0 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-es-full pointer-events-none" />
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -262,7 +262,7 @@ const DoctorDashboard = () => {
         </div>
 
         <div className="group relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-transparent rounded-bl-full pointer-events-none" />
+          <div className="absolute top-0 end-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-transparent rounded-es-full pointer-events-none" />
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -280,7 +280,7 @@ const DoctorDashboard = () => {
         </div>
 
         <div className="group relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-violet-500/10 to-transparent rounded-bl-full pointer-events-none" />
+          <div className="absolute top-0 end-0 w-32 h-32 bg-gradient-to-br from-violet-500/10 to-transparent rounded-es-full pointer-events-none" />
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">

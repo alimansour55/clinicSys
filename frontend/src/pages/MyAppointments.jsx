@@ -129,7 +129,7 @@ const MyAppointments = () => {
               onClick={closePrescription}
               className='flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition text-sm sm:text-base'
             >
-              <ArrowLeft className='w-4 h-4 sm:w-5 sm:h-5' />
+              <ArrowLeft className='rtl:-scale-x-100 w-4 h-4 sm:w-5 sm:h-5' />
               <span className='font-medium'>{t('Back to Appointments')}</span>
             </button>
             
@@ -284,11 +284,11 @@ const MyAppointments = () => {
                     <table className='w-full min-w-[620px] text-xs sm:text-sm border border-green-100 rounded-lg overflow-hidden'>
                       <thead className='bg-green-50 text-gray-700'>
                         <tr>
-                          <th className='text-left p-2'>{t('Medicine')}</th>
-                          <th className='text-left p-2'>{t('Dosage')}</th>
-                          <th className='text-left p-2'>{t('Frequency')}</th>
-                          <th className='text-left p-2'>{t('Duration')}</th>
-                          <th className='text-left p-2'>{t('Instructions')}</th>
+                          <th className='text-start p-2'>{t('Medicine')}</th>
+                          <th className='text-start p-2'>{t('Dosage')}</th>
+                          <th className='text-start p-2'>{t('Frequency')}</th>
+                          <th className='text-start p-2'>{t('Duration')}</th>
+                          <th className='text-start p-2'>{t('Instructions')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -488,13 +488,13 @@ return (
             {/* Action Buttons */}
             <div className='mt-4 sm:mt-0 sm:w-auto sm:flex sm:flex-col sm:justify-end'>
               {!item.cancelled && !item.isCompleted && (
-                <button onClick={() => cancelAppointment(item._id)} className='w-full sm:w-48 py-2 px-4 text-sm md:text-base text-stone-500 border border-gray-300 rounded-lg hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-all duration-300'>
+                <button onClick={() => cancelAppointment(item._id)} className='w-full sm:w-48 py-2 px-4 text-sm md:text-base text-stone-500 border border-gray-300 rounded-lg hover:bg-red-50 hover:border-eed-300 hover:text-red-600 transition-all duration-300'>
                   {t('Cancel appointment')}
                 </button>
               )}
               
               {item.cancelled && !item.isCompleted && (
-                <button className='w-full sm:w-56 py-2 px-4 text-sm md:text-base border border-red-300 rounded-lg text-red-600 bg-red-50'>
+                <button className='w-full sm:w-56 py-2 px-4 text-sm md:text-base border border-eed-300 rounded-lg text-red-600 bg-red-50'>
                   {t('Appointment Cancelled')}
                 </button>
               )}
@@ -519,7 +519,7 @@ return (
                     )}
                   </button>
                   {item.myRating ? (
-                    <div className='w-full sm:w-48 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-left'>
+                    <div className='w-full sm:w-48 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-start'>
                       <div className='flex items-center gap-2'>
                         <StarRow value={item.myRating.rating} />
                         <span className='text-xs font-semibold text-gray-800'>{localizeDigits(`${item.myRating.rating}/5`)}</span>

@@ -91,9 +91,9 @@ const ReceptionistClinics = () => {
             <p className="mt-2 text-sm text-slate-600">Read-only clinic information, assigned doctors, and clinic locations for reception desk work.</p>
           </div>
           <div className="relative w-full lg:w-96">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search clinics, doctors, locations" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-9 text-sm text-slate-900 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100" />
-            {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" aria-label="Clear search"><X className="h-4 w-4" /></button>}
+            <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search clinics, doctors, locations" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 ps-10 pe-9 text-sm text-slate-900 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100" />
+            {search && <button onClick={() => setSearch("")} className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" aria-label="Clear search"><X className="h-4 w-4" /></button>}
           </div>
           </div>
 
@@ -176,7 +176,7 @@ const ReceptionistClinics = () => {
                       setSelectedClinicId(clinic._id);
                       setSelectedDoctorId("");
                     }}
-                    className="w-full text-left"
+                    className="w-full text-start"
                   >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
@@ -203,11 +203,11 @@ const ReceptionistClinics = () => {
                           setSelectedClinicId(clinic._id);
                           setSelectedDoctorId(doctor._id);
                         }}
-                        className={`flex items-center gap-3 rounded-xl border p-3 text-left transition hover:bg-indigo-50 ${selectedDoctor?._id === doctor._id ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white"}`}
+                        className={`flex items-center gap-3 rounded-xl border p-3 text-start transition hover:bg-indigo-50 ${selectedDoctor?._id === doctor._id ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white"}`}
                       >
                         <div className="relative shrink-0">
                           <img src={doctor.image} alt={doctor.name} className="h-12 w-12 rounded-full bg-slate-100 object-cover" />
-                          <RatingBadge summary={doctor.ratingSummary} className="absolute -left-2 -top-2" />
+                          <RatingBadge summary={doctor.ratingSummary} className="absolute -start-2 -top-2" />
                         </div>
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-slate-950">{doctor.name}</p>
@@ -227,7 +227,7 @@ const ReceptionistClinics = () => {
                   <div className="mb-4 flex items-center gap-3">
                     <div className="relative">
                       <img src={selectedDoctor.image} alt={selectedDoctor.name} className="h-20 w-20 rounded-full border border-slate-200 bg-slate-100 object-cover" />
-                      <RatingBadge summary={selectedDoctor.ratingSummary} className="absolute -left-2 -top-2" />
+                      <RatingBadge summary={selectedDoctor.ratingSummary} className="absolute -start-2 -top-2" />
                     </div>
                     <div className="min-w-0">
                       <h2 className="truncate text-lg font-bold text-slate-950">{selectedDoctor.name}</h2>

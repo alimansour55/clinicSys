@@ -1,0 +1,231 @@
+/*
+ * Clinivo design tokens. See DESIGN_SYSTEM.md.
+ * Kept identical in frontend/ and admin/ (enforced by designSystemSync.test.js).
+ * Colour values stay hex so tokens.test.js can check WCAG AA in both themes.
+ */
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  /* Surfaces: a faintly green mineral paper rather than cold SaaS grey */
+  --color-canvas: #f6f8f5;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #edf1ed;
+
+  /* Text */
+  --color-ink: #0f211d;
+  --color-ink-2: #3f514c;
+  --color-ink-3: #5a6b66;
+
+  /* Lines. `field` is the 3:1 border WCAG 1.4.11 asks of form controls */
+  --color-line: #dde4df;
+  --color-line-strong: #c2cdc7;
+  --color-field: #76867f;
+
+  /* Brand. `primary` is for fills under text-on-primary, `brand` is for text and icons */
+  --color-primary: #0b8074;
+  --color-primary-dark: #0a6a60;
+  --color-primary-soft: #e3f6f1;
+  --color-on-primary: #ffffff;
+  --color-brand: #0a7468;
+
+  /* The warm counterpoint: use sparingly, for what needs a human's attention now */
+  --color-accent: #c4461c;
+  --color-on-accent: #ffffff;
+  --color-accent-soft: #fdeee7;
+  --color-accent-ink: #9a3412;
+
+  /* Status: solid fills take text-on-status, soft fills take the matching -ink */
+  --color-on-status: #ffffff;
+  --color-success: #15803d;
+  --color-success-soft: #e5f6ea;
+  --color-success-ink: #166534;
+  --color-warning: #b45309;
+  --color-warning-soft: #fdf3dc;
+  --color-warning-ink: #854d0e;
+  --color-danger: #c62828;
+  --color-danger-soft: #fdebec;
+  --color-danger-ink: #a1161f;
+  --color-info: #1d6fb8;
+  --color-info-soft: #e6f1fb;
+  --color-info-ink: #175a96;
+
+  --color-focus: #0a6a60;
+
+  /* Tailwind's neutrals, retuned so every existing page shares the mineral tone */
+  --color-gray-50: #f5f7f5;
+  --color-gray-100: #edf1ee;
+  --color-gray-200: #dde4df;
+  --color-gray-300: #c5cfc9;
+  --color-gray-400: #94a39d;
+  --color-gray-500: #5f706a;
+  --color-gray-600: #4a5a55;
+  --color-gray-700: #3a4945;
+  --color-gray-800: #27352f;
+  --color-gray-900: #162420;
+  --color-gray-950: #0b1613;
+  --color-slate-50: #f5f7f5;
+  --color-slate-100: #edf1ee;
+  --color-slate-200: #dde4df;
+  --color-slate-300: #c5cfc9;
+  --color-slate-400: #94a39d;
+  --color-slate-500: #5f706a;
+  --color-slate-600: #4a5a55;
+  --color-slate-700: #3a4945;
+  --color-slate-800: #27352f;
+  --color-slate-900: #162420;
+  --color-slate-950: #0b1613;
+
+  /* Type. Latin faces first, Arabic glyphs fall through to the paired Arabic face */
+  --font-sans: 'Instrument Sans', 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, 'Segoe UI', Arial, sans-serif;
+  --font-display: 'Newsreader', 'Noto Naskh Arabic', ui-serif, Georgia, 'Times New Roman', serif;
+
+  --text-display-xl: clamp(2.5rem, 1.6rem + 4vw, 4.5rem);
+  --text-display-xl--line-height: var(--leading-display);
+  --text-display-xl--letter-spacing: var(--tracking-display);
+  --text-display: clamp(2rem, 1.5rem + 2.4vw, 3.25rem);
+  --text-display--line-height: var(--leading-display);
+  --text-display--letter-spacing: var(--tracking-display);
+  --text-title-lg: clamp(1.5rem, 1.3rem + 0.9vw, 2rem);
+  --text-title-lg--line-height: var(--leading-title);
+  --text-title: 1.25rem;
+  --text-title--line-height: var(--leading-title);
+  --text-subtitle: 1.0625rem;
+  --text-subtitle--line-height: var(--leading-title);
+  --text-body: 1rem;
+  --text-body--line-height: var(--leading-body);
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: var(--leading-body);
+  --text-caption: 0.75rem;
+  --text-caption--line-height: var(--leading-body);
+
+  /* Spacing: Tailwind's 4px scale, plus named layout rhythm */
+  --spacing-gutter: clamp(1rem, 0.5rem + 2.5vw, 2.5rem);
+  --spacing-section: clamp(3rem, 2rem + 5vw, 6rem);
+
+  /* Radius. `signature` is the Clinivo leaf corner, applied to one logical corner */
+  --radius-control: 0.75rem;
+  --radius-card: 1.25rem;
+  --radius-sheet: 1.75rem;
+  --radius-signature: 2.75rem;
+
+  /* Elevation: shadows tinted with the ink colour, never pure black */
+  --shadow-e1: 0 1px 2px rgb(15 33 29 / 0.06), 0 1px 1px rgb(15 33 29 / 0.04);
+  --shadow-e2: 0 6px 16px -4px rgb(15 33 29 / 0.1), 0 2px 4px rgb(15 33 29 / 0.05);
+  --shadow-e3: 0 24px 56px -12px rgb(15 33 29 / 0.24), 0 8px 16px -8px rgb(15 33 29 / 0.1);
+  --shadow-brand: 0 10px 24px -8px rgb(11 128 116 / 0.55);
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+
+  --animate-rise: rise var(--duration-slow) var(--ease-enter) both;
+  --animate-fade: fade var(--duration-base) var(--ease-standard) both;
+  --animate-sheet: sheet var(--duration-slow) var(--ease-enter) both;
+  --animate-shimmer: shimmer 1.8s linear infinite;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes sheet {
+    from {
+      opacity: 0;
+      transform: translateY(1.5rem);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position-x: 200%;
+    }
+    to {
+      background-position-x: -200%;
+    }
+  }
+}
+
+:root {
+  --leading-display: 1.08;
+  --leading-title: 1.3;
+  --leading-body: 1.6;
+  --tracking-display: -0.02em;
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 360ms;
+
+  --z-modal: 10000;
+  --z-toast: 10010;
+
+  --color-scrim: rgb(11 22 19 / 0.55);
+
+  color-scheme: light;
+}
+
+/* Arabic needs room for its marks and must never be tracked: spacing breaks the joins */
+html[lang='ar'] {
+  --font-sans: 'IBM Plex Sans Arabic', 'Instrument Sans', ui-sans-serif, system-ui, 'Segoe UI', Tahoma, Arial, sans-serif;
+  --font-display: 'Noto Naskh Arabic', 'Newsreader', ui-serif, Georgia, 'Times New Roman', serif;
+  --leading-display: 1.35;
+  --leading-title: 1.5;
+  --leading-body: 1.8;
+  --tracking-display: 0;
+}
+
+:root[data-theme='dark'] {
+  --color-canvas: #0a1513;
+  --color-surface: #111e1b;
+  --color-surface-raised: #172723;
+  --color-surface-sunken: #0d1917;
+
+  --color-ink: #eaf3f0;
+  --color-ink-2: #b5c6c1;
+  --color-ink-3: #93a6a0;
+
+  --color-line: #24352f;
+  --color-line-strong: #395048;
+  --color-field: #6f8880;
+
+  --color-primary-soft: #10302b;
+  --color-brand: #5ad3c0;
+
+  --color-accent-soft: #33190f;
+  --color-accent-ink: #f6ad8d;
+
+  --color-success-soft: #11301e;
+  --color-success-ink: #7ddb9c;
+  --color-warning-soft: #33240a;
+  --color-warning-ink: #f2c46b;
+  --color-danger-soft: #3a1518;
+  --color-danger-ink: #f7a1a6;
+  --color-info-soft: #0f2a40;
+  --color-info-ink: #8cc4f2;
+
+  --color-focus: #5ad3c0;
+
+  --color-scrim: rgb(3 8 7 / 0.7);
+
+  --shadow-e1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-e2: 0 6px 16px -4px rgb(0 0 0 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --shadow-e3: 0 24px 56px -12px rgb(0 0 0 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --shadow-brand: 0 10px 24px -8px rgb(11 128 116 / 0.7);
+
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+}

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Globe } from "lucide-react";
 import { localizeWesternDigits } from "./utils/arabicNumerals.js";
 import {
   DEFAULT_ROLE_LANGUAGE_POLICY,
@@ -6,6 +7,7 @@ import {
   normalizeRoleLanguagePolicy,
   resolveLanguageForPolicy,
 } from "./utils/languageAvailability.js";
+import { areas } from "./i18n/loadAreas.js";
 
 export const LANGUAGES = {
   en: { label: "English", shortLabel: "EN", dir: "ltr", locale: "en-US" },
@@ -13,6 +15,8 @@ export const LANGUAGES = {
 };
 
 const STORAGE_KEY = "clinicSysLanguage";
+/* What the person chose. STORAGE_KEY holds what is active, which a role's policy can override. */
+const PREFERRED_KEY = "clinicSysLanguagePreferred";
 
 const ar = {
   "Admin": "مسؤول",
@@ -714,8 +718,11 @@ const ar = {
   "Network Error": "خطأ في الشبكة",
 };
 
-const dictionaries = { en: {}, ar };
-const reverseAr = Object.fromEntries(Object.entries(ar).map(([key, value]) => [value, key]));
+const dictionaries = { en: areas.en, ar: { ...ar, ...areas.ar } };
+/* Base entries come last so an area repeating an Arabic string cannot change its English. */
+const reverseAr = Object.fromEntries(
+  [...Object.entries(areas.ar), ...Object.entries(ar)].map(([key, value]) => [value, key])
+);
 
 const preserveCaseKey = (text) => {
   if (dictionaries.ar[text]) return text;
@@ -723,7 +730,7 @@ const preserveCaseKey = (text) => {
   return dictionaries.ar[upper] ? upper : text;
 };
 
-const translateString = (value, language = getStoredLanguage()) => {
+export const translateString = (value, language = getStoredLanguage()) => {
   if (value === null || value === undefined) return value;
   const raw = String(value);
   const leading = raw.match(/^\s*/)?.[0] || "";
@@ -734,7 +741,7 @@ const translateString = (value, language = getStoredLanguage()) => {
   const canonical = reverseAr[text] || preserveCaseKey(text);
   let out;
   if (language === "en") {
-    out = `${leading}${canonical}${trailing}`;
+    out = `${leading}${dictionaries.en[canonical] ?? canonical}${trailing}`;
   } else {
     out = `${leading}${dictionaries.ar[canonical] || text}${trailing}`;
   }
@@ -757,6 +764,24 @@ const translateContent = (value, language = getStoredLanguage()) => {
     }
   }
   return value;
+};
+
+const getPreferredLanguage = () => {
+  if (typeof window === "undefined") return "en";
+  const preferred = localStorage.getItem(PREFERRED_KEY);
+  return preferred === "ar" || preferred === "en" ? preferred : getStoredLanguage();
+};
+
+const warnedMissing = new Set();
+
+/* Dev only: t() got Latin text with no Arabic. Database values also land here, so read it as a prompt. */
+const warnIfMissing = (text) => {
+  if (!import.meta.env.DEV || import.meta.env.MODE === "test") return;
+  const key = String(text ?? "").trim();
+  if (!/[A-Za-z]/.test(key) || warnedMissing.has(key)) return;
+  if (dictionaries.ar[preserveCaseKey(key)] || reverseAr[key]) return;
+  warnedMissing.add(key);
+  console.warn(`[i18n] No Arabic for: ${key}`);
 };
 
 export const getStoredLanguage = () => {
@@ -804,13 +829,14 @@ export const LanguageProvider = ({ children }) => {
     setLanguageState((prev) => {
       const allowed = getAllowedLanguagesFromPolicy(languagePolicy);
       if (!allowed.includes(safeLanguage) || prev === safeLanguage) return prev;
+      localStorage.setItem(PREFERRED_KEY, safeLanguage);
       localStorage.setItem(STORAGE_KEY, safeLanguage);
       return safeLanguage;
     });
   }, [languagePolicy]);
 
   useEffect(() => {
-    const resolved = resolveLanguageForPolicy(getStoredLanguage(), languagePolicy);
+    const resolved = resolveLanguageForPolicy(getPreferredLanguage(), languagePolicy);
     setLanguageState((prev) => {
       if (resolved === prev) return prev;
       localStorage.setItem(STORAGE_KEY, resolved);
@@ -834,7 +860,10 @@ export const LanguageProvider = ({ children }) => {
       setLanguagePolicy,
       setLanguage,
       toggleLanguage,
-      t: (text) => translateString(text, language),
+      t: (text) => {
+        if (language === "ar") warnIfMissing(text);
+        return translateString(text, language);
+      },
       tc: (content) => translateContent(content, language),
       localizeDigits: (v) => localizeWesternDigits(v, language),
     };
@@ -907,30 +936,47 @@ export const LanguagePolicySync = ({ policy }) => {
 };
 
 export const LanguageToggle = ({ compact = false }) => {
-  const { language, setLanguage, isRtl, allowedLanguages } = useLanguage();
+  const { language, setLanguage, allowedLanguages, t } = useLanguage();
 
   if (allowedLanguages.length <= 1) return null;
 
+  if (compact) {
+    const next = allowedLanguages.find((key) => key !== language) ?? language;
+    const label = LANGUAGES[next]?.label;
+    return (
+      <button
+        type="button"
+        onClick={() => setLanguage(next)}
+        lang={next}
+        title={t("Change language")}
+        aria-label={`${t("Change language")}: ${label}`}
+        className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-body-sm font-semibold text-ink shadow-e1 transition duration-(--duration-fast) ease-standard hover:border-primary hover:text-brand"
+      >
+        <Globe aria-hidden="true" className="size-4 text-brand" />
+        <span className="sm:hidden">{LANGUAGES[next]?.shortLabel}</span>
+        <span className="hidden sm:inline">{label}</span>
+      </button>
+    );
+  }
+
   return (
-    <div
-      className="inline-flex items-center rounded-full border border-gray-200 bg-white p-1 shadow-sm"
-      dir="ltr"
-      aria-label="Language switcher"
-    >
+    <div role="group" aria-label={t("Language")} className="inline-flex items-center gap-1 rounded-full border border-line bg-surface p-1 shadow-e1">
       {allowedLanguages.map((key) => {
         const config = LANGUAGES[key];
         if (!config) return null;
+        const selected = language === key;
         return (
           <button
             key={key}
             type="button"
+            lang={key}
+            aria-pressed={selected}
             onClick={() => setLanguage(key)}
-            className={`cursor-pointer select-none rounded-full px-3 py-1 text-xs font-semibold transition active:bg-gray-100 ${
-              language === key ? "bg-primary text-white" : "text-gray-600"
+            className={`min-h-9 cursor-pointer rounded-full px-4 text-body-sm font-semibold transition duration-(--duration-fast) ease-standard ${
+              selected ? "bg-primary text-on-primary" : "text-ink-2 hover:bg-surface-sunken hover:text-ink"
             }`}
-            title={config.label}
           >
-            {compact ? config.shortLabel : key === "ar" && !isRtl ? "AR" : config.shortLabel}
+            {config.label}
           </button>
         );
       })}

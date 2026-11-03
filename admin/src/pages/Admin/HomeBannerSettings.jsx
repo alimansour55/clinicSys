@@ -74,7 +74,7 @@ const HomeBannerSettings = () => {
             <ImagePlus className='w-6 h-6 text-primary' />
             Home Banner Settings
           </h1>
-          <p className='mt-2 text-sm text-gray-600 ml-8'>
+          <p className='mt-2 text-sm text-gray-600 ms-8'>
             Control the appointment banner shown below the doctors section on the patient website.
           </p>
         </div>

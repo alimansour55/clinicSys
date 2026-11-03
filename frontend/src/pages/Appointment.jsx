@@ -526,8 +526,8 @@ const Appointment = () => {
         <div className='sm:w-72 sm:shrink-0'>
           <div className='relative overflow-hidden rounded-2xl bg-primary shadow-sm'>
             <img className='h-80 w-full object-cover sm:h-full sm:min-h-80' src={docInfo.image} alt={displayPersonName(docInfo.name)} />
-            <RatingBadge summary={docInfo.ratingSummary || ratingsData.summary} className='absolute left-3 top-3' />
-            <PromoOfferBadge doctor={docInfo} formatMoney={formatMoney} className='absolute bottom-3 left-3' />
+            <RatingBadge summary={docInfo.ratingSummary || ratingsData.summary} className='absolute start-3 top-3' />
+            <PromoOfferBadge doctor={docInfo} formatMoney={formatMoney} className='absolute bottom-3 start-3' />
           </div>
         </div>
 
@@ -593,7 +593,7 @@ const Appointment = () => {
                         setSlotBranch('')
                         setPendingPayment(null)
                       }}
-                      className={`rounded-xl border p-3 text-left transition ${
+                      className={`rounded-xl border p-3 text-start transition ${
                         isDisabled
                           ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 opacity-70'
                           : activeAppointmentType === option.value
@@ -644,7 +644,7 @@ const Appointment = () => {
                         setVisitFeeType(option.value)
                         setPendingPayment(null)
                       }}
-                      className={`rounded-xl border p-3 text-left transition ${
+                      className={`rounded-xl border p-3 text-start transition ${
                         isDisabled
                           ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 opacity-70'
                           : activeVisitFeeType === option.value
@@ -675,7 +675,7 @@ const Appointment = () => {
                 {t('Location')}
               </p>
               {doctorLocations.length > 0 ? (
-                <div className='mt-3 flex max-h-[294px] flex-wrap gap-2 overflow-y-auto pr-1 lg:flex-col lg:flex-nowrap'>
+                <div className='mt-3 flex max-h-[294px] flex-wrap gap-2 overflow-y-auto pe-1 lg:flex-col lg:flex-nowrap'>
                   {doctorLocations.map((location) => {
                     const previewSlots = buildDoctorSlots(docInfo, 7, activeAppointmentType, location, crossBranchHold)
                     const availableCount = previewSlots.reduce((sum, day) => sum + day.slots.filter((slot) => slot.available).length, 0)
@@ -690,7 +690,7 @@ const Appointment = () => {
                         setSlotBranch('')
                         setPendingPayment(null)
                       }}
-                      className={`shrink-0 rounded-xl border px-4 py-2 text-left text-sm font-medium ${selectedClinicLocation === location ? 'border-primary bg-white text-primary shadow-sm' : 'border-blue-200 bg-white/70 text-gray-700 hover:border-primary'}`}
+                      className={`shrink-0 rounded-xl border px-4 py-2 text-start text-sm font-medium ${selectedClinicLocation === location ? 'border-primary bg-white text-primary shadow-sm' : 'border-blue-200 bg-white/70 text-gray-700 hover:border-primary'}`}
                     >
                       <span className='block'>{formatLocationLine(location, language, t, placeTranslationOverrides)}</span>
                       <span className='mt-0.5 block text-xs font-semibold text-gray-500'>
@@ -726,7 +726,7 @@ const Appointment = () => {
                                 setHomeVisitAddress((previous) => ({ ...previous, area }))
                                 setPendingPayment(null)
                               }}
-                              className={`rounded-lg border px-2 py-2 text-left text-xs font-semibold transition ${
+                              className={`rounded-lg border px-2 py-2 text-start text-xs font-semibold transition ${
                                 homeVisitAddress.area === area
                                   ? 'border-emerald-600 bg-emerald-600 text-white'
                                   : 'border-emerald-100 bg-emerald-50/50 text-gray-800 active:bg-emerald-100'
@@ -813,7 +813,7 @@ const Appointment = () => {
               <button
                 type='button'
                 onClick={() => setRatingsOpen((value) => !value)}
-                className='flex w-full flex-col gap-2 text-left sm:flex-row sm:items-center sm:justify-between'
+                className='flex w-full flex-col gap-2 text-start sm:flex-row sm:items-center sm:justify-between'
               >
                 <span>
                   <span className='block text-sm font-semibold text-gray-900'>{t('General rating for this doctor')}</span>
@@ -877,7 +877,7 @@ const Appointment = () => {
               }}
               className='inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40'
             >
-              <ChevronLeft className='h-4 w-4' />
+              <ChevronLeft className='rtl:-scale-x-100 h-4 w-4' />
               {t('Previous week')}
             </button>
             <p className='text-center text-xs font-semibold text-gray-600'>{localizeDigits(weekRangeLabel)}</p>
@@ -894,7 +894,7 @@ const Appointment = () => {
               className='inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40'
             >
               {t('Next week')}
-              <ChevronRight className='h-4 w-4' />
+              <ChevronRight className='rtl:-scale-x-100 h-4 w-4' />
             </button>
           </div>
         )}
@@ -982,7 +982,7 @@ const Appointment = () => {
                 setPromoSelected(true)
                 setPendingPayment(null)
               }}
-              className='mb-5 flex w-full items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-left transition hover:border-emerald-400'
+              className='mb-5 flex w-full items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-start transition hover:border-emerald-400'
             >
               <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded border ${promoSelected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-300 bg-white'}`}>
                 {promoSelected && <CheckCircle2 className='h-4 w-4' />}
@@ -1014,7 +1014,7 @@ const Appointment = () => {
                 setPaymentMethod('Cash')
                 setPendingPayment(null)
               }}
-              className={`flex items-center gap-3 rounded-lg border p-4 text-left ${docInfo.acceptsCash === false ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400' : effectivePaymentMethod === 'Cash' ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 bg-white text-gray-700'}`}
+              className={`flex items-center gap-3 rounded-lg border p-4 text-start ${docInfo.acceptsCash === false ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400' : effectivePaymentMethod === 'Cash' ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 bg-white text-gray-700'}`}
             >
               <Banknote className='h-5 w-5' />
               <span>
@@ -1029,7 +1029,7 @@ const Appointment = () => {
                 if (docInfo.acceptsOnlinePayment === false) return
                 setPaymentMethod('Visa')
               }}
-              className={`flex items-center gap-3 rounded-lg border p-4 text-left ${docInfo.acceptsOnlinePayment === false ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400' : effectivePaymentMethod === 'Visa' ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 bg-white text-gray-700'}`}
+              className={`flex items-center gap-3 rounded-lg border p-4 text-start ${docInfo.acceptsOnlinePayment === false ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400' : effectivePaymentMethod === 'Visa' ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 bg-white text-gray-700'}`}
             >
               <CreditCard className='h-5 w-5' />
               <span>

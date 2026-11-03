@@ -151,7 +151,7 @@ const AllAppointments = () => {
             <h1 className='text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2'>
               <FileText className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 text-blue-600" /> {pageMeta.title}
             </h1>
-            <p className='text-xs sm:text-sm md:text-base text-gray-600 mt-1 ml-6 sm:ml-9'>{pageMeta.subtitle}</p>
+            <p className='text-xs sm:text-sm md:text-base text-gray-600 mt-1 ms-6 sm:ms-9'>{pageMeta.subtitle}</p>
           </div>
           
           <button onClick={() => setShowFilters(!showFilters)} className='flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm'>
@@ -164,16 +164,16 @@ const AllAppointments = () => {
         {/* Search Bar */}
         <div className='bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6'>
           <div className='relative'>
-            <Search className='absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5' />
+            <Search className='absolute start-3 sm:start-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5' />
             <input
               type='text'
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder='Search by Patient ID or reservation...'
-              className='w-full pl-10 sm:pl-12 pr-10 sm:pr-12 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+              className='w-full ps-10 sm:ps-12 pe-10 sm:pe-12 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className='absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600'>
+              <button onClick={() => setSearchQuery('')} className='absolute end-3 sm:end-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600'>
                 <X className='w-4 h-4 sm:w-5 sm:h-5' />
               </button>
             )}
@@ -231,7 +231,7 @@ const AllAppointments = () => {
                 {searchQuery && (
                   <span className='inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full'>
                     Search: "{searchQuery}"
-                    <button onClick={() => setSearchQuery('')} className='ml-1 hover:text-blue-900'>
+                    <button onClick={() => setSearchQuery('')} className='ms-1 hover:text-blue-900'>
                       <X className='w-2.5 h-2.5 sm:w-3 sm:h-3' />
                     </button>
                   </span>
@@ -240,7 +240,7 @@ const AllAppointments = () => {
                 {filters.status !== 'all' && (
                   <span className='inline-flex items-center gap-1 bg-green-100 text-green-800 text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full'>
                     Status: {filters.status}
-                    <button onClick={() => setFilters({...filters, status: 'all'})} className='ml-1 hover:text-green-900'>
+                    <button onClick={() => setFilters({...filters, status: 'all'})} className='ms-1 hover:text-green-900'>
                       <X className='w-2.5 h-2.5 sm:w-3 sm:h-3' />
                     </button>
                   </span>
@@ -253,7 +253,7 @@ const AllAppointments = () => {
                            filters.dateRange === 'week' ? 'Last 7 Days' :
                            filters.dateRange === '15days' ? 'Last 15 Days' :
                            filters.dateRange === 'month' ? 'Last 30 Days' : filters.dateRange}
-                    <button onClick={() => setFilters({...filters, dateRange: 'all'})} className='ml-1 hover:text-purple-900'>
+                    <button onClick={() => setFilters({...filters, dateRange: 'all'})} className='ms-1 hover:text-purple-900'>
                       <X className='w-2.5 h-2.5 sm:w-3 sm:h-3' />
                     </button>
                   </span>

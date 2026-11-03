@@ -8,6 +8,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { ReceptionistContext } from '../context/ReceptionistContext'
 import { useNavigate } from 'react-router-dom'
 import { LanguageToggle, useLanguage } from '../i18n'
+import { ThemeToggle } from '../components/ui/ThemeToggle'
 import MfaSetupBox from '../components/MfaSetupBox'
 import { assets } from '../assets/assets'
 import { staffLoginLogoClassName } from '../utils/brandingLogo'
@@ -210,7 +211,8 @@ const Login = () => {
             className={logoImgClassName}
           />
         </div>
-        <div dir='ltr' className='w-full flex justify-end'>
+        <div dir='ltr' className='w-full flex items-center justify-end gap-2'>
+          <ThemeToggle />
           <LanguageToggle compact />
         </div>
 
@@ -220,7 +222,7 @@ const Login = () => {
           </p>
         )}
         {apiStatus === 'db_error' && (
-          <div className='w-full rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-xs text-red-900'>
+          <div className='w-full rounded-lg border border-eed-200 bg-red-50 px-3 py-3 text-xs text-red-900'>
             <p className='flex items-start gap-2 font-semibold'>
               <AlertCircle className='mt-0.5 h-4 w-4 shrink-0' />
               {t('Database not configured on server')}
@@ -262,7 +264,7 @@ const Login = () => {
         {!mfaStep && <div className='w-full'>
           <p>{t('Password')}</p>
           <div className='relative' >
-          <input onChange={(e) => setPassword(e.target.value)} value={password} className='min-h-[44px] w-full rounded border border-[#DADADA] p-2.5 pr-10 mt-1 text-sm'
+          <input onChange={(e) => setPassword(e.target.value)} value={password} className='min-h-[44px] w-full rounded border border-[#DADADA] p-2.5 pe-10 mt-1 text-sm'
           type={showPassword ? "text" : "password"}
           required
           autoComplete='current-password'

@@ -68,7 +68,7 @@ const OtpVerify = () => {
         
         {/* Back Button */}
         <button type="button" onClick={() => navigate("/email-verify")} className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors">
-          <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
+          <ArrowLeft size={18} className="rtl:-scale-x-100 sm:w-5 sm:h-5" />
           <span className="text-sm sm:text-base">Back</span>
         </button>
 

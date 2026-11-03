@@ -79,15 +79,15 @@ const DoctorsDirectoryTable = ({
       <div className='mt-6 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end lg:justify-between'>
         <div className='grid w-full gap-3 sm:grid-cols-2 lg:max-w-4xl lg:grid-cols-3'>
           <div className='relative sm:col-span-2 lg:col-span-1'>
-            <Search className='pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
+            <Search className='pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder='Search name, email, speciality, location…'
-              className='w-full rounded-xl border border-gray-200 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+              className='w-full rounded-xl border border-gray-200 py-2.5 ps-10 pe-10 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
             />
             {searchQuery && (
-              <button type='button' onClick={() => setSearchQuery('')} className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600' aria-label='Clear search'>
+              <button type='button' onClick={() => setSearchQuery('')} className='absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600' aria-label='Clear search'>
                 <X className='h-4 w-4' />
               </button>
             )}
@@ -96,13 +96,13 @@ const DoctorsDirectoryTable = ({
             <select
               value={availabilityFilter}
               onChange={(e) => setAvailabilityFilter(e.target.value)}
-              className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+              className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 ps-3 pe-10 text-sm font-medium outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
             >
               <option value='all'>All availability</option>
               <option value='available'>Available only</option>
               <option value='unavailable'>Unavailable only</option>
             </select>
-            <ChevronDown className='pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
+            <ChevronDown className='pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
           </div>
           <div className='relative'>
             <select
@@ -112,7 +112,7 @@ const DoctorsDirectoryTable = ({
                 setSortBy(by)
                 setSortDir(dir)
               }}
-              className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+              className='w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 ps-3 pe-10 text-sm font-medium outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
             >
               <option value='name:asc'>Name A → Z</option>
               <option value='name:desc'>Name Z → A</option>
@@ -120,22 +120,22 @@ const DoctorsDirectoryTable = ({
               <option value='fees:desc'>Highest fee</option>
               <option value='fees:asc'>Lowest fee</option>
             </select>
-            <ChevronDown className='pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
+            <ChevronDown className='pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
           </div>
         </div>
-        <p className='text-center text-sm font-medium text-gray-600 lg:text-right'>
+        <p className='text-center text-sm font-medium text-gray-600 lg:text-end'>
           Showing <span className='font-bold text-gray-900'>{sortedDoctors.length}</span> of {doctors.length}
         </p>
       </div>
 
       <div className='mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm'>
-        <div className='hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.75fr)_minmax(0,1.1fr)] gap-3 border-b border-gray-100 bg-gray-50/90 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-gray-500 xl:grid'>
+        <div className='hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.75fr)_minmax(0,1.1fr)] gap-3 border-b border-gray-100 bg-gray-50/90 px-4 py-3 text-start text-xs font-bold uppercase tracking-wide text-gray-500 xl:grid'>
           <span>Doctor</span>
           <span>Contact</span>
           <span>Speciality</span>
           <span>Fee</span>
           <span>Status</span>
-          <span className='text-right'>Actions</span>
+          <span className='text-end'>Actions</span>
         </div>
 
         {doctorsLoading ? (
@@ -165,7 +165,7 @@ const DoctorsDirectoryTable = ({
                   <div className='flex min-w-0 items-center gap-3'>
                     <div className='relative shrink-0'>
                       <img className='h-12 w-12 rounded-xl border border-gray-200 bg-gray-100 object-cover shadow-sm' src={doctor.image} alt='' />
-                      <RatingBadge summary={doctor.ratingSummary} className='absolute -left-1 -top-1 scale-90' />
+                      <RatingBadge summary={doctor.ratingSummary} className='absolute -start-1 -top-1 scale-90' />
                     </div>
                     <div className='min-w-0'>
                       <p className='truncate font-semibold text-gray-900'>{doctor.name}</p>

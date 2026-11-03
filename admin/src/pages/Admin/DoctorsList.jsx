@@ -311,7 +311,7 @@ const DoctorsList = () => {
                 setImagePreview(null)
               }}
               className='flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition font-medium text-sm sm:text-base'>
-              <ArrowLeft className='w-4 h-4 sm:w-5 sm:h-5' />
+              <ArrowLeft className='rtl:-scale-x-100 w-4 h-4 sm:w-5 sm:h-5' />
               <span className='hidden sm:inline'>Back</span>
             </button>
             
@@ -355,16 +355,16 @@ const DoctorsList = () => {
                 <img className='w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full border-4 border-white shadow-lg object-cover'
                   src={imagePreview || selectedDoctor.image}
                   alt={selectedDoctor.name} />
-                {!isEditing && <RatingBadge summary={selectedDoctor.ratingSummary || ratingsData.summary} className='absolute left-1 top-1' />}
+                {!isEditing && <RatingBadge summary={selectedDoctor.ratingSummary || ratingsData.summary} className='absolute start-1 top-1' />}
                 {isEditing && (
-                  <label className='absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 sm:p-2.5 rounded-full cursor-pointer shadow-lg transition'>
+                  <label className='absolute bottom-0 end-0 bg-blue-600 hover:bg-blue-700 text-white p-2 sm:p-2.5 rounded-full cursor-pointer shadow-lg transition'>
                     <Camera className='w-4 h-4 sm:w-5 sm:h-5' />
                     <input type='file' accept='image/*' onChange={handleImageChange} className='hidden' />
                   </label>
                 )}
               </div>
               
-              <div className='flex-1 w-full text-center sm:text-left'>
+              <div className='flex-1 w-full text-center sm:text-start'>
                 {isEditing ? (
                   <input
                     type='text'
@@ -496,7 +496,7 @@ const DoctorsList = () => {
                               className='w-full px-3 py-2 text-sm text-gray-900 font-medium border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white'
                             />
                             {(editForm.locations || []).length > 1 && (
-                              <button type='button' onClick={() => removeLocation(index)} className='px-2 py-2 rounded border border-red-200 text-red-600 hover:bg-red-50'>
+                              <button type='button' onClick={() => removeLocation(index)} className='px-2 py-2 rounded border border-eed-200 text-red-600 hover:bg-red-50'>
                                 <X className='w-4 h-4' />
                               </button>
                             )}
@@ -805,7 +805,7 @@ const DoctorsList = () => {
 
           {/* Edit Button at Bottom - Mobile Only */}
           {!isEditing && (
-            <div className='sm:hidden fixed bottom-6 right-6 z-10'>
+            <div className='sm:hidden fixed bottom-6 end-6 z-10'>
               <button 
                 onClick={startEditing}
                 className='flex items-center justify-center w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg transition'

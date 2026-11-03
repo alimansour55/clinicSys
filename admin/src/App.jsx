@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo } from 'react'
 import Login from './pages/Login'
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
+import { ToastViewport } from './components/ui/Toast';
 import { AdminContext } from './context/AdminContext';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
@@ -84,8 +85,8 @@ const AdminOptionsBar = () => {
       path: '/receptionist-list',
       matchPaths: ['/receptionist-list', '/add-receptionist', '/edit-receptionist'],
       icon: <UserCog className='w-4 h-4' />,
-      tone: 'text-red-700 bg-red-50 border-red-100 hover:bg-red-100',
-      active: 'bg-red-600 border-red-600'
+      tone: 'text-red-700 bg-red-50 border-eed-100 hover:bg-red-100',
+      active: 'bg-red-600 border-eed-600'
     },
     {
       label: t('Appointments'),
@@ -99,10 +100,10 @@ const AdminOptionsBar = () => {
     { label: t('Site logo'), path: '/site-logo-settings', icon: <Image className='w-4 h-4' />, tone: 'text-purple-700 bg-purple-50 border-purple-100 hover:bg-purple-100', active: 'bg-purple-600 border-purple-600' },
     { label: t('Home Hero'), path: '/home-hero-settings', icon: <LayoutTemplate className='w-4 h-4' />, tone: 'text-cyan-700 bg-cyan-50 border-cyan-100 hover:bg-cyan-100', active: 'bg-cyan-600 border-cyan-600' },
     { label: t('Home Banner'), path: '/home-banner-settings', icon: <LayoutTemplate className='w-4 h-4' />, tone: 'text-teal-700 bg-teal-50 border-teal-100 hover:bg-teal-100', active: 'bg-teal-600 border-teal-600' },
-    { label: t('Service Cards'), path: '/home-service-cards-settings', icon: <LayoutTemplate className='w-4 h-4' />, tone: 'text-lime-700 bg-lime-50 border-lime-100 hover:bg-lime-100', active: 'bg-lime-600 border-lime-600' },
+    { label: t('Service Cards'), path: '/home-service-cards-settings', icon: <LayoutTemplate className='w-4 h-4' />, tone: 'text-lime-700 bg-lime-50 border-sime-100 hover:bg-lime-100', active: 'bg-lime-600 border-sime-600' },
     { label: t('Footer'), path: '/footer-settings', icon: <PanelBottom className='w-4 h-4' />, tone: 'text-amber-700 bg-amber-50 border-amber-100 hover:bg-amber-100', active: 'bg-amber-600 border-amber-600' },
     { label: t('Security'), path: '/security-settings', icon: <ShieldCheck className='w-4 h-4' />, tone: 'text-gray-800 bg-gray-100 border-gray-200 hover:bg-gray-200', active: 'bg-gray-800 border-gray-800' },
-    { label: t('Audit Logs'), path: '/audit-logs', icon: <ClipboardList className='w-4 h-4' />, tone: 'text-rose-700 bg-rose-50 border-rose-100 hover:bg-rose-100', active: 'bg-rose-600 border-rose-600' }
+    { label: t('Audit Logs'), path: '/audit-logs', icon: <ClipboardList className='w-4 h-4' />, tone: 'text-rose-700 bg-rose-50 border-eose-100 hover:bg-rose-100', active: 'bg-rose-600 border-eose-600' }
   ]
 
   return (
@@ -160,12 +161,8 @@ const App = () => {
       <LanguagePolicySync policy={activeLanguagePolicy} />
       <LanguageDomSync />
       <ScrollToTop />
-      <ToastContainer
-        position='top-right'
+      <ToastViewport
         limit={2}
-        autoClose={3500}
-        closeOnClick
-        draggable={false}
         style={{ pointerEvents: 'none' }}
         toastStyle={{ pointerEvents: 'auto' }}
       />
@@ -181,10 +178,10 @@ const App = () => {
         id='staff-main-scroll'
         className={`relative z-10 min-w-0 max-w-full mt-[4.5rem] h-[calc(100vh-4.5rem)] overflow-y-auto overflow-x-hidden ${
           aToken
-            ? 'ml-64'
+            ? 'ms-64'
             : isRtl
-              ? 'mr-14 sm:mr-16 md:mr-64'
-              : 'ml-14 sm:ml-16 md:ml-64'
+              ? 'me-14 sm:me-16 md:me-64'
+              : 'ms-14 sm:ms-16 md:ms-64'
         }`}
       >
         {aToken && <AdminOptionsBar />}
@@ -274,12 +271,8 @@ const App = () => {
       <LanguagePolicySync policy={activeLanguagePolicy} />
       <LanguageDomSync />
       <Login />
-      <ToastContainer
-        position='top-right'
+      <ToastViewport
         limit={2}
-        autoClose={3500}
-        closeOnClick
-        draggable={false}
         style={{ pointerEvents: 'none' }}
         toastStyle={{ pointerEvents: 'auto' }}
       />

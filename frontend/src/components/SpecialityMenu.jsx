@@ -13,6 +13,9 @@ import { useMediaQuery } from "../utils/useMediaQuery";
 import { toast } from "react-toastify";
 import { ClinicChipSkeleton, DoctorCardSkeleton } from "./DoctorCatalogSkeleton";
 
+/* scrollBy runs against the reading direction in RTL */
+const inlineSign = (el) => (el && getComputedStyle(el).direction === "rtl" ? -1 : 1);
+
 const DOCTORS_PER_MOBILE_PAGE = 4;
 const DESKTOP_SCROLL_COLUMNS = 5;
 
@@ -111,7 +114,7 @@ const SpecialityMenu = () => {
       scrollAmount = colWidth * DESKTOP_SCROLL_COLUMNS;
     }
     el.scrollBy({
-      left: direction === "next" ? scrollAmount : -scrollAmount,
+      left: (direction === "next" ? scrollAmount : -scrollAmount) * inlineSign(el),
       behavior: "smooth",
     });
   };
@@ -119,7 +122,7 @@ const SpecialityMenu = () => {
   const scrollRail = (ref, direction) => {
     const scrollAmount = ref.current?.clientWidth || 420;
     ref.current?.scrollBy({
-      left: direction === "next" ? scrollAmount : -scrollAmount,
+      left: (direction === "next" ? scrollAmount : -scrollAmount) * inlineSign(ref.current),
       behavior: "smooth",
     });
   };
@@ -155,7 +158,7 @@ const SpecialityMenu = () => {
       key={doctor._id}
       type="button"
       onClick={() => bookDoctor(doctor)}
-      className={`group min-h-0 overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition ${
+      className={`group min-h-0 overflow-hidden rounded-xl border border-gray-200 bg-white text-start shadow-sm transition ${
         isDoctorComingSoon(doctor)
           ? "cursor-default opacity-95"
           : "hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg"
@@ -167,8 +170,8 @@ const SpecialityMenu = () => {
           alt={displayPersonName(doctor.name)}
           className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
         />
-        <RatingBadge summary={doctor.ratingSummary} className="absolute left-2 top-2" />
-        <PromoOfferBadge doctor={doctor} formatMoney={formatMoney} className="absolute bottom-2 left-2" />
+        <RatingBadge summary={doctor.ratingSummary} className="absolute start-2 top-2" />
+        <PromoOfferBadge doctor={doctor} formatMoney={formatMoney} className="absolute bottom-2 start-2" />
       </div>
 
       <div className="px-2.5 py-2 sm:px-3 sm:py-2.5">
@@ -224,7 +227,7 @@ const SpecialityMenu = () => {
             <button
               type="button"
               onClick={() => openService("home")}
-              className="min-h-28 w-full overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-left transition active:border-emerald-400 sm:flex sm:items-center sm:justify-between sm:gap-5"
+              className="min-h-28 w-full overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-start transition active:border-emerald-400 sm:flex sm:items-center sm:justify-between sm:gap-5"
             >
               <div className="flex min-w-0 gap-3">
                 <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-emerald-600 shadow-sm">
@@ -255,10 +258,10 @@ const SpecialityMenu = () => {
             </div>
             <div className="hidden shrink-0 gap-2 sm:flex">
               <button type="button" onClick={() => scrollRail(clinicsRef, "prev")} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600" aria-label={t("Previous clinics")}>
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="rtl:-scale-x-100 h-4 w-4" />
               </button>
               <button type="button" onClick={() => scrollRail(clinicsRef, "next")} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600" aria-label={t("Next clinics")}>
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="rtl:-scale-x-100 h-4 w-4" />
               </button>
             </div>
           </div>
@@ -268,7 +271,7 @@ const SpecialityMenu = () => {
               key="all-doctors"
               type="button"
               onClick={() => handleSectionClick("All Specialities", null)}
-              className={`flex min-h-[3.25rem] flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-left transition sm:min-w-[9.5rem] ${
+              className={`flex min-h-[3.25rem] flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-start transition sm:min-w-[9.5rem] ${
                 selectedSection.name === "All Specialities"
                   ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm"
                   : "border-gray-200 bg-white text-gray-800 hover:border-emerald-200"
@@ -291,7 +294,7 @@ const SpecialityMenu = () => {
                   key={clinic.id || clinic.name}
                   type="button"
                   onClick={() => handleSectionClick(clinic.name, clinic.id)}
-                  className={`flex min-h-[3.25rem] flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-left transition sm:min-w-[9.5rem] sm:shrink-0 ${
+                  className={`flex min-h-[3.25rem] flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-start transition sm:min-w-[9.5rem] sm:shrink-0 ${
                     isActive
                       ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm"
                       : "border-gray-200 bg-white text-gray-800 hover:border-emerald-200"
@@ -331,24 +334,24 @@ const SpecialityMenu = () => {
                   onClick={() => scrollDoctors("prev")}
                   className={
                     isMobile
-                      ? "absolute left-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600 sm:left-2"
-                      : "absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600"
+                      ? "absolute start-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600 sm:start-2"
+                      : "absolute start-0 top-1/2 z-10 flex h-11 w-11 -translate-x-1/2 rtl:translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600"
                   }
                   aria-label={t("Previous doctors")}
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  <ChevronLeft className="rtl:-scale-x-100 h-5 w-5" />
                 </button>
                 <button
                   type="button"
                   onClick={() => scrollDoctors("next")}
                   className={
                     isMobile
-                      ? "absolute right-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600 sm:right-2"
-                      : "absolute right-0 top-1/2 z-10 flex h-11 w-11 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600"
+                      ? "absolute end-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600 sm:end-2"
+                      : "absolute end-0 top-1/2 z-10 flex h-11 w-11 translate-x-1/2 rtl:-translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition hover:border-blue-400 hover:text-blue-600"
                   }
                   aria-label={t("Next doctors")}
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronRight className="rtl:-scale-x-100 h-5 w-5" />
                 </button>
               </>
             )}

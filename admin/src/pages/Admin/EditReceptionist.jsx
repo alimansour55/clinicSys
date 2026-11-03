@@ -146,7 +146,7 @@ const EditReceptionist = () => {
       <div className='max-w-4xl mx-auto'>
         <div className='mb-6 flex flex-wrap items-center gap-3'>
           <Link to='/receptionist-list' className='inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-primary'>
-            <ArrowLeft className='w-4 h-4' />
+            <ArrowLeft className='rtl:-scale-x-100 w-4 h-4' />
             Receptionists
           </Link>
         </div>
