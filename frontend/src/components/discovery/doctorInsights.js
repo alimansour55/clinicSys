@@ -34,11 +34,12 @@ export const doctorPlaces = (doctor) =>
     })
 
 export const supportsMode = (doctor, mode) => {
-  if (!doctor) return false
-  if (mode === 'home') return doctor.available !== false && doctorOffersHomeVisit(doctor)
+  // A doctor switched to unavailable takes no bookings of any kind
+  if (!doctor || doctor.available === false) return false
+  if (mode === 'home') return doctorOffersHomeVisit(doctor)
   if (!isDoctorBookableForPatients(doctor)) return false
-  if (mode === 'voice') return doctor.available !== false && doctor.acceptsVoiceCall !== false
-  if (mode === 'tele') return doctor.available !== false && doctor.acceptsVideoCall !== false
+  if (mode === 'voice') return doctor.acceptsVoiceCall !== false
+  if (mode === 'tele') return doctor.acceptsVideoCall !== false
   return true
 }
 
@@ -128,7 +129,7 @@ export const buildDoctorRow = (doctor, { globalVisitFees, labels = () => [], now
     ratingCount: Number(doctor.ratingSummary?.ratingCount || 0),
     completed: Number(doctor.completedBookingsCount || 0),
     comingSoon: isDoctorComingSoon(doctor),
-    bookable: isDoctorBookableForPatients(doctor),
+    bookable: doctor.available !== false && isDoctorBookableForPatients(doctor),
     gender: doctor.gender || '',
     title: doctor.title || '',
     acceptsCash: doctor.acceptsCash !== false,

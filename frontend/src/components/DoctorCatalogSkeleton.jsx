@@ -1,57 +1,35 @@
 import React from 'react'
+import { Skeleton, SkeletonGroup } from './ui'
+
+const CardShape = () => (
+  <div className='overflow-hidden rounded-card border border-line bg-surface shadow-e1'>
+    <Skeleton className='aspect-[4/3] w-full rounded-none!' />
+    <div className='space-y-2.5 p-4'>
+      <Skeleton className='h-5 w-3/4' />
+      <Skeleton className='h-4 w-1/2' />
+      <Skeleton className='h-4 w-2/3' />
+      <Skeleton className='h-6 w-36 rounded-full!' />
+    </div>
+  </div>
+)
 
 export const ClinicChipSkeleton = ({ count = 4 }) => (
   <>
     {Array.from({ length: count }).map((_, index) => (
-      <div
-        key={index}
-        className="h-[3.25rem] min-w-[9.5rem] animate-pulse rounded-xl border border-gray-200 bg-gray-100 sm:shrink-0"
-        aria-hidden="true"
-      />
+      <li key={index} aria-hidden='true'><Skeleton className='h-36 rounded-card!' /></li>
     ))}
   </>
 )
 
+/** Same shape as DoctorCard, so nothing jumps when the list arrives. */
 export const DoctorCardSkeleton = ({ count = 4, className = '' }) => (
-  <div
-    className={`grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 ${className}`.trim()}
-    aria-hidden="true"
-  >
-    {Array.from({ length: count }).map((_, index) => (
-      <div
-        key={index}
-        className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm animate-pulse"
-      >
-        <div className="mx-2 mt-2 h-[120px] rounded-lg bg-gray-200 sm:mx-3 sm:mt-3 sm:h-[146px]" />
-        <div className="space-y-2 px-2.5 py-2 sm:px-3 sm:py-2.5">
-          <div className="h-3 w-16 rounded bg-gray-200" />
-          <div className="h-4 w-3/4 rounded bg-gray-200" />
-          <div className="h-3 w-1/2 rounded bg-gray-200" />
-          <div className="h-3 w-full rounded bg-gray-200" />
-        </div>
-      </div>
-    ))}
-  </div>
+  <SkeletonGroup className={`grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 ${className}`.trim()}>
+    {Array.from({ length: count }).map((_, index) => <CardShape key={index} />)}
+  </SkeletonGroup>
 )
 
-export const DoctorListSkeleton = ({ count = 6, isMobile = false }) => (
-  <div
-    className={`grid gap-3 sm:gap-4 animate-pulse ${
-      isMobile
-        ? 'grid-cols-2'
-        : 'grid-cols-[repeat(auto-fill,minmax(166px,188px))] justify-center sm:justify-start'
-    }`}
-    aria-hidden="true"
-  >
-    {Array.from({ length: count }).map((_, index) => (
-      <div key={index} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="mx-2 mt-2 h-[120px] rounded-lg bg-gray-200 sm:mx-3 sm:mt-3 sm:h-[146px]" />
-        <div className="space-y-2 px-2.5 py-2 sm:px-3 sm:py-2.5">
-          <div className="h-3 w-16 rounded bg-gray-200" />
-          <div className="h-4 w-3/4 rounded bg-gray-200" />
-          <div className="h-3 w-1/2 rounded bg-gray-200" />
-        </div>
-      </div>
-    ))}
-  </div>
+export const DoctorListSkeleton = ({ count = 6 }) => (
+  <SkeletonGroup className='grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4'>
+    {Array.from({ length: count }).map((_, index) => <CardShape key={index} />)}
+  </SkeletonGroup>
 )
