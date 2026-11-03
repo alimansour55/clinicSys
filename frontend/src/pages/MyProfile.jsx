@@ -24,6 +24,24 @@ const TABS = [
 ]
 
 const NEW_ACCOUNT_DAYS = 7
+const GUIDE_SHOWN_KEY = 'clinivoGuideShown'
+
+/* The guide opens by itself once per browser session. After that the Continue setup card is the way back. */
+const guideAlreadyShown = () => {
+  try {
+    return sessionStorage.getItem(GUIDE_SHOWN_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const markGuideShown = () => {
+  try {
+    sessionStorage.setItem(GUIDE_SHOWN_KEY, '1')
+  } catch {
+    /* private mode: the guide may open again, which is harmless */
+  }
+}
 
 const greetingKey = (hour) => {
   if (hour < 5) return 'Good evening'
