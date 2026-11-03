@@ -1,5 +1,12 @@
 /* Strings for the booking area. See DESIGN_SYSTEM.md. */
 export default {
+  // Older keys that were never given English text, so English showed the key itself.
+  en: {
+    'Examination fee label': 'Examination fee',
+    'Follow-up consultation fee label': 'Follow-up fee',
+    'Examination hint': 'A full visit, the usual choice',
+    'Follow-up consultation hint': 'Lower fee after a recent examination with this doctor'
+  },
   ar: {
     // Booking page
     'How would you like to be seen?': 'كيف تفضّل أن يتم الكشف؟',

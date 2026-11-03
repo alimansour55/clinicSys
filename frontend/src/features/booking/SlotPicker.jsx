@@ -160,7 +160,7 @@ const SlotPicker = ({
   }
 
   return (
-    <div>
+    <div className='min-w-0'>
       {nextAvailable?.startsAt && totalOpen > 0 && (
         <button
           type='button'

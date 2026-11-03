@@ -619,8 +619,8 @@ const BookingFlow = ({ docId, docInfo }) => {
           action={<Button as={Link} to='/doctors' variant='secondary'>{t('Find a doctor')}</Button>}
         />
       ) : (
-        <div className='grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start'>
-          <div className='space-y-4'>
+        <div className='grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start'>
+          <div className='min-w-0 space-y-4'>
             <StepCard number={localizeDigits('1')} title={t('How would you like to be seen?')} titleId={howTitleId}>
               <div role='radiogroup' aria-labelledby={howTitleId} className='grid grid-cols-2 gap-2 lg:grid-cols-4'>
                 {APPOINTMENT_TYPES.map((option) => {
@@ -796,7 +796,8 @@ const BookingFlow = ({ docId, docInfo }) => {
       {/* Phones: price and action always in reach, above the keyboard-safe area */}
       {bookable && !checkout && (
         <div className='fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-e3 lg:hidden'>
-          <div className='mx-auto flex max-w-3xl items-center gap-3'>
+          {/* End padding keeps the action clear of the assistant's floating button */}
+          <div className='mx-auto flex max-w-3xl items-center gap-3 pe-16'>
             <div className='min-w-0 flex-1'>
               <p className='truncate text-caption text-ink-2'>{whenLabel || t('Pick a time')}</p>
               <p className='text-subtitle font-semibold text-brand'>{quote ? formatMoney(quote.amount) : ' '}</p>
