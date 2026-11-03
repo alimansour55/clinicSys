@@ -76,7 +76,10 @@ const MyProfile = () => {
       if (!data.success) return
       const ageDays = (Date.now() - new Date(data.createdAt).getTime()) / (24 * 3600 * 1000)
       const untouched = !data.onboarding?.completedAt && !data.onboarding?.dismissedAt
-      if (searchParams.get('welcome') || (untouched && ageDays < NEW_ACCOUNT_DAYS)) setGuideOpen(true)
+      if (searchParams.get('welcome') || (untouched && ageDays < NEW_ACCOUNT_DAYS && !guideAlreadyShown())) {
+        markGuideShown()
+        setGuideOpen(true)
+      }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the guide decision is made once per visit
   }, [token])

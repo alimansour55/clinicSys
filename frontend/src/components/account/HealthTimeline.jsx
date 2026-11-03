@@ -252,7 +252,7 @@ const HealthTimeline = ({ members = [], onChanged }) => {
         </div>
         <div className='flex flex-wrap items-end gap-2'>
           {members.length > 0 && (
-            <Select aria-label={t('Whose timeline')} value={memberId} onChange={(event) => setMemberId(event.target.value)} className='w-auto'>
+            <Select aria-label={t('Whose timeline')} value={memberId} onChange={(event) => setMemberId(event.target.value)} className='w-auto!'>
               <option value=''>{t('Me')}</option>
               {members.map((member) => <option key={member._id} value={member._id}>{member.name}</option>)}
             </Select>

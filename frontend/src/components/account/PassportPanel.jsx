@@ -157,7 +157,7 @@ const PassportPanel = ({ userData, hub, reload }) => {
         <div className='passport-no-print flex flex-wrap items-center gap-2'>
           <Button variant='secondary' leadingIcon={<Printer className='size-4' />} onClick={() => window.print()}>{t('Print or save as PDF')}</Button>
           {members.length > 0 && (
-            <Select aria-label={t('Whose passport')} value={memberId} onChange={(event) => setMemberId(event.target.value)} className='w-auto'>
+            <Select aria-label={t('Whose passport')} value={memberId} onChange={(event) => setMemberId(event.target.value)} className='w-auto!'>
               <option value=''>{t('Me')}</option>
               {members.map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}
             </Select>
