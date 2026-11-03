@@ -2,10 +2,8 @@ import { useState } from 'react'
 import { Pencil, Trash2, UserPlus, Users } from 'lucide-react'
 import { useLanguage } from '../../i18n'
 import { Button, Card, CardBody, EmptyState, Field, IconButton, Input, Modal, Select, Textarea, notify } from '../ui'
-import { useAccountApi, useServerText } from './accountUi'
-import { todayIso } from './hubLogic'
-
-export const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+import { useAccountApi, useServerText } from './accountApi'
+import { BLOOD_TYPES, ageInYears, todayIso } from './hubLogic'
 
 const RELATIONS = [
   { value: 'child', label: 'Child' },
@@ -88,7 +86,7 @@ const MemberModal = ({ member, onClose, onSaved }) => {
 }
 
 const FamilyPanel = ({ members, reload }) => {
-  const { t, language, localizeDigits } = useLanguage()
+  const { t, localizeDigits } = useLanguage()
   const api = useAccountApi()
   const say = useServerText()
   const [editing, setEditing] = useState(null)
@@ -96,9 +94,8 @@ const FamilyPanel = ({ members, reload }) => {
   const [removing, setRemoving] = useState(null)
 
   const ageOf = (dob) => {
-    const time = Date.parse(dob)
-    if (Number.isNaN(time)) return ''
-    const years = Math.floor((Date.now() - time) / (365.25 * 24 * 3600 * 1000))
+    const years = ageInYears(dob)
+    if (years === null) return ''
     return localizeDigits(String(t('{{n}} years old')).replace('{{n}}', years))
   }
 

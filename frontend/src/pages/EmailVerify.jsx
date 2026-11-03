@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
 import { useLanguage } from '../i18n'
 import { Button, Field, Input } from '../components/ui'
-import { AuthShell, FormError, NETWORK_ERROR, useServerText } from '../components/account/accountUi'
+import { AuthShell, FormError } from '../components/account/accountUi'
+import { NETWORK_ERROR, useServerText } from '../components/account/accountApi'
 
 const EmailVerify = () => {
   const navigate = useNavigate()

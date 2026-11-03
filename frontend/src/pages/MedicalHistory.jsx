@@ -4,8 +4,9 @@ import { ArrowLeft, Save, ShieldCheck } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { useLanguage } from '../i18n'
 import { Button, Card, CardBody, EmptyState, Field, Skeleton, SkeletonGroup, Textarea, notify } from '../components/ui'
-import { useAccountApi, useServerText } from '../components/account/accountUi'
-import { QuickChips, toggleInText } from '../components/account/QuickChips'
+import { useAccountApi, useServerText } from '../components/account/accountApi'
+import { QuickChips } from '../components/account/QuickChips'
+import { toggleInText } from '../components/account/hubLogic'
 
 const emptyHistory = { conditions: '', allergies: '', surgeries: '', familyHistory: '', socialHistory: '', notes: '' }
 

@@ -1,11 +1,12 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import { Camera, Save } from 'lucide-react'
 import { AppContext } from '../../context/AppContext'
 import { useLanguage } from '../../i18n'
 import { isValidEgyptPhone, normalizeEgyptPhone, toEgyptLocalDigits } from '../../utils/egyptPhone'
 import EgyptPhoneInput from '../EgyptPhoneInput'
 import { Button, Card, CardBody, CardFooter, CardHeader, Field, Input, Select, notify } from '../ui'
-import { FormError, useAccountApi, useServerText } from './accountUi'
+import { FormError } from './accountUi'
+import { useAccountApi, useServerText } from './accountApi'
 import { todayIso } from './hubLogic'
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024
@@ -28,19 +29,13 @@ const ProfilePanel = ({ userData }) => {
   const say = useServerText()
   const [draft, setDraft] = useState(() => toDraft(userData))
   const [photo, setPhoto] = useState(null)
-  const [preview, setPreview] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (!photo) {
-      setPreview('')
-      return undefined
-    }
-    const url = URL.createObjectURL(photo)
-    setPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [photo])
+  const preview = useMemo(() => (photo ? URL.createObjectURL(photo) : ''), [photo])
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview)
+  }, [preview])
 
   const set = (key) => (event) => setDraft((current) => ({ ...current, [key]: event.target.value }))
   const dirty = Boolean(photo) || JSON.stringify(draft) !== JSON.stringify(toDraft(userData))

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Activity, BellPlus, CalendarCheck2, ChevronDown, ClipboardList, CreditCard, Pill, Plus, Stethoscope, Syringe, Thermometer, Trash2, TestTube2, NotebookPen } from 'lucide-react'
 import { useLanguage } from '../../i18n'
 import { Badge, Button, EmptyState, Field, IconButton, Input, Modal, Select, Skeleton, SkeletonGroup, Textarea, notify } from '../ui'
-import { useAccountApi, useServerText } from './accountUi'
+import { useAccountApi, useServerText } from './accountApi'
 import { formatIsoDate, reminderFromMedication, todayIso } from './hubLogic'
 import ReminderModal from './ReminderModal'
 
@@ -206,15 +206,18 @@ const HealthTimeline = ({ members = [], onChanged }) => {
   const [adding, setAdding] = useState(false)
   const [reminderDraft, setReminderDraft] = useState(null)
 
-  const load = useCallback(async () => {
-    setEvents(null)
-    const data = await api('get', `/api/account/timeline${memberId ? `?memberId=${memberId}` : ''}`)
-    setEvents(data.success ? data.events : [])
-  }, [api, memberId])
+  const [reloadKey, setReloadKey] = useState(0)
+  const load = useCallback(() => setReloadKey((key) => key + 1), [])
 
   useEffect(() => {
-    load()
-  }, [load])
+    let alive = true
+    api('get', `/api/account/timeline${memberId ? `?memberId=${memberId}` : ''}`).then((data) => {
+      if (alive) setEvents(data.success ? data.events : [])
+    })
+    return () => {
+      alive = false
+    }
+  }, [api, memberId, reloadKey])
 
   const removeEntry = async (event) => {
     const data = await api('delete', `/api/account/entries/${event.entryId}`)

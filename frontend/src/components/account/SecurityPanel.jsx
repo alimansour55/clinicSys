@@ -5,7 +5,8 @@ import { useLanguage } from '../../i18n'
 import MfaSetupBox from '../MfaSetupBox'
 import OtpCodeInput from '../OtpCodeInput'
 import { Badge, Button, Card, CardBody, CardHeader, Field, Input, Modal, notify } from '../ui'
-import { FormError, PasswordChecklist, PasswordInput, RecoveryCodesPanel, meetsPolicy, usePasswordPolicy, useAccountApi, useServerText } from './accountUi'
+import { FormError, PasswordChecklist, PasswordInput, RecoveryCodesPanel } from './accountUi'
+import { meetsPolicy, usePasswordPolicy, useAccountApi, useServerText } from './accountApi'
 
 const CodeInput = ({ value, onChange, label }) => {
   return (
@@ -32,8 +33,14 @@ const MfaCard = ({ onChanged }) => {
   }, [api])
 
   useEffect(() => {
-    load()
-  }, [load])
+    let alive = true
+    api('get', '/api/user/mfa/status').then((data) => {
+      if (alive && data.success) setStatus(data.mfa)
+    })
+    return () => {
+      alive = false
+    }
+  }, [api])
 
   const run = async (path, onSuccess) => {
     setBusy(true)

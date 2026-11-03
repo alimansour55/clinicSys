@@ -4,8 +4,10 @@ import { ArrowLeft, Save } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { useLanguage } from '../i18n'
 import { Badge, Button, Card, CardBody, CardFooter, Skeleton, SkeletonGroup, notify } from '../components/ui'
-import { FormError, useAccountApi, useServerText } from '../components/account/accountUi'
-import InsuranceFields, { emptyInsurance, insuranceProblem } from '../components/account/InsuranceFields'
+import { FormError } from '../components/account/accountUi'
+import { useAccountApi, useServerText } from '../components/account/accountApi'
+import InsuranceFields from '../components/account/InsuranceFields'
+import { emptyInsurance, insuranceProblem } from '../components/account/insuranceForm'
 import { getInsuranceStatus, insuranceStatusLabel, isInsuranceExpired } from '../utils/insuranceVerification'
 
 const today = new Date().toISOString().split('T')[0]

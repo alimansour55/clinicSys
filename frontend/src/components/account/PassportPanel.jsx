@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { Printer, ShieldAlert, Siren } from 'lucide-react'
 import { useLanguage } from '../../i18n'
 import { Button, Card, CardBody, CardHeader, Field, Input, Select, notify } from '../ui'
-import { useAccountApi, useServerText } from './accountUi'
-import { BLOOD_TYPES } from './FamilyPanel'
+import { useAccountApi, useServerText } from './accountApi'
+import { BLOOD_TYPES } from './hubLogic'
 import { formatIsoDate, passportText } from './hubLogic'
 
 const PRINT_CSS = `
@@ -62,7 +62,7 @@ const PassportPanel = ({ userData, hub, reload }) => {
         medications: medicineReminders.join(', ')
       }
 
-  const text = useMemo(() => passportText({
+  const text = passportText({
     labels: {
       title: t('Clinivo emergency card'),
       name: t('Name'),
@@ -76,7 +76,7 @@ const PassportPanel = ({ userData, hub, reload }) => {
     ...person,
     contactName: form.contactName,
     contactPhone: form.contactPhone
-  }), [t, person.name, person.dob, person.bloodType, person.allergies, person.conditions, person.medications, form.contactName, form.contactPhone]) // eslint-disable-line react-hooks/exhaustive-deps
+  })
 
   useEffect(() => {
     let mounted = true

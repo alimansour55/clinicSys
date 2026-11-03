@@ -166,3 +166,22 @@ export const passportText = ({ labels, name, dob, bloodType, allergies, conditio
     line(labels.contact, [contactName, contactPhone].filter(Boolean).join(' '))
   ].filter(Boolean).join('\n')
 }
+
+export const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+
+const parts = (text) => String(text || '').split(/[,،\n]/).map((part) => part.trim()).filter(Boolean)
+
+export const hasInText = (text, item) => parts(text).some((part) => part.toLowerCase() === item.toLowerCase())
+
+/** Adds or removes one comma-separated item, and leaves whatever else the person typed alone. */
+export const toggleInText = (text, item) => {
+  const current = parts(text)
+  const exists = current.some((part) => part.toLowerCase() === item.toLowerCase())
+  return (exists ? current.filter((part) => part.toLowerCase() !== item.toLowerCase()) : [...current, item]).join(', ')
+}
+
+export const ageInYears = (dob, now = Date.now()) => {
+  const time = Date.parse(dob)
+  if (Number.isNaN(time)) return null
+  return Math.floor((now - time) / (365.25 * DAY))
+}

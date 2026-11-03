@@ -1,21 +1,12 @@
 import { Check, Plus } from 'lucide-react'
 import { useLanguage } from '../../i18n'
+import { hasInText } from './hubLogic'
 
 const CHIPS = {
   allergies: ['Penicillin', 'Aspirin', 'Sulfa drugs', 'Peanuts', 'Seafood', 'Eggs', 'Milk', 'Dust', 'No known allergies'],
   conditions: ['Diabetes', 'High blood pressure', 'Asthma', 'Heart disease', 'Thyroid disorder', 'Anemia']
 }
 
-const parts = (text) => String(text || '').split(/[,،\n]/).map((part) => part.trim()).filter(Boolean)
-
-export const hasInText = (text, item) => parts(text).some((part) => part.toLowerCase() === item.toLowerCase())
-
-/** Adds or removes one comma-separated item, and leaves whatever else the person typed alone. */
-export const toggleInText = (text, item) => {
-  const current = parts(text)
-  const exists = current.some((part) => part.toLowerCase() === item.toLowerCase())
-  return (exists ? current.filter((part) => part.toLowerCase() !== item.toLowerCase()) : [...current, item]).join(', ')
-}
 
 /** Quick answers for common items, entered as text in the person's language, so doctors read them as before. */
 export const QuickChips = ({ group, value, onToggle }) => {

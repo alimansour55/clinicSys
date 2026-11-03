@@ -11,7 +11,7 @@ const UNREAD_POLL_MS = 45000
 const REMINDER_SYNC_MS = 5 * 60 * 1000
 
 /** Where a notification leads. Account and reminder notices used to send everyone to appointments. */
-export const notificationTarget = (notification) => {
+const notificationTarget = (notification) => {
   switch (notification?.type) {
     case 'health_reminder':
       return '/my-profile?tab=reminders'

@@ -7,8 +7,10 @@ import { Button, Field, Input, notify } from '../components/ui'
 import MfaSetupBox from '../components/MfaSetupBox'
 import EgyptPhoneInput from '../components/EgyptPhoneInput'
 import SignupInlineVerify from '../components/SignupInlineVerify'
-import { AuthShell, FormError, NETWORK_ERROR, PasswordChecklist, PasswordInput, RecoveryCodesPanel, meetsPolicy, usePasswordPolicy, useServerText } from '../components/account/accountUi'
-import InsuranceFields, { emptyInsurance, insuranceProblem } from '../components/account/InsuranceFields'
+import { AuthShell, FormError, PasswordChecklist, PasswordInput, RecoveryCodesPanel } from '../components/account/accountUi'
+import { NETWORK_ERROR, meetsPolicy, usePasswordPolicy, useServerText } from '../components/account/accountApi'
+import InsuranceFields from '../components/account/InsuranceFields'
+import { emptyInsurance, insuranceProblem } from '../components/account/insuranceForm'
 import { isValidEgyptPhone, normalizeEgyptPhone } from '../utils/egyptPhone'
 
 const today = new Date().toISOString().split('T')[0]

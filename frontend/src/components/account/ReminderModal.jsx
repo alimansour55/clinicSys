@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useLanguage } from '../../i18n'
 import { Button, Field, IconButton, Input, Modal, Select, Textarea, notify } from '../ui'
-import { useAccountApi, useServerText } from './accountUi'
+import { useAccountApi, useServerText } from './accountApi'
 import { todayIso } from './hubLogic'
 
 const KINDS = [

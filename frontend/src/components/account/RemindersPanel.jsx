@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { BellPlus, BellRing, Pause, Pencil, Play, Trash2 } from 'lucide-react'
 import { useLanguage } from '../../i18n'
 import { Badge, Button, Card, CardBody, EmptyState, IconButton, notify } from '../ui'
-import { useAccountApi, useServerText } from './accountUi'
+import { useAccountApi, useServerText } from './accountApi'
 import { adherence, dueReminders, todayIso } from './hubLogic'
 import ReminderModal from './ReminderModal'
 

@@ -3,9 +3,10 @@ import { BellRing, CheckCircle2, HeartPulse, Sparkles, Users } from 'lucide-reac
 import { AppContext } from '../../context/AppContext'
 import { useLanguage } from '../../i18n'
 import { Button, Field, Input, Modal, Select, Textarea, notify } from '../ui'
-import { useAccountApi, useServerText } from './accountUi'
-import { BLOOD_TYPES } from './FamilyPanel'
-import { QuickChips, toggleInText } from './QuickChips'
+import { useAccountApi, useServerText } from './accountApi'
+import { BLOOD_TYPES } from './hubLogic'
+import { QuickChips } from './QuickChips'
+import { toggleInText } from './hubLogic'
 
 const STEP_COUNT = 4
 

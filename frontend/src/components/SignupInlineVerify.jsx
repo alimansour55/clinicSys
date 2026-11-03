@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import OtpCodeInput from './OtpCodeInput'
-import { useServerText } from './account/accountUi'
+import { useServerText } from './account/accountApi'
 import { useLanguage } from '../i18n'
 
 const SignupInlineVerify = ({
@@ -54,7 +54,7 @@ const SignupInlineVerify = ({
       } else {
         toast.error(say(data.message))
       }
-    } catch (error) {
+    } catch {
       toast.error(t('We could not reach the server. Please check your connection and try again.'))
     } finally {
       setSending(false)
@@ -75,7 +75,7 @@ const SignupInlineVerify = ({
       } else {
         toast.error(say(data.message))
       }
-    } catch (error) {
+    } catch {
       toast.error(t('We could not reach the server. Please check your connection and try again.'))
     } finally {
       setConfirming(false)

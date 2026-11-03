@@ -5,7 +5,8 @@ import { AppContext } from '../context/AppContext'
 import { useLanguage } from '../i18n'
 import { Button, notify } from '../components/ui'
 import OtpCodeInput from '../components/OtpCodeInput'
-import { AuthShell, FormError, NETWORK_ERROR, ResendCountdown, useServerText } from '../components/account/accountUi'
+import { AuthShell, FormError, ResendCountdown } from '../components/account/accountUi'
+import { NETWORK_ERROR, useServerText } from '../components/account/accountApi'
 
 const AccountVerify = () => {
   const navigate = useNavigate()

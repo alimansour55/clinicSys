@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, BellRing, CalendarPlus, CheckCircle2, ClipboardList, CreditCard, Activity, MapPin, Stethoscope } from 'lucide-react'
 import { useLanguage } from '../../i18n'
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, notify } from '../ui'
-import { useAccountApi, useServerText } from './accountUi'
+import { useAccountApi, useServerText } from './accountApi'
 import { buildAttention, dueReminders, formatIsoDate, laterToday, nextUpcomingVisit, vitalSeries } from './hubLogic'
 import { TrendLine } from './TrendLine'
 
