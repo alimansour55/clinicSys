@@ -24,8 +24,15 @@ const getClient = () => {
 
 export const isAiConfigured = () => Boolean(String(process.env.OPENAI_API_KEY || '').trim())
 
-const getModel = () =>
+/** The OpenAI model for the chatbot and for admin content translation. Overridable by env. */
+export const getOpenAIModel = () =>
   String(process.env.OPENAI_CHATBOT_MODEL || process.env.OPENAI_MODEL || DEFAULT_MODEL).trim()
+
+/** Luna answers fastest and cheapest with no reasoning. Other models reject `none`. */
+export const reasoningOptionsFor = (model) =>
+  model.startsWith('gpt-6-luna') ? { reasoning: { effort: 'none' } } : {}
+
+const getModel = getOpenAIModel
 
 const buildInstructions = ({ language, siteName }) => {
   const reply =
@@ -105,8 +112,7 @@ export const understandWithAI = async ({ messages = [], language = 'en', siteNam
       max_output_tokens: MAX_OUTPUT_TOKENS,
       store: false,
       text: { format: buildResponseFormat() },
-      // Luna answers fastest and cheapest with no reasoning. Other models reject `none`.
-      ...(model.startsWith('gpt-6-luna') ? { reasoning: { effort: 'none' } } : {})
+      ...reasoningOptionsFor(model)
     })
 
     const result = parseModelOutput(response.output_text)

@@ -3,16 +3,18 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, CalendarDays, UserRound } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { Button } from './ui'
-import { customColor, siteText, whiteTextReadable } from './discovery/siteCopy'
+import { customColor, siteField, siteText, whiteTextReadable } from './discovery/siteCopy'
 import { optimizedImage } from './discovery/format'
 
 /** The closing call to action. Guests get a way in; signed-in patients get their shortcuts. */
 const Banner = ({ catalog }) => {
-  const { token, t, siteSettings } = useContext(AppContext)
+  const { token, t, tc, siteSettings } = useContext(AppContext)
   const banner = siteSettings?.homeBanner || {}
   const doctorCount = catalog?.stats?.doctors || Infinity
-  const rawTitle = banner.title || [banner.titleLineOne, banner.titleLineTwo].filter(Boolean).join('\n')
-  const title = siteText(rawTitle, doctorCount)
+  /* Stored bilingual text first, then the plain title, then the oldest two-line form. */
+  const text = (field) => siteField({ t, tc }, banner, field, doctorCount)
+  const title = siteField({ tc }, banner, 'title', doctorCount) ||
+    (banner.title ? null : siteText([banner.titleLineOne, banner.titleLineTwo].filter(Boolean).join('\n'), doctorCount))
   const titleLines = title ? title.split('\n').filter(Boolean).map((line) => t(line)) : [t('Ready when you are.'), t('Pick a doctor and a time that suits you.')]
   const color = customColor(banner.backgroundColor)
   const darkText = color && !whiteTextReadable(color)
@@ -42,13 +44,13 @@ const Banner = ({ catalog }) => {
                 <>
                   {showAppointments && (
                     <Button as={Link} to='/my-appointments' variant='secondary' size='lg' leadingIcon={<CalendarDays aria-hidden='true' className='size-5' />}>
-                      {t(banner.appointmentsButtonText || 'My appointments')}
+                      {text('appointmentsButtonText') || t('My appointments')}
                     </Button>
                   )}
                   {showProfile && (
                     <Link to='/my-profile' className='inline-flex min-h-13 items-center gap-2 rounded-control border border-current px-6 font-semibold opacity-90 transition hover:opacity-100'>
                       <UserRound aria-hidden='true' className='size-5' />
-                      {t(banner.profileButtonText || 'My profile')}
+                      {text('profileButtonText') || t('My profile')}
                     </Link>
                   )}
                 </>

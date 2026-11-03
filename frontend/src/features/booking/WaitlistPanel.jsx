@@ -10,7 +10,7 @@ import { fill, formatSlotTime } from './bookingFormat'
 
 const WaitlistPanel = ({ entries, onChanged }) => {
   const { t, localizeDigits, language } = useLanguage()
-  const { backendUrl, token, displayPersonName, slotDateFormat } = useContext(AppContext)
+  const { backendUrl, token, doctorText, slotDateFormat } = useContext(AppContext)
   const [busyId, setBusyId] = useState('')
 
   if (!entries.length) return null
@@ -51,7 +51,7 @@ const WaitlistPanel = ({ entries, onChanged }) => {
                     <h2 className='text-title font-semibold text-ink'>{t('A time opened up for you')}</h2>
                     <p className='mt-0.5 text-body-sm text-ink-2'>
                       {fill(t('{{doctor}} on {{date}} at {{time}}'), {
-                        doctor: displayPersonName(entry.doctorName),
+                        doctor: doctorText({ docId: entry.docId, name: entry.doctorName }, 'name'),
                         date: slotDateFormat(entry.offer.slotDate),
                         time: formatSlotTime(entry.offer.slotTime, language, localizeDigits)
                       })}
@@ -83,7 +83,7 @@ const WaitlistPanel = ({ entries, onChanged }) => {
               {waiting.map((entry) => (
                 <li key={entry._id} className='flex flex-wrap items-center justify-between gap-2 py-2'>
                   <span className='flex flex-wrap items-center gap-2 text-body-sm text-ink'>
-                    {displayPersonName(entry.doctorName)}
+                    {doctorText({ docId: entry.docId, name: entry.doctorName }, 'name')}
                     <Badge tone='neutral'>{localizeDigits(fill(t('Number {{position}} in line'), { position: entry.position || 1 }))}</Badge>
                   </span>
                   <Button size='sm' variant='ghost' loading={busyId === entry._id} onClick={() => leave(entry)}>{t('Leave')}</Button>

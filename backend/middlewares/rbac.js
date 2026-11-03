@@ -73,6 +73,12 @@ const normalizeDecodedToken = (decoded, fallbackRole) => {
     return null
   }
 
+  // Single-purpose tokens (MFA step, MFA setup, account verification, signup proof) are not sessions.
+  // The MFA and verification endpoints read them from the body and verify them on their own.
+  if (decoded.purpose) {
+    return null
+  }
+
   const role = decoded.role || fallbackRole
 
   return createJwtPayload({

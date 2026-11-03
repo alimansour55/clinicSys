@@ -1,4 +1,5 @@
-import doctorModel from "../models/doctorModel.js"
+import doctorModel, { doctorBilingualFields } from "../models/doctorModel.js"
+import { primaryOf, resolveBilingualFields } from '../services/bilingualContentService.js'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import appointmentModel from "../models/appointmentModel.js"
@@ -16,6 +17,7 @@ import { notifyAppointmentCancelled, notifyVisitCompletedWithPrescription } from
 import { findOneByEmail } from '../utils/emailUtils.js'
 import { normalizeExperienceForStorage } from '../utils/doctorExperience.js'
 import { buildClinicBySpecialityMap, enrichDoctorWithSpecialityClinic } from '../utils/doctorClinicLink.js'
+import { sanitizeDoctorSnapshot, sanitizeUserSnapshot } from '../services/bookingService.js'
 
 const MFA_TOKEN_EXPIRES_IN = '10m'
 
@@ -145,12 +147,18 @@ const changeAvailability = async (req, res) => {
 
 const doctorList = async (req,res) => {
    try {
-     const doctors = await doctorModel.find({}).select(['-password', '-email']).populate('clinics')
+     // Public list: no credentials, contact details, pay terms or the redeemable promo code.
+     // The discount type, value and active flag stay so patients can see an offer; the server checks entered codes.
+     // `mfa` is dropped below: excluding it here collides with the schema's own `-mfa.secret`.
+     const doctors = await doctorModel.find({})
+       .select(['-password', '-email', '-financialCompensation', '-phone', '-promoCode.code'])
+       .populate('clinics')
      const doctorsWithRatings = await attachRatingSummariesToDoctors(doctors)
      const doctorsWithStats = await attachCompletedBookingsCountToDoctors(doctorsWithRatings)
      const clinicBySpecKey = await buildClinicBySpecialityMap()
      const doctorsForPatients = doctorsWithStats.map((doctor) => {
-       const doc = enrichDoctorWithSpecialityClinic(doctor, clinicBySpecKey)
+       const enriched = enrichDoctorWithSpecialityClinic(doctor, clinicBySpecKey)
+       const { mfa: _mfa, ...doc } = typeof enriched?.toObject === 'function' ? enriched.toObject() : enriched
        return {
          ...doc,
          patientBookable: isDoctorOpenForPatientBooking(doc)
@@ -540,8 +548,9 @@ const appointmentComplete = async (req,res) => {
          reservationNumber: appointmentData.reservationNumber || '',
          userId: appointmentData.userId,
          docId,
-         userData: appointmentData.userData,    // Patient details
-         docData: appointmentData.docData,      // Doctor details
+         // Older appointments may hold an unfiltered copy, so filter again here.
+         userData: sanitizeUserSnapshot(appointmentData.userData),    // Patient details
+         docData: sanitizeDoctorSnapshot(appointmentData.docData),    // Doctor details
          slotDate: appointmentData.slotDate,    // Appointment date
          slotTime: appointmentData.slotTime,    // Appointment time
          amount: appointmentData.amount,        // Fees
@@ -920,7 +929,7 @@ const updateDoctorprofile = async (req,res) => {
    } = req.body;
    const updateData = {}
 
-   const baseline = await doctorModel.findById(docId).select('locations schedule locationSchedules homeVisitSchedule homeVisitAreas').lean()
+   const baseline = await doctorModel.findById(docId).select('locations schedule locationSchedules homeVisitSchedule homeVisitAreas i18n address').lean()
    if (!baseline) {
       return res.json({ success: false, message: 'Doctor not found' })
    }
@@ -947,6 +956,35 @@ const updateDoctorprofile = async (req,res) => {
          return res.json({ success: false, message: 'About section cannot be empty' })
       }
       updateData.about = trimmedAbout
+   }
+
+   /*
+    * Same as the admin form: the fields a doctor edits here are refreshed in both languages. A plain value
+    * that did not change keeps the stored translation, hand corrections included.
+    */
+   const bilingualBody = { ...req.body }
+   if (updateData.about !== undefined && req.body.aboutI18n === undefined) bilingualBody.about = updateData.about
+   if (address !== undefined && req.body.addressI18n === undefined) {
+      const plainAddress = typeof address === 'string' ? (() => { try { return JSON.parse(address) } catch { return null } })() : address
+      if (plainAddress && typeof plainAddress === 'object') {
+         bilingualBody.addressI18n = doctorBilingualFields.address.plain({ address: plainAddress })
+      }
+   }
+   const i18n = await resolveBilingualFields({
+      previous: baseline.i18n,
+      fields: { about: doctorBilingualFields.about, address: doctorBilingualFields.address },
+      body: bilingualBody
+   })
+   if (i18n.about) {
+      if (!primaryOf(i18n.about)) {
+         return res.json({ success: false, message: 'About section cannot be empty' })
+      }
+      updateData.about = primaryOf(i18n.about)
+      updateData['i18n.about'] = i18n.about
+   }
+   if (i18n.address) {
+      updateData['i18n.address'] = i18n.address
+      if (address === undefined) updateData.address = { ...(baseline.address || {}), line1: primaryOf(i18n.address) }
    }
 
    if (schedule) {

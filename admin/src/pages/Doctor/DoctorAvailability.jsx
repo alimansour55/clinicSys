@@ -43,7 +43,7 @@ const todayKey = toDateInputValue(new Date())
 
 const DoctorAvailability = () => {
   const { dToken, profileData, setProfileData, getProfileData, backendUrl } = useContext(DoctorContext)
-  const { t } = useLanguage()
+  const { t, tc } = useLanguage()
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -225,8 +225,8 @@ const DoctorAvailability = () => {
         <div className='bg-white border rounded-lg p-5 md:p-6 space-y-6'>
           <div className='flex flex-wrap items-center justify-between gap-3'>
             <div>
-              <p className='font-semibold text-gray-800'>{profileData.name}</p>
-              <p className='text-sm text-gray-500'>{profileData.speciality}</p>
+              <p className='font-semibold text-gray-800'>{tc(profileData.i18n?.name) || profileData.name}</p>
+              <p className='text-sm text-gray-500'>{tc(profileData.i18n?.speciality) || t(profileData.speciality)}</p>
             </div>
             <label className='inline-flex items-center gap-2 text-sm font-medium text-gray-700'>
               <input type='checkbox' checked={profileData.available} onChange={() => setProfileData((prev) => ({ ...prev, available: !prev.available }))} />
@@ -349,7 +349,7 @@ const DoctorAvailability = () => {
                             <div key={index} className='grid grid-cols-[1fr_1fr_auto] gap-2 items-center'>
                               <input type='time' value={item.startTime} onChange={(e) => updateLocationBreak(location, index, 'startTime', e.target.value, locationSchedule)} className='border rounded-lg px-2 py-1 text-sm' />
                               <input type='time' value={item.endTime} onChange={(e) => updateLocationBreak(location, index, 'endTime', e.target.value, locationSchedule)} className='border rounded-lg px-2 py-1 text-sm' />
-                              <button type='button' onClick={() => removeLocationBreak(location, index, locationSchedule)} className='rounded-lg border border-eed-200 p-1 text-red-600 hover:bg-red-50'>
+                              <button type='button' onClick={() => removeLocationBreak(location, index, locationSchedule)} className='rounded-lg border border-red-200 p-1 text-red-600 hover:bg-red-50'>
                                 <X className='w-3 h-3' />
                               </button>
                             </div>

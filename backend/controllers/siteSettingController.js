@@ -36,7 +36,7 @@ const DEFAULT_FOOTER = {
   phoneLabel: 'Phone',
   phoneNumber: '+20 101 881 1142',
   emailLabel: 'Email',
-  email: 'contact@clinivo.com',
+  email: '',
   copyrightText: defaultCopyrightLine(),
   showHomeLink: true,
   showAboutLink: true,

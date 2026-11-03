@@ -1,7 +1,11 @@
 import mongoose from 'mongoose';
+import { bilingualFieldSchema } from './bilingualFieldSchema.js'
 
 const receptionistSchema = new mongoose.Schema({
     name: { type: String, required: true },
+    i18n: {
+        name: { type: bilingualFieldSchema, default: undefined }
+    },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     phone: { type: String, required: true },

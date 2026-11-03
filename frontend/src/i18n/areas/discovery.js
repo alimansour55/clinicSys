@@ -9,6 +9,7 @@ export default {
     'Menu welcome guest': 'Sign in to see your appointments and medical record.',
   },
   ar: {
+    'Browse all doctors': 'تصفّح كل الأطباء',
     'nav.home': 'الرئيسية',
     'nav.doctors': 'الأطباء',
     'nav.about': 'من نحن',

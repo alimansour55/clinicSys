@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronRight, LayoutGrid, Menu, X } from 'lucide-react'
 import { useLanguage } from '../i18n'
@@ -17,7 +18,7 @@ const StaffMobileNav = ({
   roleLabel,
   drawerAriaLabel,
 }) => {
-  const { t, isRtl } = useLanguage()
+  const { t, tc, isRtl } = useLanguage()
   const { pathname } = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -40,10 +41,12 @@ const StaffMobileNav = ({
     }
   }, [menuOpen])
 
-  const initial = (navSummary?.name || roleLabel || '?').trim().charAt(0).toUpperCase() || '?'
+  const displayName = tc(navSummary?.i18n?.name) || navSummary?.name
+  const initial = (displayName || roleLabel || '?').trim().charAt(0).toUpperCase() || '?'
   /** Mobile drawer opens from the left edge and expands right (LTR-style slide). */
   const drawerSide = 'start-0 border-e'
-  const subtitle = navSummary?.speciality || navSummary?.email || ''
+  const speciality = tc(navSummary?.i18n?.speciality) || (navSummary?.speciality ? t(navSummary.speciality) : '')
+  const subtitle = speciality || navSummary?.email || ''
 
   return (
     <>
@@ -76,7 +79,8 @@ const StaffMobileNav = ({
         </div>
       </div>
 
-      {menuOpen && (
+      {/* In a portal, because the scrolling page is a stacking context below the navbar */}
+      {menuOpen && createPortal(
         <div
           className='fixed inset-0 z-[55] md:hidden'
           role='dialog'
@@ -106,7 +110,7 @@ const StaffMobileNav = ({
                     )}
                   </span>
                   <div className='min-w-0'>
-                    <p className='truncate text-sm font-bold text-gray-900'>{navSummary?.name || roleLabel}</p>
+                    <p className='truncate text-sm font-bold text-gray-900'>{displayName || roleLabel}</p>
                     {subtitle ? (
                       <p className='truncate text-xs text-gray-500'>{subtitle}</p>
                     ) : null}
@@ -146,7 +150,8 @@ const StaffMobileNav = ({
               </ul>
             </nav>
           </aside>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

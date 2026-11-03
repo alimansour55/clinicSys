@@ -32,6 +32,9 @@ import { getSecuritySettings, isMfaRequiredForProfile } from '../services/securi
 import { normalizeEmergencyContact, normalizeReceptionistAddress } from '../services/receptionistProfileFields.js'
 import { emailExists, findOneByEmail, normalizeEmail } from '../utils/emailUtils.js'
 import { markStaffCreatedAccountVerified } from '../services/accountVerificationService.js'
+import { sanitizeDoctorSnapshot, sanitizeUserSnapshot } from '../services/bookingService.js'
+import { primaryOf, readBilingualInputs, resolveBilingualValue } from '../services/bilingualContentService.js'
+import { receptionistBilingualFields } from '../models/bilingualFieldSchema.js'
 import {
   notifyAppointmentBooked,
   notifyAppointmentCancelled,
@@ -424,7 +427,7 @@ const receptionistDashboard = async (req, res) => {
           phone: item.userData?.phone,
           patientId: item.userData?.patientId
         },
-        docData: { name: item.docData?.name, speciality: item.docData?.speciality },
+        docData: { name: item.docData?.name, speciality: item.docData?.speciality, i18n: item.docData?.i18n },
         slotTime: item.slotTime,
         slotDate: item.slotDate,
         appointmentStatus: item.appointmentStatus,
@@ -906,9 +909,8 @@ const bookAppointmentForPatient = async (req, res) => {
       return res.json({ success: false, message: 'Slot not available' })
     }
 
-    const appointmentDocData = docData.toObject()
-    delete appointmentDocData.slots_booked
-    delete appointmentDocData.home_visit_slots_booked
+    // The copy on the appointment must not carry passwords, MFA data, reset codes or medical history.
+    const appointmentDocData = sanitizeDoctorSnapshot(docData)
 
     const baseAmount = Number(docData.fees || 0)
     const pricing = applyDoctorPromoCode(docData)
@@ -937,7 +939,7 @@ const bookAppointmentForPatient = async (req, res) => {
       reservationNumber: await getNextReservationNumber(),
       userId: patientId,
       docId,
-      userData,
+      userData: sanitizeUserSnapshot(userData),
       docData: appointmentDocData,
       amount,
       originalAmount: baseAmount,
@@ -1313,12 +1315,16 @@ const updateReceptionistProfileData = async (req, res) => {
     const b = req.body
     const updateData = {}
 
-    if (b.name !== undefined) {
-      const nextName = String(b.name || '').trim()
-      if (!nextName) {
+    /* Same as the admin form: refresh `i18n.name` with the plain name, keeping a hand correction unless the source changed. */
+    const { name: nameInput } = readBilingualInputs(receptionistBilingualFields, b)
+    if (nameInput !== undefined) {
+      const existing = await receptionistModel.findById(receptionistId).select('i18n').lean()
+      const name = await resolveBilingualValue({ previous: existing?.i18n?.name, input: nameInput, kind: 'name' })
+      if (!primaryOf(name)) {
         return res.json({ success: false, message: 'Name is required' })
       }
-      updateData.name = nextName
+      updateData.name = primaryOf(name)
+      updateData['i18n.name'] = name
     }
     if (b.phone !== undefined) updateData.phone = String(b.phone || '').trim()
     if (b.jobTitle !== undefined) {

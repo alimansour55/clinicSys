@@ -30,10 +30,24 @@ const EN_PLURAL_LABELS = {
   'general physician': 'General Physicians'
 }
 
+/*
+ * Arabic names as they read after "أطباء" ("لا يوجد أطباء جهاز هضمي"), without the article
+ * the section headings use ("الجهاز الهضمي").
+ */
+const AR_AFTER_DOCTORS_LABELS = {
+  dermatologist: 'جلدية',
+  gastroenterologist: 'جهاز هضمي',
+  gynecologist: 'نساء وتوليد',
+  neurologist: 'مخ وأعصاب',
+  pediatricians: 'أطفال',
+  pediatrician: 'أطفال',
+  'general physician': 'باطنة عامة'
+}
+
 export const formatEmptySpecialtyName = (clinicOrSpecialtyName, language = 'en') => {
   const key = norm(clinicOrSpecialtyName)
   if (language === 'ar') {
-    return resolveClinicSectionLabel(clinicOrSpecialtyName, 'ar')
+    return AR_AFTER_DOCTORS_LABELS[key] || resolveClinicSectionLabel(clinicOrSpecialtyName, 'ar')
   }
   const label = resolveClinicSectionLabel(clinicOrSpecialtyName, 'en')
   return EN_PLURAL_LABELS[key] || label

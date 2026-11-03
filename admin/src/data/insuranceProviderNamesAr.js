@@ -42,3 +42,19 @@ export const translateInsuranceProviderName = (name, t, language = 'en') => {
 
   return INSURANCE_PROVIDER_EN_LABELS[key] || key
 }
+
+/**
+ * A provider's name in the current language. Uses the admin-entered bilingual label
+ * (`providersI18n` from /api/user/insurance-providers) when it has text in this language,
+ * and the built-in names otherwise.
+ */
+export const insuranceProviderLabel = (name, providersI18n, { t, tc, language = 'en' } = {}) => {
+  const key = String(name || '').trim()
+  if (!key) return key
+  const entry = Array.isArray(providersI18n)
+    ? providersI18n.find((item) => item?.name === key || item?.en === key || item?.ar === key)
+    : null
+  const stored = entry?.[language]
+  if (stored && stored !== key) return typeof tc === 'function' ? tc(entry) : stored
+  return translateInsuranceProviderName(key, t, language)
+}

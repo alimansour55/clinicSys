@@ -10,7 +10,7 @@ import { ClinicChipSkeleton } from './DoctorCatalogSkeleton'
 import { openingsFor, VISIT_MODES } from './discovery/doctorInsights'
 import { MODE_META } from './discovery/modes'
 import { fill, formatOpening, optimizedImage } from './discovery/format'
-import { siteText } from './discovery/siteCopy'
+import { siteField } from './discovery/siteCopy'
 
 const iconFor = (name) => specialityData.find((item) => item.speciality.toLowerCase() === String(name).toLowerCase())?.image
 
@@ -31,23 +31,25 @@ const SpecialityMenu = ({ catalog }) => {
   }, [rows])
 
   const cards = siteSettings?.homeServiceCards || {}
+  /* Stored English and Arabic first; cards saved before the bilingual form fall back to t(). */
+  const text = (field) => siteField({ t, tc }, cards, field)
   const ways = [
     { key: 'clinic', title: t('Clinic visit'), text: t('See the doctor in person at one of their branches.'), show: true },
     {
       key: 'tele',
       modes: ['tele', 'voice'],
-      title: t(cards.teleconsultationTitle || 'Teleconsultation'),
-      text: t(cards.teleconsultationDescription || 'Schedule a voice or video call with a specialist doctor.'),
+      title: text('teleconsultationTitle') || t('Teleconsultation'),
+      text: text('teleconsultationDescription') || t('Schedule a voice or video call with a specialist doctor.'),
       image: cards.teleconsultationImage,
-      button: siteText(cards.teleconsultationButtonText),
+      button: text('teleconsultationButtonText'),
       show: cards.showTeleconsultation !== false,
     },
     {
       key: 'home',
-      title: t(cards.homeVisitTitle || 'Home Visit'),
-      text: t(cards.homeVisitDescription || 'Book a doctor visit at your home in supported Cairo and Giza areas.'),
+      title: text('homeVisitTitle') || t('Home Visit'),
+      text: text('homeVisitDescription') || t('Book a doctor visit at your home in supported Cairo and Giza areas.'),
       image: cards.homeVisitImage,
-      button: siteText(cards.homeVisitButtonText),
+      button: text('homeVisitButtonText'),
       show: cards.showHomeVisit !== false,
     },
   ].filter((way) => way.show)
@@ -116,7 +118,7 @@ const SpecialityMenu = ({ catalog }) => {
                       </span>
                       {count > 0 && (
                         <span className='inline-flex items-center gap-1 font-semibold text-brand'>
-                          {way.button ? t(way.button) : t('Choose')}
+                          {way.button || t('Choose')}
                           <ArrowRight aria-hidden='true' className='size-4 rtl:-scale-x-100' />
                         </span>
                       )}

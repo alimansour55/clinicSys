@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react'
 import axios from 'axios'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { loginPath, safeNextPath } from '../utils/loginRedirect'
 import { AppContext } from '../context/AppContext'
 import { useLanguage } from '../i18n'
 import { Button, notify } from '../components/ui'
@@ -24,7 +25,7 @@ const AccountVerify = () => {
 
   const backToLogin = (message) => {
     if (message) notify.info(say(message))
-    navigate('/login?mode=login', { replace: true })
+    navigate(loginPath(location.state?.next || ''), { replace: true })
   }
 
   useEffect(() => {
@@ -46,7 +47,7 @@ const AccountVerify = () => {
       localStorage.setItem('token', data.token)
       setToken(data.token)
       notify.success(t('Account verified! Welcome.'))
-      navigate('/', { replace: true })
+      navigate(safeNextPath(location.state?.next) || '/', { replace: true })
     } else {
       backToLogin(data.message)
     }

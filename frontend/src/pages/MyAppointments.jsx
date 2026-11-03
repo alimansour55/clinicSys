@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { loginPath } from '../utils/loginRedirect'
 import { CalendarHeart, CalendarX, History } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { useLanguage } from '../i18n'
@@ -30,7 +31,7 @@ const CardSkeleton = () => (
 
 const CancelDialog = ({ appointment, onClose, onConfirm, busy }) => {
   const { t, language, localizeDigits } = useLanguage()
-  const { formatMoney } = useContext(AppContext)
+  const { formatMoney, doctorText } = useContext(AppContext)
   const paidOnline = appointment.paymentStatus === 'Paid' && appointment.paymentMethod === 'Visa'
 
   return (
@@ -41,7 +42,7 @@ const CancelDialog = ({ appointment, onClose, onConfirm, busy }) => {
       title={t('Cancel this visit?')}
       description={fill(t('{{when}} with {{doctor}}'), {
         when: `${appointment.startsAt ? formatDayShort(appointment.startsAt, language) : appointment.slotDate} · ${formatSlotTime(appointment.slotTime, language, localizeDigits)}`,
-        doctor: appointment.docData?.name || ''
+        doctor: doctorText(appointment.docData, 'name')
       })}
       footer={(
         <>
@@ -114,9 +115,13 @@ const MyAppointments = () => {
     setNow(Date.now())
   }, [getUserAppointments, loadWaitlist])
 
+  const navigate = useNavigate()
+
   useEffect(() => {
     if (!token) {
       setLoading(false)
+      // Links from notifications and emails land here; come back after logging in.
+      navigate(loginPath('/my-appointments'), { replace: true })
       return undefined
     }
     let active = true

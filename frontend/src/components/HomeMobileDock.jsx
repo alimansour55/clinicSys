@@ -17,7 +17,7 @@ const HomeMobileDock = () => {
   ]
 
   return (
-    <nav aria-label={t('Home shortcuts')} className='mx-auto w-full max-w-7xl px-gutter pb-4 md:hidden'>
+    <nav data-chat-avoid aria-label={t('Home shortcuts')} className='mx-auto w-full max-w-7xl px-gutter pb-4 md:hidden'>
       <ul className={`grid gap-2 ${items.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
         {items.map(({ id, to, icon: Icon, label }) => (
           <li key={id}>

@@ -12,7 +12,9 @@ const addressText = (address = {}) => {
 
 const ReceptionistClinics = () => {
   const { rToken, clinics, doctors, getReceptionistClinics, getReceptionistDoctors } = useContext(ReceptionistContext);
-  const { currency } = useContext(AppContext);
+  const { currency, t, tc } = useContext(AppContext);
+  const doctorName = (doc) => tc(doc?.i18n?.name) || doc?.name;
+  const doctorSpeciality = (doc) => tc(doc?.i18n?.speciality) || (doc?.speciality ? t(doc.speciality) : "");
   const [search, setSearch] = useState("");
   const [selectedClinicId, setSelectedClinicId] = useState("");
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
@@ -45,7 +47,7 @@ const ReceptionistClinics = () => {
       return clinic.name?.toLowerCase().includes(query)
         || clinic.description?.toLowerCase().includes(query)
         || assignedDoctors.some((doctor) =>
-          [doctor.name, doctor.email, doctor.speciality, ...(doctor.locations || [])]
+          [doctor.name, doctor.i18n?.name?.ar, doctor.email, doctor.speciality, doctor.i18n?.speciality?.ar, ...(doctor.locations || [])]
             .filter(Boolean)
             .some((value) => String(value).toLowerCase().includes(query))
         );
@@ -182,9 +184,9 @@ const ReceptionistClinics = () => {
                       <div>
                         <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
                           <Building2 className="h-5 w-5 text-indigo-600" />
-                          {clinic.name}
+                          {tc(clinic.i18n?.name) || t(clinic.name)}
                         </h2>
-                        <p className="mt-1 text-sm text-slate-500">{clinic.description || "No description added"}</p>
+                        <p className="mt-1 text-sm text-slate-500">{tc(clinic.i18n?.description) || clinic.description || "No description added"}</p>
                       </div>
                       <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${clinic.active !== false ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}>
                         {clinic.active !== false ? "Active" : "Inactive"}
@@ -206,12 +208,12 @@ const ReceptionistClinics = () => {
                         className={`flex items-center gap-3 rounded-xl border p-3 text-start transition hover:bg-indigo-50 ${selectedDoctor?._id === doctor._id ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white"}`}
                       >
                         <div className="relative shrink-0">
-                          <img src={doctor.image} alt={doctor.name} className="h-12 w-12 rounded-full bg-slate-100 object-cover" />
+                          <img src={doctor.image} alt={doctorName(doctor)} className="h-12 w-12 rounded-full bg-slate-100 object-cover" />
                           <RatingBadge summary={doctor.ratingSummary} className="absolute -start-2 -top-2" />
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-slate-950">{doctor.name}</p>
-                          <p className="truncate text-xs text-slate-500">{doctor.speciality}</p>
+                          <p className="truncate font-semibold text-slate-950">{doctorName(doctor)}</p>
+                          <p className="truncate text-xs text-slate-500">{doctorSpeciality(doctor)}</p>
                           <p className="mt-1 truncate text-xs text-blue-600">{doctor.locations?.length ? doctor.locations.join(", ") : "No clinic location"}</p>
                         </div>
                       </button>
@@ -226,12 +228,12 @@ const ReceptionistClinics = () => {
                 <div>
                   <div className="mb-4 flex items-center gap-3">
                     <div className="relative">
-                      <img src={selectedDoctor.image} alt={selectedDoctor.name} className="h-20 w-20 rounded-full border border-slate-200 bg-slate-100 object-cover" />
+                      <img src={selectedDoctor.image} alt={doctorName(selectedDoctor)} className="h-20 w-20 rounded-full border border-slate-200 bg-slate-100 object-cover" />
                       <RatingBadge summary={selectedDoctor.ratingSummary} className="absolute -start-2 -top-2" />
                     </div>
                     <div className="min-w-0">
-                      <h2 className="truncate text-lg font-bold text-slate-950">{selectedDoctor.name}</h2>
-                      <p className="text-sm text-slate-500">{selectedDoctor.speciality}</p>
+                      <h2 className="truncate text-lg font-bold text-slate-950">{doctorName(selectedDoctor)}</h2>
+                      <p className="text-sm text-slate-500">{doctorSpeciality(selectedDoctor)}</p>
                       <div className="mt-1 flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">
                         <StarRow value={selectedDoctor.ratingSummary?.averageRating} />
                         {selectedDoctor.ratingSummary?.ratingCount ? `${Number(selectedDoctor.ratingSummary.averageRating || 0).toFixed(1)} from ${selectedDoctor.ratingSummary.ratingCount}` : "No ratings"}
@@ -242,7 +244,7 @@ const ReceptionistClinics = () => {
                   <div className="space-y-3 text-sm">
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                       <p className="mb-1 flex items-center gap-2 text-xs font-bold uppercase text-slate-400"><Stethoscope className="h-3.5 w-3.5" /> Professional</p>
-                      <p className="font-semibold text-slate-950">{selectedDoctor.title || "Doctor"}{selectedDoctor.degree ? ` - ${selectedDoctor.degree}` : ""}</p>
+                      <p className="font-semibold text-slate-950">{selectedDoctor.title || "Doctor"}{selectedDoctor.degree ? ` - ${tc(selectedDoctor.i18n?.degree) || selectedDoctor.degree}` : ""}</p>
                       <p className="mt-1 text-slate-600">{formatExperienceEn(selectedDoctor.experience) || '—'}</p>
                       <p className="mt-1 font-semibold text-green-700">{currency}{selectedDoctor.fees}</p>
                     </div>

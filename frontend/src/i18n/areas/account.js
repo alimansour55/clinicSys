@@ -1,5 +1,10 @@
 /* Strings for the account area. See DESIGN_SYSTEM.md. */
 export default {
+  en: {
+    'Taken (medicine)': 'Taken',
+    'Missed (medicine)': 'Missed',
+    'Child (relation)': 'Child',
+  },
   ar: {
     // Sign in, sign up, verification, reset
     'Account verified! Welcome.': 'تم تأكيد حسابك. أهلاً بك!',
@@ -88,10 +93,10 @@ export default {
     'Add a reminder': 'أضف تذكيراً',
     'Due at': 'موعده',
     'Due now': 'حان موعده',
-    'Taken': 'تم تناوله',
+    'Taken (medicine)': 'تم تناوله',
     'Skip': 'تخطّي',
     'Skipped': 'تم التخطّي',
-    'Missed': 'فات موعده',
+    'Missed (medicine)': 'فات موعده',
     'Well done. Marked as taken.': 'أحسنت. سجّلناه كجرعة تم تناولها.',
     'Skipped for now.': 'تم التخطّي هذه المرة.',
     'You are all caught up. Nothing needs you right now.': 'كل شيء على ما يرام. لا شيء يحتاج إليك الآن.',
@@ -173,7 +178,6 @@ export default {
     'Visit with': 'زيارة مع',
     'Visit': 'زيارة',
     'Completed': 'مكتملة',
-    'Upcoming': 'قادمة',
     'Cancelled': 'ملغاة',
     'Show prescription': 'عرض الوصفة',
     'Hide prescription': 'إخفاء الوصفة',
@@ -234,7 +238,7 @@ export default {
     'Add your children or parents, and always have their allergies and medicines to hand.': 'أضف أطفالك أو والديك، ولتكن حساسيتهم وأدويتهم في متناولك دائماً.',
     'Name': 'الاسم',
     'Relationship': 'صلة القرابة',
-    'Child': 'ابن/ابنة',
+    'Child (relation)': 'ابن/ابنة',
     'Spouse': 'زوج/زوجة',
     'Parent': 'أب/أم',
     'Brother or sister': 'أخ/أخت',

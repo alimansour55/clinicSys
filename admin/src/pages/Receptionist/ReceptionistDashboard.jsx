@@ -49,7 +49,9 @@ const statusBadgeClass = (status) => {
 
 const ReceptionistDashboard = () => {
   const { rToken, dashData, dashDataLoading, getReceptionistDashboard } = useContext(ReceptionistContext);
-  const { slotDateFormat, currency, language, t } = useContext(AppContext);
+  const { slotDateFormat, currency, language, t, tc } = useContext(AppContext);
+  const doctorName = (doc) => tc(doc?.i18n?.name) || doc?.name;
+  const doctorSpeciality = (doc) => tc(doc?.i18n?.speciality) || (doc?.speciality ? t(doc.speciality) : "");
   const [refreshing, setRefreshing] = useState(false);
   const [staleData, setStaleData] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -100,7 +102,7 @@ const ReceptionistDashboard = () => {
           phone: row.userData?.phone,
           patientId: row.userData?.patientId,
         },
-        docData: { name: row.docData?.name, speciality: row.docData?.speciality },
+        docData: { name: row.docData?.name, speciality: row.docData?.speciality, i18n: row.docData?.i18n },
         slotTime: row.slotTime,
         slotDate: row.slotDate,
         appointmentStatus: row.appointmentStatus,
@@ -382,9 +384,9 @@ const ReceptionistDashboard = () => {
                               </p>
                             </td>
                             <td className="hidden px-5 py-3 text-slate-700 md:table-cell">
-                              <span className="font-medium">{row.docData?.name}</span>
+                              <span className="font-medium">{doctorName(row.docData)}</span>
                               {row.docData?.speciality && (
-                                <span className="mt-0.5 block text-xs text-slate-500">{row.docData.speciality}</span>
+                                <span className="mt-0.5 block text-xs text-slate-500">{doctorSpeciality(row.docData)}</span>
                               )}
                             </td>
                             <td className="hidden px-5 py-3 text-slate-600 lg:table-cell">
@@ -480,7 +482,7 @@ const ReceptionistDashboard = () => {
                           <div className="min-w-0">
                             <p className="truncate font-semibold text-slate-900">{item.userData?.name}</p>
                             <p className="mt-0.5 truncate text-xs text-slate-500">
-                              {item.docData?.name} · {slotDateFormat(item.slotDate)}, {item.slotTime}
+                              {doctorName(item.docData)} · {slotDateFormat(item.slotDate)}, {item.slotTime}
                             </p>
                           </div>
                           <div className="flex shrink-0 flex-col items-end gap-1">

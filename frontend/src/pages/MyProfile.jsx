@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { loginPath } from '../utils/loginRedirect'
 import { AppContext } from '../context/AppContext'
 import { useLanguage } from '../i18n'
 import { Button, EmptyState, Skeleton, SkeletonGroup, Tab, TabList, TabPanel, Tabs } from '../components/ui'
@@ -57,6 +58,7 @@ const MyProfile = () => {
   const say = useServerText()
   const api = useAccountApi()
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [hub, setHub] = useState(null)
   const [loadError, setLoadError] = useState('')
@@ -87,7 +89,7 @@ const MyProfile = () => {
 
   useEffect(() => {
     if (!token) {
-      navigate('/login?mode=login', { replace: true })
+      navigate(loginPath(location), { replace: true })
       return
     }
     reload().then((data) => {
@@ -104,19 +106,19 @@ const MyProfile = () => {
 
   if (loadError && !hub) {
     return (
-      <main className='py-12'>
+      <div className='py-12'>
         <EmptyState
           title={t('We could not open your health space')}
           description={say(loadError)}
           action={<Button onClick={reload}>{t('Try again')}</Button>}
         />
-      </main>
+      </div>
     )
   }
 
   if (!userData || !hub) {
     return (
-      <main className='py-8'>
+      <div className='py-8'>
         <SkeletonGroup label={t('Loading...')}>
           <Skeleton className='mb-4 h-12 w-64' />
           <Skeleton className='mb-6 h-10 w-full max-w-xl' />
@@ -125,14 +127,14 @@ const MyProfile = () => {
             <Skeleton className='h-52 rounded-card' />
           </div>
         </SkeletonGroup>
-      </main>
+      </div>
     )
   }
 
   const firstName = String(displayPersonName(userData.name) || '').split(' ')[0]
 
   return (
-    <main className='pt-6 pb-12'>
+    <div className='pt-6 pb-12'>
       <header className='mb-6 flex items-center gap-4'>
         <img src={userData.image} alt='' className='size-14 rounded-card bg-surface-sunken object-cover' />
         <div className='min-w-0'>
@@ -167,7 +169,7 @@ const MyProfile = () => {
           }}
         />
       )}
-    </main>
+    </div>
   )
 }
 

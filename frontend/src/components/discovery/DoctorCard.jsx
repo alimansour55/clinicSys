@@ -11,11 +11,11 @@ import { doctorHref, MODE_META } from './modes'
 
 /** One doctor in any discovery list. The name is the link; the whole card is its hit area. */
 export default function DoctorCard({ row, mode = '', now, priority = false, headingLevel = 3 }) {
-  const { t, tc, language, formatMoney, displayPersonName, placeTranslationOverrides } = useContext(AppContext)
+  const { t, language, formatMoney, doctorText, placeTranslationOverrides } = useContext(AppContext)
   const doctor = row.doctor
   const Heading = `h${headingLevel}`
   const openings = openingsFor(row, mode)
-  const name = displayPersonName(doctor.name)
+  const name = doctorText(doctor, 'name')
   const place = row.places.find((p) => p.raw === openings?.nextPlace) || row.places[0]
   const offered = VISIT_MODES.filter((m) => row.modes[m])
 
@@ -63,7 +63,7 @@ export default function DoctorCard({ row, mode = '', now, priority = false, head
             )}
           </Heading>
           <p className='truncate text-body-sm text-ink-2'>
-            {[doctor.title ? t(doctor.title) : '', tc(doctor.speciality)].filter(Boolean).join(' · ')}
+            {[doctor.title ? t(doctor.title) : '', doctorText(doctor, 'speciality')].filter(Boolean).join(' · ')}
           </p>
         </div>
 

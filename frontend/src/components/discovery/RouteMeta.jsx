@@ -25,7 +25,7 @@ const TITLES = {
 /** Titles, robots rules and doctor structured data for routes the discovery pages do not own. */
 export default function RouteMeta() {
   const { pathname } = useLocation()
-  const { doctors, t, tc, language, displayPersonName } = useContext(AppContext)
+  const { doctors, t, language, doctorText } = useContext(AppContext)
 
   const doctorId = pathname.match(/^\/appointment\/([^/]+)/)?.[1]
   const doctor = doctorId ? doctors.find((d) => String(d._id) === doctorId) : null
@@ -37,11 +37,12 @@ export default function RouteMeta() {
         applyPageMeta({ title: t('Book an appointment'), language })
         return
       }
-      const name = displayPersonName(doctor.name)
+      const name = doctorText(doctor, 'name')
+      const speciality = doctorText(doctor, 'speciality')
       const count = Number(doctor.ratingSummary?.ratingCount || 0)
       applyPageMeta({
-        title: `${name} · ${tc(doctor.speciality)}`,
-        description: `${name}, ${tc(doctor.speciality)}. ${t('See real open times and book a clinic visit, call or home visit on Clinivo.')}`,
+        title: `${name} · ${speciality}`,
+        description: `${name}, ${speciality}. ${t('See real open times and book a clinic visit, call or home visit on Clinivo.')}`,
         image: optimizedImage(doctor.image, 1200).startsWith('http') ? optimizedImage(doctor.image, 1200) : undefined,
         type: 'profile',
         language,
@@ -60,7 +61,7 @@ export default function RouteMeta() {
       return
     }
     applyPageMeta({ title: TITLES[pathname] ? t(TITLES[pathname]) : '', noindex: PRIVATE.test(pathname), language })
-  }, [pathname, doctorId, doctor, t, tc, language, displayPersonName])
+  }, [pathname, doctorId, doctor, t, language, doctorText])
 
   return null
 }

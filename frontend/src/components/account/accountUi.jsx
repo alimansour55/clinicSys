@@ -8,7 +8,7 @@ import { passwordRules } from './accountApi'
 export const AuthShell = ({ title, description, onBack, backLabel, children }) => {
   const { t } = useLanguage()
   return (
-    <main className='flex min-h-[80vh] items-center justify-center py-8'>
+    <div className='flex min-h-[80vh] items-center justify-center py-8'>
       <Card variant='signature' className='w-full max-w-md animate-rise'>
         <CardBody className='p-6 sm:p-8'>
           {onBack && (
@@ -22,7 +22,7 @@ export const AuthShell = ({ title, description, onBack, backLabel, children }) =
           <div className='mt-6'>{children}</div>
         </CardBody>
       </Card>
-    </main>
+    </div>
   )
 }
 

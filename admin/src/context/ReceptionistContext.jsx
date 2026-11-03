@@ -294,7 +294,8 @@ const ReceptionistContextProvider = (props) => {
       if (data.success && data.receptionist) {
         setReceptionistNavSummary({
           name: data.receptionist.name || "",
-          image: data.receptionist.image || ""
+          image: data.receptionist.image || "",
+          i18n: data.receptionist.i18n
         });
       }
     } catch (error) {

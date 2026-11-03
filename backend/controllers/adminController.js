@@ -964,7 +964,7 @@ const updateUserByAdmin = async (req, res) => {
       updateData['i18n.name'] = await resolveBilingualValue({ previous, input: updateData.name, kind: 'name' })
     }
 
-    await selectedModel.findByIdAndUpdate(profileId, updateData, { strict: false })
+    await selectedModel.findByIdAndUpdate(profileId, updateData)
 
     await logAudit({
       action: 'user_update',
@@ -1749,7 +1749,7 @@ const addReceptionistByAdmin = async (req, res) => {
     res.json = (payload) => {
       if (!payload?.success || !name) return reply(payload)
       receptionistModel
-        .updateOne({ email: normalizeEmail(req.body.email) }, { $set: { 'i18n.name': name } }, { strict: false })
+        .updateOne({ email: normalizeEmail(req.body.email) }, { $set: { 'i18n.name': name } })
         .catch((error) => console.log(error))
         .finally(() => reply(payload))
       return res
@@ -1863,7 +1863,7 @@ const updateReceptionistByAdmin = async (req, res) => {
       return res.json({ success: false, message: 'Nothing to update' })
     }
 
-    await receptionistModel.findByIdAndUpdate(receptionistId, { $set: updateData }, { strict: false })
+    await receptionistModel.findByIdAndUpdate(receptionistId, { $set: updateData })
 
     await logAudit({
       action: 'receptionist_update',

@@ -406,7 +406,7 @@ const PatientHistory = () => {
 
         {/* Cannot Edit Warning */}
           {cannotEditMsg && (
-            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 text-red-700 rounded-lg sm:rounded-xl border border-eed-200">
+            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 text-red-700 rounded-lg sm:rounded-xl border border-red-200">
               <div className="flex items-start gap-2 sm:gap-3">
                 <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
@@ -662,7 +662,7 @@ const PatientHistory = () => {
                         </div>
                         <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
                           <input value={item.instructions} onChange={(e) => handleMedicationChange(index, 'instructions', e.target.value)} className="border rounded-lg px-3 py-2 text-sm" placeholder="Instructions" />
-                          <button type="button" onClick={() => removeMedicationItem(index)} disabled={(editData.medicationItems || []).length === 1} className="px-3 py-2 rounded-lg border border-eed-200 text-red-600 text-sm disabled:opacity-40">Remove</button>
+                          <button type="button" onClick={() => removeMedicationItem(index)} disabled={(editData.medicationItems || []).length === 1} className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm disabled:opacity-40">Remove</button>
                         </div>
                       </div>
                     ))}
@@ -723,7 +723,7 @@ const PatientHistory = () => {
               </div>
 
               {/* Lab Tests */}
-              <div className="border-s-4 border-eed-500 ps-4">
+              <div className="border-s-4 border-red-500 ps-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
                   <label className="text-sm sm:text-base font-semibold text-gray-700">Lab Tests</label>
@@ -737,7 +737,7 @@ const PatientHistory = () => {
                     placeholder="Recommended tests"
                   />
                 ) : (
-                  <p className="p-2 sm:p-3 bg-red-50 rounded-lg border border-eed-200 text-sm sm:text-base text-gray-800">
+                  <p className="p-2 sm:p-3 bg-red-50 rounded-lg border border-red-200 text-sm sm:text-base text-gray-800">
                     {selectedPatient.labTests || 'Not specified'}
                   </p>
                 )}

@@ -71,8 +71,7 @@ const canUpdateHistory = authorizePermission('update own medical history')
 
 /**
  * The patient account routes of /api/user. Mounted ahead of userRouter, so these answer first.
- * userController.js and userRoute.js belong to another session this round; the shadowed handlers there
- * are now unreachable and are listed for removal in the integration requests.
+ * userRoute.js keeps only the routes not defined here.
  */
 export const patientAuthRouter = express.Router()
 

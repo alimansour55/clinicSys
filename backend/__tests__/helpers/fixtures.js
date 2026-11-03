@@ -28,14 +28,17 @@ export const doctorWithClinicSchedule = (overrides = {}) => ({
   ...overrides,
 })
 
-/** slotDate format: DD_MM_YYYY for a weekday in workingDays, ~7 days ahead. */
+/**
+ * slotDate format: DD_MM_YYYY for the given weekday, 2 to 8 days ahead.
+ * Never today or tomorrow, so the slot is in the future whatever the hour or the zone the tests run in.
+ */
 export const futureSlotOnWeekday = (weekday = 1) => {
   const date = new Date()
   date.setHours(12, 0, 0, 0)
+  date.setDate(date.getDate() + 2)
   while (date.getDay() !== weekday) {
     date.setDate(date.getDate() + 1)
   }
-  if (date <= new Date()) date.setDate(date.getDate() + 7)
   const day = date.getDate()
   const month = date.getMonth() + 1
   const year = date.getFullYear()

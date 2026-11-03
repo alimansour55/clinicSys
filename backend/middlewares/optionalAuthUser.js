@@ -3,6 +3,8 @@ import { createJwtPayload } from './rbac.js'
 
 const normalizeDecodedToken = (decoded) => {
   if (!decoded || typeof decoded !== 'object') return null
+  // Single-purpose tokens (MFA step, account verification) are not sessions.
+  if (decoded.purpose) return null
   return createJwtPayload({
     id: decoded.id || decoded.userId,
     userId: decoded.userId || decoded.id,

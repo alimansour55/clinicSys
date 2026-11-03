@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { loginPath } from '../utils/loginRedirect'
 import { ArrowLeft, Save } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { useLanguage } from '../i18n'
@@ -42,7 +43,7 @@ const Insurance = () => {
 
   useEffect(() => {
     if (!token) {
-      navigate('/login?mode=login', { replace: true })
+      navigate(loginPath('/insurance'), { replace: true })
       return
     }
     // Reception may have reviewed the card, so reload rather than trust what is in memory.
@@ -57,11 +58,11 @@ const Insurance = () => {
 
   if (!userData) {
     return (
-      <main className='py-8'>
+      <div className='py-8'>
         <SkeletonGroup label={t('Loading...')}>
           <Skeleton className='mx-auto h-96 max-w-3xl rounded-card' />
         </SkeletonGroup>
-      </main>
+      </div>
     )
   }
 
@@ -99,7 +100,7 @@ const Insurance = () => {
   }
 
   return (
-    <main className='mx-auto max-w-3xl pt-6 pb-12'>
+    <div className='mx-auto max-w-3xl pt-6 pb-12'>
       <Link to='/my-profile' className='mb-4 inline-flex min-h-9 items-center gap-2 text-body-sm text-ink-2 hover:text-ink'>
         <ArrowLeft className='size-4 rtl:-scale-x-100' aria-hidden='true' /> {t('Your health space')}
       </Link>
@@ -139,7 +140,7 @@ const Insurance = () => {
           </CardFooter>
         </Card>
       </form>
-    </main>
+    </div>
   )
 }
 

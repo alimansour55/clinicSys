@@ -101,7 +101,9 @@ const ReceptionistAppointments = () => {
     updateHomeVisitAddress,
     verifyPatientInsurance,
   } = useContext(ReceptionistContext);
-  const { calculateAge, slotDateFormat, currency, t } = useContext(AppContext);
+  const { calculateAge, slotDateFormat, currency, t, tc } = useContext(AppContext);
+  const doctorName = (doc) => tc(doc?.i18n?.name) || doc?.name;
+  const doctorSpeciality = (doc) => tc(doc?.i18n?.speciality) || (doc?.speciality ? t(doc.speciality) : "");
 
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("q") || "");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -152,7 +154,9 @@ const ReceptionistAppointments = () => {
         item.userData?.patientId,
         item.userData?.phone,
         item.docData?.name,
+        item.docData?.i18n?.name?.ar,
         item.docData?.speciality,
+        item.docData?.i18n?.speciality?.ar,
         getReservationNumber(item),
         item.clinicLocation,
       ]
@@ -476,7 +480,7 @@ const ReceptionistAppointments = () => {
                         <span className="font-mono text-xs font-medium text-slate-500">{getReservationNumber(item)}</span>
                       </div>
                       <p className="truncate text-xs text-slate-500">
-                        {item.docData?.name} · {slotDateFormat(item.slotDate)} {item.slotTime}
+                        {doctorName(item.docData)} · {slotDateFormat(item.slotDate)} {item.slotTime}
                       </p>
                     </div>
                     <div className="hidden shrink-0 items-center gap-2 sm:flex">
@@ -549,8 +553,8 @@ const ReceptionistAppointments = () => {
                               </div>
                             )}
                             <div className="mt-3 border-t border-slate-200 pt-3">
-                              <p className="font-semibold text-slate-900">{item.docData?.name}</p>
-                              <p className="text-xs text-slate-500">{item.docData?.speciality}</p>
+                              <p className="font-semibold text-slate-900">{doctorName(item.docData)}</p>
+                              <p className="text-xs text-slate-500">{doctorSpeciality(item.docData)}</p>
                               <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
                                 {getAppointmentMode(item) === "Video Call" ? (
                                   <Video className="h-3.5 w-3.5" />

@@ -29,7 +29,7 @@ import { ReceptionistContext } from "../../context/ReceptionistContext";
 import { AdminContext } from "../../context/AdminContext";
 import InsuranceVerificationPanel from "../../components/InsuranceVerificationPanel";
 import InsuranceStatusBadge from "../../components/InsuranceStatusBadge";
-import { translateInsuranceProviderName } from "../../data/insuranceProviderNamesAr";
+import { insuranceProviderLabel } from "../../data/insuranceProviderNamesAr";
 import { LANGUAGES, useLanguage } from "../../i18n";
 
 const formatGender = (gender, t) => {
@@ -69,8 +69,8 @@ const emptyAddForm = () => ({
   insuranceExpiryDate: ""
 });
 
-function AddPatientModal({ open, onClose, createReceptionistPatient, onCreated, insuranceProviders = [] }) {
-  const { t, language } = useContext(AppContext);
+function AddPatientModal({ open, onClose, createReceptionistPatient, onCreated, insuranceProviders = [], insuranceProvidersI18n = [] }) {
+  const { t, tc, language } = useContext(AppContext);
   const [form, setForm] = useState(emptyAddForm);
   const [insuranceCard, setInsuranceCard] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -211,7 +211,7 @@ function AddPatientModal({ open, onClose, createReceptionistPatient, onCreated, 
                     <option value="">Select provider</option>
                     {insuranceProviders.map((name) => (
                       <option key={name} value={name}>
-                        {translateInsuranceProviderName(name, t, language)}
+                        {insuranceProviderLabel(name, insuranceProvidersI18n, { t, tc, language })}
                       </option>
                     ))}
                   </select>
@@ -273,7 +273,7 @@ const ReceptionistPatients = () => {
     createReceptionistPatient,
     verifyPatientInsurance
   } = useContext(ReceptionistContext);
-  const { calculateAge, slotDateFormat, currency, t, language } = useContext(AppContext);
+  const { calculateAge, slotDateFormat, currency, t, tc, language } = useContext(AppContext);
   const { localizeDigits } = useLanguage();
   const dateLocale = LANGUAGES[language]?.locale || "en-US";
   const formatDateTime = (value) => {
@@ -287,6 +287,7 @@ const ReceptionistPatients = () => {
   const patients = isAdmin ? adminPatients : receptionistPatients;
   const lastHandledUsersLinkKey = useRef("");
   const [insuranceProvidersList, setInsuranceProvidersList] = useState([]);
+  const [insuranceProvidersI18n, setInsuranceProvidersI18n] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -317,7 +318,10 @@ const ReceptionistPatients = () => {
     (async () => {
       try {
         const { data } = await axios.get(`${backendUrl}/api/user/insurance-providers`);
-        if (!cancelled && data.success && Array.isArray(data.providers)) setInsuranceProvidersList(data.providers);
+        if (!cancelled && data.success && Array.isArray(data.providers)) {
+          setInsuranceProvidersList(data.providers);
+          setInsuranceProvidersI18n(Array.isArray(data.providersI18n) ? data.providersI18n : []);
+        }
       } catch {
         if (!cancelled) setInsuranceProvidersList([]);
       }
@@ -592,7 +596,7 @@ const ReceptionistPatients = () => {
                     {patient.insurance.provider && (
                       <p className="sm:col-span-2 lg:col-span-4">
                         <span className="font-semibold text-gray-900">{t("Insurance provider label")}:</span>{" "}
-                        {translateInsuranceProviderName(patient.insurance.provider, t, language)}
+                        {insuranceProviderLabel(patient.insurance.provider, insuranceProvidersI18n, { t, tc, language })}
                       </p>
                     )}
                     <p>
@@ -947,6 +951,7 @@ const ReceptionistPatients = () => {
         createReceptionistPatient={createPatientRecord}
         onCreated={onPatientCreated}
         insuranceProviders={insuranceProvidersList}
+        insuranceProvidersI18n={insuranceProvidersI18n}
       />
     </div>
   );

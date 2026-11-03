@@ -45,7 +45,7 @@ const DoctorDashboard = () => {
   const { dToken, dashData, getDashData, cancelAppointment, profileData, getProfileData, dashDataLoading } =
     useContext(DoctorContext);
   const { currency, slotDateFormat } = useContext(AppContext);
-  const { t, language, isRtl } = useLanguage();
+  const { t, tc, language, isRtl } = useLanguage();
 
   const [retryLoading, setRetryLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -152,7 +152,7 @@ const DoctorDashboard = () => {
       label: t("Cancelled"),
       value: cancelled,
       icon: Ban,
-      tone: "from-rose-500/10 to-red-500/8 border-eose-200/70 text-rose-900",
+      tone: "from-rose-500/10 to-red-500/8 border-rose-200/70 text-rose-900",
       iconBg: "bg-rose-500/12 text-rose-600",
     },
   ];
@@ -188,7 +188,7 @@ const DoctorDashboard = () => {
     },
   ];
 
-  const doctorName = profileData?.name || t("Doctor");
+  const doctorName = tc(profileData?.i18n?.name) || profileData?.name || t("Doctor");
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 pb-12 max-w-6xl mx-auto">

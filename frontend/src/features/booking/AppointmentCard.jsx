@@ -7,6 +7,7 @@ import { Badge, Button, Card, CardBody, Field, Textarea, cx } from '../../compon
 import { StarRow, formatRatingDate } from '../../components/DoctorRating'
 import { formatHomeVisitAddress } from '../../utils/homeVisitAreas'
 import { formatLocationLine } from '../../utils/placeTranslations'
+import { recordText } from '../../utils/bilingualContent'
 import DocumentActions from './DocumentActions'
 import { fill, formatCountdown, formatDayLong, formatSlotTime, shouldHighlightJoin } from './bookingFormat'
 
@@ -90,7 +91,7 @@ const RatingForm = ({ appointment, onSubmit }) => {
 
 const AppointmentCard = ({ appointment, now, onCancel, onReschedule, onPay, onRate, onViewPrescription, prescriptionLoading, highlight = false }) => {
   const { t, tc, language, localizeDigits } = useLanguage()
-  const { backendUrl, token, displayPersonName, placeTranslationOverrides } = useContext(AppContext)
+  const { backendUrl, token, doctorText, placeTranslationOverrides } = useContext(AppContext)
   const type = appointment.appointmentType || 'Clinic'
   const TypeIcon = TYPE_ICONS[type] || MapPin
   const status = STATUS_BADGES[appointment.appointmentStatus] || STATUS_BADGES.Booked
@@ -100,13 +101,15 @@ const AppointmentCard = ({ appointment, now, onCancel, onReschedule, onPay, onRa
   const missed = !finished && !isCancelled && appointment.appointmentStatus === 'Booked' && appointment.endsAt && appointment.endsAt < now
   const upcoming = !finished && !isCancelled && !missed
   const joinOpen = shouldHighlightJoin(appointment, now)
-  const doctorName = displayPersonName(appointment.docData?.name) || t('Doctor')
+  const doctorName = doctorText(appointment.docData, 'name') || t('Doctor')
 
   const place = type === 'Home Visit'
     ? formatHomeVisitAddress(appointment.homeVisitAddress) || t('Home visit address will be confirmed.')
     : isTele
       ? t(TYPE_LABELS[type])
-      : formatLocationLine(appointment.clinicLocation || appointment.docData?.address?.line1 || '', language, t, placeTranslationOverrides)
+      : appointment.clinicLocation
+        ? formatLocationLine(appointment.clinicLocation, language, t, placeTranslationOverrides)
+        : recordText(tc, appointment.docData, 'address') || formatLocationLine(appointment.docData?.address?.line1 || '', language, t, placeTranslationOverrides)
 
   return (
     <Card variant={highlight ? 'signature' : 'raised'} as='article' className={highlight ? 'animate-rise' : ''}>
@@ -122,7 +125,7 @@ const AppointmentCard = ({ appointment, now, onCancel, onReschedule, onPay, onRa
             <div className='flex flex-wrap items-start justify-between gap-2'>
               <div className='min-w-0'>
                 <h3 className='text-title font-semibold text-ink'>{doctorName}</h3>
-                <p className='text-body-sm text-ink-2'>{tc(appointment.docData?.speciality)}</p>
+                <p className='text-body-sm text-ink-2'>{doctorText(appointment.docData, 'speciality')}</p>
               </div>
               <Badge tone={missed ? 'warning' : status.tone} dot>{missed ? t('Missed') : t(status.label)}</Badge>
             </div>

@@ -21,7 +21,7 @@ export const bilingualFieldSchema = new mongoose.Schema(
   { _id: false }
 )
 
-/** A receptionist's schema does not declare `i18n` yet, so writes to it use `strict: false`. */
+/** Bilingual fields on a receptionist. The schema declares them under `i18n`. */
 export const receptionistBilingualFields = {
   name: { kind: 'name' }
 }

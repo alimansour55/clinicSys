@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Globe } from "lucide-react";
 import { DEFAULT_APP_DISPLAY_NAME } from "./utils/appDisplayName";
 import { DEFAULT_FOOTER_COPYRIGHT, DEFAULT_FOOTER_DESCRIPTION } from "./utils/publicSiteDefaults";
@@ -509,7 +509,7 @@ const ar = {
   "Send": "إرسال",
   [DEFAULT_FOOTER_DESCRIPTION]:
     "نُبسّط الوصول إلى الرعاية الصحية من خلال إدارة ذكية للمواعيد. احجز موعدك مع طبيبك في أي وقت ومن أي مكان عبر نظام كلينيفو الذكي لإدارة المواعيد. لا مزيد من الانتظار الطويل أو صعوبات الحجز — فقط رعاية صحية فعّالة وموثوقة تركّز على راحة المريض.",
-  [DEFAULT_FOOTER_COPYRIGHT]: `حقوق النشر © ${DEFAULT_APP_DISPLAY_NAME} - جميع الحقوق محفوظة.`,
+  [DEFAULT_FOOTER_COPYRIGHT]: `حقوق النشر ${new Date().getFullYear()} © ${DEFAULT_APP_DISPLAY_NAME} - جميع الحقوق محفوظة.`,
   [`${DEFAULT_APP_DISPLAY_NAME} logo`]: `شعار ${DEFAULT_APP_DISPLAY_NAME}`,
   Clinivo: "Clinivo",
   "Booking assistant": "مساعد الحجز الطبي",
@@ -645,25 +645,31 @@ export const LanguageProvider = ({ children }) => {
     resolveLanguageForPolicy(getStoredLanguage(), DEFAULT_ROLE_LANGUAGE_POLICY)
   );
 
-  const setLanguagePolicy = (nextPolicy) => {
-    setLanguagePolicyState(normalizeRoleLanguagePolicy(nextPolicy));
-  };
+  /* Stable, and a no-op for an equal policy, so a sync effect that depends on it cannot loop. */
+  const setLanguagePolicy = useCallback((nextPolicy) => {
+    setLanguagePolicyState((prev) => {
+      const normalized = normalizeRoleLanguagePolicy(nextPolicy);
+      if (prev.en === normalized.en && prev.ar === normalized.ar) return prev;
+      return normalized;
+    });
+  }, []);
 
-  const setLanguage = (nextLanguage) => {
+  const setLanguage = useCallback((nextLanguage) => {
     const safeLanguage = nextLanguage === "ar" ? "ar" : "en";
     if (!allowedLanguages.includes(safeLanguage)) return;
     localStorage.setItem(PREFERRED_KEY, safeLanguage);
     localStorage.setItem(STORAGE_KEY, safeLanguage);
     setLanguageState(safeLanguage);
-  };
+  }, [allowedLanguages]);
 
   useEffect(() => {
     const resolved = resolveLanguageForPolicy(getPreferredLanguage(), languagePolicy);
-    if (resolved !== language) {
+    setLanguageState((prev) => {
+      if (resolved === prev) return prev;
       localStorage.setItem(STORAGE_KEY, resolved);
-      setLanguageState(resolved);
-    }
-  }, [languagePolicy, allowedLanguages, language]);
+      return resolved;
+    });
+  }, [languagePolicy]);
 
   const value = useMemo(() => {
     const direction = LANGUAGES[language].dir;
@@ -689,7 +695,7 @@ export const LanguageProvider = ({ children }) => {
       localizeDigits: (v) => localizeWesternDigits(v, language),
       formatPercent: (n) => formatPercentDisplay(n, language),
     };
-  }, [language, languagePolicy, allowedLanguages]);
+  }, [language, languagePolicy, allowedLanguages, setLanguage, setLanguagePolicy]);
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -750,7 +756,13 @@ export const LanguagePolicySync = ({ policy }) => {
   const { setLanguagePolicy } = useLanguage();
   const en = policy?.en;
   const ar = policy?.ar;
+  /* Apply each distinct policy once, even if the setter's identity changes. */
+  const lastAppliedRef = useRef(null);
   useEffect(() => {
+    /* String() keeps "not set" apart from false, so a later explicit false still applies. */
+    const key = `${String(en)}:${String(ar)}`;
+    if (lastAppliedRef.current === key) return;
+    lastAppliedRef.current = key;
     setLanguagePolicy({ en, ar });
   }, [en, ar, setLanguagePolicy]);
   return null;

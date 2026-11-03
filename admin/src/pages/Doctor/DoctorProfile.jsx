@@ -13,7 +13,7 @@ import { formatExperienceEn, parseExperienceYears } from '../../utils/doctorExpe
 const DoctorProfile = () => {
 
   const { dToken, profileData, setProfileData, getProfileData, getDoctorRatings, backendUrl } = useContext(DoctorContext)
-  const { currency } = useContext(AppContext)
+  const { currency, t, tc } = useContext(AppContext)
 
   const [isEdit, setIsEdit] = useState(false)
   const [ratingsData, setRatingsData] = useState({ summary: { averageRating: 0, ratingCount: 0 }, ratings: [] })
@@ -209,9 +209,9 @@ const DoctorProfile = () => {
             <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{profileData.name}</h2>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{tc(profileData.i18n?.name) || profileData.name}</h2>
                   <p className="mt-1 text-base font-medium text-slate-600">
-                    {profileData.degree} · {profileData.speciality}
+                    {tc(profileData.i18n?.degree) || profileData.degree} · {tc(profileData.i18n?.speciality) || t(profileData.speciality)}
                   </p>
                   <div className="mt-3">
                     {isEdit ? (
@@ -353,7 +353,7 @@ const DoctorProfile = () => {
                     <button 
                       type='button' 
                       onClick={() => removeLocation(index)} 
-                      className='rounded-lg border border-eed-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50'
+                      className='rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50'
                     >
                       Remove
                     </button>
@@ -475,7 +475,7 @@ const DoctorProfile = () => {
                         className="rounded-xl border border-slate-200 px-3 py-2 text-center font-semibold tracking-[0.35em]"
                         inputMode="numeric"
                       />
-                      <button type="button" onClick={disableMfa} className="rounded-xl border border-eed-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">
+                      <button type="button" onClick={disableMfa} className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">
                         Disable MFA
                       </button>
                     </>

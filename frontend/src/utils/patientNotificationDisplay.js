@@ -5,6 +5,7 @@
  */
 
 import { localizeWesternDigits } from './arabicNumerals.js'
+import { translateString } from '../i18n.jsx'
 
 const fill = (tpl, params = {}) =>
   String(tpl || '').replace(/\{\{(\w+)\}\}/g, (_, k) =>
@@ -50,7 +51,19 @@ const paymentSourceLabel = (key, lang) => {
   return lang === 'ar' ? row.ar : row.en
 }
 
+/*
+ * A template side is either { en, ar }, or an English string whose Arabic lives in an area file
+ * (newer templates use the area files, so translators find every string in one place).
+ */
 const TEMPLATES = {
+  patient_waitlist_offer: {
+    title: 'A slot opened for you',
+    message: 'Dr. {{doctorName}} has an opening ({{when}}). It is held for you for 15 minutes.'
+  },
+  patient_appt_rescheduled: {
+    title: 'Appointment rescheduled',
+    message: 'Your visit with Dr. {{doctorName}} is now on {{when}}.'
+  },
   patient_appt_booked_reception: {
     title: { en: 'Appointment confirmed', ar: 'تم تأكيد الموعد' },
     message: {
@@ -142,11 +155,15 @@ function enrichParams(templateId, params, lang) {
   return out
 }
 
+const templateText = (side, lang) => (typeof side === 'string' ? translateString(side, lang) : side?.[lang])
+
 /**
  * @param {object} n - notification document from API
  * @param {string} language - 'ar' | 'en'
+ * @param {{ doctorName?: string }} [overrides] - display values that beat the stored params,
+ *   such as the doctor's name in the current language
  */
-export function formatPatientNotification(n, language) {
+export function formatPatientNotification(n, language, overrides = {}) {
   const title = n?.title ?? ''
   const message = n?.message ?? ''
   const pack = n?.meta?.i18n
@@ -158,10 +175,11 @@ export function formatPatientNotification(n, language) {
     return { title, message }
   }
   const lang = language === 'ar' ? 'ar' : 'en'
-  const params = enrichParams(pack.templateId, pack.params || {}, lang)
+  const given = Object.fromEntries(Object.entries(overrides).filter(([, value]) => value))
+  const params = enrichParams(pack.templateId, { ...(pack.params || {}), ...given }, lang)
   return {
-    title: fill(tpl.title[lang], params),
-    message: fill(tpl.message[lang], params)
+    title: fill(templateText(tpl.title, lang), params),
+    message: fill(templateText(tpl.message, lang), params)
   }
 }
 

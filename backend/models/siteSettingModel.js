@@ -54,7 +54,7 @@ const homeHeroSchema = new mongoose.Schema({
   },
   subtitle: {
     type: String,
-    default: 'Simply browse through our extensive list of trusted doctors, schedule your appointment hassle-free.',
+    default: 'Browse our doctors and book your appointment in a few steps.',
     trim: true
   },
   heroImage: {
@@ -98,7 +98,7 @@ const homeBannerSchema = new mongoose.Schema({
   i18n: i18nGroup(homeBannerBilingualFields),
   title: {
     type: String,
-    default: 'Book Appointment\nWith 100+ Trusted Doctors',
+    default: 'Book Appointment\nWith Trusted Doctors',
     trim: true
   },
   bannerImage: {
@@ -217,7 +217,7 @@ const footerSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    default: 'contact@clinivo.com',
+    default: '',
     trim: true
   },
   copyrightText: {

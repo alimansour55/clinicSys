@@ -5,7 +5,7 @@ import { AppContext } from '../context/AppContext'
 import { Button } from './ui'
 import HeroSearch from './discovery/HeroSearch'
 import NextOpeningsBoard from './discovery/NextOpeningsBoard'
-import { customColor, siteText } from './discovery/siteCopy'
+import { customColor, siteField } from './discovery/siteCopy'
 import { fill, optimizedImage } from './discovery/format'
 import { formatDoctorCountLabel } from '../utils/arabicMedicalUi'
 
@@ -27,11 +27,13 @@ const PulseLine = () => (
 )
 
 const Header = ({ catalog }) => {
-  const { token, t, siteSettings, language, localizeDigits } = useContext(AppContext)
+  const { token, t, tc, siteSettings, language, localizeDigits } = useContext(AppContext)
   const { rows, catalogue, stats, loading, now } = catalog
   const hero = siteSettings?.homeHero || {}
-  const customTitle = siteText(hero.title, stats.doctors || Infinity)
-  const subtitle = siteText(hero.subtitle, stats.doctors || Infinity)
+  /* Stored English and Arabic first; records saved before the bilingual form fall back to t(). */
+  const text = (field) => siteField({ t, tc }, hero, field, stats.doctors || Infinity)
+  const customTitle = text('title')
+  const subtitle = text('subtitle')
   const accent = customColor(hero.backgroundColor)
   const showBookButton = hero.showBookButton !== false
   const showAppointmentsButton = hero.showAppointmentsButton !== false
@@ -60,7 +62,7 @@ const Header = ({ catalog }) => {
           </p>
 
           <h1 id='hero-title' className='mt-5 font-display text-display-xl text-ink text-balance'>
-            {customTitle ? t(customTitle) : (
+            {customTitle || (
               <>
                 {t('The right doctor,')}{' '}
                 <em className='text-brand rtl:not-italic'>{t('and their next free time.')}</em>
@@ -68,7 +70,7 @@ const Header = ({ catalog }) => {
             )}
           </h1>
           <p className='mt-5 max-w-xl text-subtitle font-normal text-ink-2'>
-            {subtitle ? t(subtitle) : t('Tell us what is wrong in your own words, in English or Arabic. We match you with a speciality and show real open times at the clinic, by phone, by video or at home.')}
+            {subtitle || t('Tell us what is wrong in your own words, in English or Arabic. We match you with a speciality and show real open times at the clinic, by phone, by video or at home.')}
           </p>
 
           <div className='mt-8'>
@@ -87,13 +89,13 @@ const Header = ({ catalog }) => {
             ))}
             {showBookButton && (
               <Link to='/doctors' className='inline-flex items-center gap-1.5 text-body-sm font-semibold text-brand hover:underline'>
-                {t(siteText(hero.bookButtonText) || 'Browse all doctors')}
+                {text('bookButtonText') || t('Browse all doctors')}
                 <ArrowRight aria-hidden='true' className='size-4 rtl:-scale-x-100' />
               </Link>
             )}
             {token && showAppointmentsButton && (
               <Button as={Link} to='/my-appointments' variant='secondary' size='sm' leadingIcon={<CalendarDays aria-hidden='true' className='size-4' />}>
-                {t(hero.appointmentsButtonText || 'My appointments')}
+                {text('appointmentsButtonText') || t('My appointments')}
               </Button>
             )}
           </div>

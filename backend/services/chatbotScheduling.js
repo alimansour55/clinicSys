@@ -3,8 +3,10 @@
  * in English, Arabic, Egyptian dialect and Franco Arabic.
  */
 import { hasAnyTerm, hasTerm, normalizeText } from './chatbotText.js'
+import { getClinicTimeZone } from './clinicTimeService.js'
 
-export const CLINIC_TIME_ZONE = process.env.CLINIC_TIME_ZONE || 'Africa/Cairo'
+/** Same zone as booking, so the chatbot and the booking checks agree on "today" and "past". */
+export const CLINIC_TIME_ZONE = getClinicTimeZone()
 
 /**
  * The clinic's wall clock, as a Date whose local fields read as clinic time.

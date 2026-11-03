@@ -1,3 +1,5 @@
+import { bilingualText, hasBilingualText } from '../../utils/bilingualContent'
+
 /*
  * Home page text comes from admin site settings. Some stored defaults make claims the
  * data does not support ("100+ Trusted Doctors", "extensive list"). Those exact defaults
@@ -48,4 +50,21 @@ export const whiteTextReadable = (hex) => {
   }
   const luminance = 0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2)
   return 1.05 / (luminance + 0.05) >= 4.5
+}
+
+/**
+ * One admin-entered field of a site settings section (`homeHero`, `homeBanner`, `footer`...),
+ * ready to show: the stored bilingual value in the current language, or the plain field through
+ * `t()` for sections saved before the bilingual form. Returns null when it is not set, is an old
+ * default, or overclaims, so the caller shows its own default.
+ */
+export const siteField = ({ t, tc }, section, field, doctorCount = Infinity) => {
+  const stored = section?.i18n?.[field]
+  if (hasBilingualText(stored)) {
+    // An old default or overclaim in either language counts as not set.
+    if ([stored.en, stored.ar].some((side) => side && siteText(side, doctorCount) === null)) return null
+    return bilingualText(tc, stored) || null
+  }
+  const plain = siteText(section?.[field], doctorCount)
+  return plain ? (typeof t === 'function' ? t(plain) : plain) : null
 }

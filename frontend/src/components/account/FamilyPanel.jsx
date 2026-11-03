@@ -6,7 +6,7 @@ import { useAccountApi, useServerText } from './accountApi'
 import { BLOOD_TYPES, ageInYears, todayIso } from './hubLogic'
 
 const RELATIONS = [
-  { value: 'child', label: 'Child' },
+  { value: 'child', label: 'Child (relation)' },
   { value: 'spouse', label: 'Spouse' },
   { value: 'parent', label: 'Parent' },
   { value: 'sibling', label: 'Brother or sister' },

@@ -12,6 +12,8 @@ const hasLatinLetters = (s) => /[A-Za-z]/.test(String(s || ''))
 export const collectDoctorAboutTextsNeedingTranslate = (doctors = [], targetLang) => {
   const set = new Set()
   for (const d of doctors) {
+    /* Stored bilingual text is shown as is, so it needs no machine translation. */
+    if (d?.i18n?.about && (d.i18n.about.en || d.i18n.about.ar)) continue
     const about = String(d?.about || '').trim()
     if (!about) continue
     if (targetLang === 'ar' && hasLatinLetters(about) && !isKnownDoctorAboutEn(about)) set.add(about)

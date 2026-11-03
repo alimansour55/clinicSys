@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom'
 import { AlertTriangle, CalendarDays, ExternalLink, Mail, MapPin, Phone, Stethoscope } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { usePageMeta } from '../components/discovery/usePageMeta'
+import { footerContactEmail } from '../utils/publicSiteDefaults'
+import { loginPath } from '../utils/loginRedirect'
 
 const DEFAULT_CONTACT_PHONE = '+20 101 881 1142'
-const DEFAULT_CONTACT_EMAIL = 'contact@clinivo.com'
 /* Egypt's national ambulance number */
 const EMERGENCY_NUMBER = '123'
 
@@ -13,7 +14,8 @@ const Contact = () => {
   const { siteSettings, token, t, language } = useContext(AppContext)
   const footer = siteSettings?.footer || {}
   const phoneNumber = footer.phoneNumber || DEFAULT_CONTACT_PHONE
-  const email = footer.email || DEFAULT_CONTACT_EMAIL
+  /* Shown only when an admin set one in footer settings. */
+  const email = footerContactEmail(footer)
   const address = `${t('Building 18, El Teseen Street')}, ${t('New Cairo, Cairo, Egypt')}`
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Building 18, El Teseen Street, New Cairo, Cairo, Egypt')}`
 
@@ -28,16 +30,16 @@ const Contact = () => {
       name: 'Clinivo',
       url: window.location.origin,
       telephone: phoneNumber.replace(/\s/g, ''),
-      email,
+      ...(email ? { email } : {}),
       address: { '@type': 'PostalAddress', streetAddress: 'Building 18, El Teseen Street', addressLocality: 'New Cairo', addressRegion: 'Cairo', addressCountry: 'EG' },
     },
   })
 
   const cards = [
     { icon: Phone, title: t('Call us'), value: <bdi dir='ltr'>{phoneNumber}</bdi>, href: `tel:${phoneNumber.replace(/[^\d+]/g, '')}` },
-    { icon: Mail, title: t('Email us'), value: <bdi dir='ltr'>{email}</bdi>, href: `mailto:${email}` },
+    email && { icon: Mail, title: t('Email us'), value: <bdi dir='ltr'>{email}</bdi>, href: `mailto:${email}` },
     { icon: MapPin, title: t('Our Office'), value: address, href: mapUrl, external: true },
-  ]
+  ].filter(Boolean)
 
   return (
     <div className='mx-auto w-full max-w-7xl px-gutter pb-section'>
@@ -46,7 +48,7 @@ const Contact = () => {
         <p className='mt-4 text-subtitle font-normal text-ink-2'>{t('Questions about a booking, a doctor or your account? Reach us here.')}</p>
       </header>
 
-      <ul className='mt-10 grid gap-4 md:grid-cols-3'>
+      <ul className={`mt-10 grid gap-4 ${cards.length > 2 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         {cards.map(({ icon: Icon, title, value, href, external }) => (
           <li key={title}>
             <a
@@ -96,7 +98,7 @@ const Contact = () => {
             </Link>
           </li>
           <li>
-            <Link to={token ? '/my-appointments' : '/login?mode=login'} className='flex items-center gap-4 rounded-card border border-line bg-surface p-5 shadow-e1 transition hover:border-primary'>
+            <Link to={token ? '/my-appointments' : loginPath('/my-appointments')} className='flex items-center gap-4 rounded-card border border-line bg-surface p-5 shadow-e1 transition hover:border-primary'>
               <CalendarDays aria-hidden='true' className='size-6 text-brand' />
               <span>
                 <span className='block text-subtitle font-semibold text-ink'>{t('Change or cancel a booking')}</span>

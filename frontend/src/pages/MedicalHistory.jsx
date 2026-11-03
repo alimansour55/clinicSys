@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { loginPath } from '../utils/loginRedirect'
 import { ArrowLeft, Save, ShieldCheck } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { useLanguage } from '../i18n'
@@ -55,7 +56,7 @@ const MedicalHistory = () => {
 
   useEffect(() => {
     if (!token) {
-      navigate('/login?mode=login', { replace: true })
+      navigate(loginPath('/medical-history'), { replace: true })
       return
     }
     load()
@@ -96,27 +97,27 @@ const MedicalHistory = () => {
 
   if (loading) {
     return (
-      <main className='py-8'>
+      <div className='py-8'>
         <SkeletonGroup label={t('Loading...')}>
           <Skeleton className='mb-4 h-10 w-56' />
           <div className='grid gap-4 md:grid-cols-2'>
             {[...Array(6)].map((_, index) => <Skeleton key={index} className='h-40 rounded-card' />)}
           </div>
         </SkeletonGroup>
-      </main>
+      </div>
     )
   }
 
   if (loadFailed) {
     return (
-      <main className='py-12'>
+      <div className='py-12'>
         <EmptyState title={t('We could not open your medical history')} description={t('Please check your connection and try again.')} action={<Button onClick={load}>{t('Try again')}</Button>} />
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className='mx-auto max-w-5xl pt-6 pb-24'>
+    <div className='mx-auto max-w-5xl pt-6 pb-24'>
       <Link to='/my-profile' className='mb-4 inline-flex min-h-9 items-center gap-2 text-body-sm text-ink-2 hover:text-ink'>
         <ArrowLeft className='size-4 rtl:-scale-x-100' aria-hidden='true' /> {t('Your health space')}
       </Link>
@@ -153,12 +154,12 @@ const MedicalHistory = () => {
           ))}
         </div>
 
-        <div className='sticky bottom-0 z-10 mt-6 flex flex-col gap-3 border-t border-line bg-canvas py-4 sm:flex-row sm:items-center sm:justify-between'>
+        <div data-chat-avoid className='sticky bottom-0 z-10 mt-6 flex flex-col gap-3 border-t border-line bg-canvas py-4 sm:flex-row sm:items-center sm:justify-between'>
           <p className='text-caption text-ink-2'>{t('You can update this anytime. Doctors may also add notes after appointments.')}</p>
           <Button type='submit' loading={saving} disabled={!hasChanges} leadingIcon={<Save className='size-4' />}>{t('Save History')}</Button>
         </div>
       </form>
-    </main>
+    </div>
   )
 }
 

@@ -19,8 +19,8 @@ const Section = ({ icon, title, children }) => (
 const Text = ({ children }) => <p className='whitespace-pre-line break-words text-body text-ink-2'>{children}</p>
 
 const PrescriptionDetails = ({ prescription, onBack }) => {
-  const { t, tc, language, localizeDigits } = useLanguage()
-  const { slotDateFormat, displayPersonName, backendUrl, token } = useContext(AppContext)
+  const { t, language, localizeDigits } = useLanguage()
+  const { slotDateFormat, displayPersonName, doctorText, backendUrl, token } = useContext(AppContext)
   const [downloading, setDownloading] = useState(false)
   const doctor = prescription.docData || {}
   const patient = prescription.userData || {}
@@ -54,8 +54,8 @@ const PrescriptionDetails = ({ prescription, onBack }) => {
           <div className='mt-4 grid gap-3 text-body-sm sm:grid-cols-2'>
             <p className='text-ink-2'>
               <span className='block text-caption text-ink-3'>{t('Doctor')}</span>
-              <span className='font-semibold text-ink'>{displayPersonName(doctor.name)}</span>
-              {doctor.speciality && <span className='block'>{tc(doctor.speciality)}</span>}
+              <span className='font-semibold text-ink'>{doctorText(doctor, 'name')}</span>
+              {doctor.speciality && <span className='block'>{doctorText(doctor, 'speciality')}</span>}
             </p>
             <p className='text-ink-2'>
               <span className='block text-caption text-ink-3'>{t('Patient')}</span>

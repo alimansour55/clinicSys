@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react'
 import axios from 'axios'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { safeNextPath } from '../utils/loginRedirect'
 import { Mail, User } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { Button, Field, Input, notify } from '../components/ui'
@@ -20,6 +21,8 @@ const Login = () => {
   const say = useServerText()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  /* Where to go once signed in: a same-site path from ?next=, never another site. */
+  const nextPath = safeNextPath(searchParams.get('next'))
 
   // Sign in is the default: reset, verify and session-expiry all send people to plain /login.
   const [state, setState] = useState(searchParams.get('mode') === 'signup' ? 'Sign Up' : 'Login')
@@ -51,8 +54,8 @@ const Login = () => {
   }, [searchParams])
 
   useEffect(() => {
-    if (token && userData && !pendingSession) navigate('/')
-  }, [token, userData, navigate, pendingSession])
+    if (token && userData && !pendingSession) navigate(nextPath || '/', { replace: true })
+  }, [token, userData, navigate, pendingSession, nextPath])
 
   const startSession = (sessionToken) => {
     localStorage.setItem('token', sessionToken)
@@ -121,7 +124,7 @@ const Login = () => {
     if (data.success && data.token) {
       startSession(data.token)
       notify.success(say(data.message))
-      navigate('/my-profile?welcome=1', { replace: true })
+      navigate(nextPath || '/my-profile?welcome=1', { replace: true })
     } else {
       setError(say(data.message))
     }
@@ -133,7 +136,7 @@ const Login = () => {
 
     if (data.verificationRequired) {
       notify.info(say(data.message))
-      navigate('/account-verify', { state: { verificationToken: data.verificationToken, email: data.email } })
+      navigate('/account-verify', { state: { verificationToken: data.verificationToken, email: data.email, next: nextPath } })
     } else if (data.mfaRequired || data.mfaSetupRequired) {
       setMfaStep(data.mfaRequired ? 'verify' : 'setup')
       setMfaToken(data.mfaToken)

@@ -26,7 +26,7 @@ const notificationTarget = (notification) => {
 }
 
 const PatientNotificationBell = () => {
-  const { token, backendUrl } = useContext(AppContext)
+  const { token, backendUrl, doctorText } = useContext(AppContext)
   const { t, language, localizeDigits } = useLanguage()
   const navigate = useNavigate()
 
@@ -141,7 +141,10 @@ const PatientNotificationBell = () => {
   const describe = (n) => {
     if (n.type === 'health_reminder') return { title: t('Time for your reminder'), message: n.message }
     if (n.type === 'security') return { title: t(n.title), message: t(n.message) }
-    const { title, message } = formatPatientNotification(n, language)
+    /* The stored name is the plain one; show the doctor's name in the current language. */
+    const docId = n.meta?.docId
+    const doctorName = docId && doctorText ? doctorText({ docId, name: n.meta?.i18n?.params?.doctorName }, 'name') : ''
+    const { title, message } = formatPatientNotification(n, language, { doctorName })
     return { title: localizeDigits(title), message: localizeDigits(message) }
   }
 

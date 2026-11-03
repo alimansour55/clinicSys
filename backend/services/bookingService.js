@@ -29,7 +29,7 @@ const DEFAULT_VISIT_MINUTES = 30
 
 const DOCTOR_SECRET_FIELDS = ['password', 'mfa', 'financialCompensation', 'slots_booked', 'home_visit_slots_booked']
 const PATIENT_SECRET_FIELDS = [
-  'password', 'mfa', 'resetOtp', 'resetOtpExpireAt',
+  'password', 'mfa', 'resetOtp', 'resetOtpExpireAt', 'resetOtpSentAt',
   'emailVerifyOtp', 'emailVerifyOtpExpireAt', 'emailVerifyOtpSentAt',
   'phoneVerifyOtp', 'phoneVerifyOtpExpireAt', 'phoneVerifyOtpSentAt',
   'medicalHistory'

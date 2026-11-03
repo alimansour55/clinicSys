@@ -8,6 +8,7 @@ import { translateString, useLanguage } from '../../i18n'
 import { Button, IconButton, notify } from '../ui'
 import { localizeWesternDigits } from '../../utils/arabicNumerals'
 import { displayPersonName } from '../../utils/personNameArabic'
+import { bilingualText, recordText } from '../../utils/bilingualContent'
 import { formatLocationLine } from '../../utils/placeTranslations'
 import { isValidEgyptPhone, normalizeEgyptPhone } from '../../utils/egyptPhone'
 import { formatMoney as formatMoneyAmount } from '../../utils/arabicMedicalUi'
@@ -72,6 +73,8 @@ import {
 } from './assistantFormat'
 import { isLocalRedFlag } from './localSafety'
 import { useSpeechInput } from './useSpeechInput'
+import { useLauncherClearance } from './useLauncherClearance'
+import { loginPath } from '../../utils/loginRedirect'
 import './assistant.css'
 
 const STEP_NEEDS_LOGIN = 'needs_login'
@@ -147,6 +150,9 @@ const ChatbotWidget = () => {
   const [navDepth, setNavDepth] = useState(0)
 
   const listRef = useRef(null)
+  const launcherRef = useRef(null)
+  /* Lifts the closed button above bottom bars and hides it under modals; see the hook. */
+  const clearance = useLauncherClearance(launcherRef, null, { enabled: !open })
   const inputRef = useRef(null)
   const navStackRef = useRef([])
   const nextMessageId = useRef(firstLiveMessageId)
@@ -209,10 +215,22 @@ const ChatbotWidget = () => {
 
   const personName = useCallback((name) => displayPersonName(name, chatLang), [chatLang])
 
+  /* The chat can run in a language other than the site's, so stored text is picked by chatLang. */
+  const pickChatLanguage = useCallback((stored) => stored?.[chatLang] || stored?.en || stored?.ar || '', [chatLang])
+  const doctorName = useCallback(
+    (doctor) => recordText(pickChatLanguage, doctor, 'name') || personName(doctor?.name),
+    [pickChatLanguage, personName]
+  )
+  const doctorSection = useCallback(
+    (doctor) => recordText(pickChatLanguage, doctor, 'speciality') || sectionLabel(getDoctorSpecialty(doctor)),
+    [pickChatLanguage, sectionLabel]
+  )
+
   const resolveVars = (vars = {}) =>
     Object.fromEntries(
       Object.entries(vars).map(([name, value]) => {
-        if (value?.person !== undefined) return [name, personName(value.person)]
+        /* `stored` is the person's bilingual name, kept small because messages are saved in the session. */
+        if (value?.person !== undefined) return [name, bilingualText(pickChatLanguage, value.stored) || personName(value.person)]
         if (value?.place !== undefined) return [name, translateLoc(value.place)]
         if (value?.section !== undefined) return [name, sectionLabel(value.section)]
         if (value?.key !== undefined) return [name, t(value.key)]
@@ -542,7 +560,7 @@ const ChatbotWidget = () => {
     if (result.mode === 'pick_branch') {
       setLocationOptions(result.branches)
       setChatStep(CHAT_STEPS.WAITING_LOCATION)
-      say('assistant.chooseBranch', { doctor: { person: doctor.name } })
+      say('assistant.chooseBranch', { doctor: { person: doctor.name, stored: doctor.i18n?.name } })
       return
     }
 
@@ -582,7 +600,7 @@ const ChatbotWidget = () => {
   const chooseDoctor = async (doctor) => {
     if (isDoctorComingSoon(doctor)) return
     pushHistory()
-    pushUser(personName(doctor.name))
+    pushUser(doctorName(doctor))
     clearChoices()
     const next = updateBooking({
       ...emptyBookingData(),
@@ -603,7 +621,7 @@ const ChatbotWidget = () => {
       }
       setAppointmentTypeOptions(options)
       setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
-      say('assistant.howVisit', { doctor: { person: doctor.name } })
+      say('assistant.howVisit', { doctor: { person: doctor.name, stored: doctor.i18n?.name } })
     })
   }
 
@@ -690,7 +708,7 @@ const ChatbotWidget = () => {
   /** One tap on a doctor card's time: everything else is already known. */
   const pickSlot = async (doctor, slot) => {
     pushHistory()
-    pushUser(`${personName(doctor.name)} · ${slotLabel(slot)}`)
+    pushUser(`${doctorName(doctor)} · ${slotLabel(slot)}`)
     clearChoices()
     const next = updateBooking({
       ...emptyBookingData(),
@@ -782,7 +800,7 @@ const ChatbotWidget = () => {
         clearChoices()
         setAppointmentTypeOptions(getDoctorAppointmentTypeOptions(doctor))
         setChatStep(CHAT_STEPS.WAITING_APPOINTMENT_TYPE)
-        say('assistant.howVisit', { doctor: { person: doctor.name } })
+        say('assistant.howVisit', { doctor: { person: doctor.name, stored: doctor.i18n?.name } })
       } else {
         resetFlow()
         say('assistant.chooseSection')
@@ -1336,7 +1354,7 @@ const ChatbotWidget = () => {
           : ''
     return [
       { label: t('assistant.ticket.patient'), value: personName(data.patientName || userData?.name || '') },
-      { label: t('assistant.ticket.doctor'), value: `${personName(doctor.name)} · ${sectionLabel(getDoctorSpecialty(doctor))}` },
+      { label: t('assistant.ticket.doctor'), value: `${doctorName(doctor)} · ${doctorSection(doctor)}` },
       { label: t('assistant.ticket.visit'), value: t(typeKey) },
       { label: t('assistant.ticket.kind'), value: t(feeKey) },
       { label: t('assistant.ticket.place'), value: place },
@@ -1365,7 +1383,7 @@ const ChatbotWidget = () => {
 
   const addToCalendar = () => {
     const content = buildCalendarFile({
-      title: fillTemplate(t('assistant.calendarTitle'), { doctor: personName(bookingData.selectedDoctor?.name) }),
+      title: fillTemplate(t('assistant.calendarTitle'), { doctor: doctorName(bookingData.selectedDoctor) }),
       slotDate: bookingData.slotDate,
       time: bookingData.time,
       location: isTeleconsultationType(bookingData.appointmentType)
@@ -1476,10 +1494,10 @@ const ChatbotWidget = () => {
               {rebookDoctor && (
                 <button
                   type='button'
-                  onClick={() => handleQuickReply({ kind: 'doctor', doctorId: rebookDoctor._id, label: fillTemplate(t('assistant.rebook'), { doctor: personName(rebookDoctor.name) }) })}
+                  onClick={() => handleQuickReply({ kind: 'doctor', doctorId: rebookDoctor._id, label: fillTemplate(t('assistant.rebook'), { doctor: doctorName(rebookDoctor) }) })}
                   className='w-full cursor-pointer rounded-control bg-primary-soft px-3 py-2.5 text-start text-body-sm font-semibold text-brand transition duration-(--duration-fast) hover:brightness-95'
                 >
-                  {fillTemplate(t('assistant.rebook'), { doctor: personName(rebookDoctor.name) })}
+                  {fillTemplate(t('assistant.rebook'), { doctor: doctorName(rebookDoctor) })}
                 </button>
               )}
               <div>
@@ -1528,8 +1546,8 @@ const ChatbotWidget = () => {
                     key={doc._id}
                     style={{ animationDelay: `${index * 80}ms` }}
                     doctor={doc}
-                    displayName={personName(doc.name)}
-                    specialtyLabel={sectionLabel(getDoctorSpecialty(doc))}
+                    displayName={doctorName(doc)}
+                    specialtyLabel={doctorSection(doc)}
                     locationsLabel={getDoctorLocations(doc).map((loc) => translateLoc(loc)).join(' · ') || translateLoc(getDoctorPrimaryLocation(doc))}
                     feesLabel={
                       Number(doc.fees) > 0
@@ -1670,7 +1688,7 @@ const ChatbotWidget = () => {
               fullWidth
               onClick={() => {
                 setOpen(false)
-                navigate('/login?mode=login')
+                navigate(loginPath(`${window.location.pathname}${window.location.search}`))
               }}
             >
               {t('assistant.login')}
@@ -1806,14 +1824,18 @@ const ChatbotWidget = () => {
   return createPortal(
     <>
       <button
+        ref={launcherRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
+        style={!open && clearance.lift ? { transform: `translateY(-${clearance.lift}px)` } : undefined}
+        aria-hidden={!open && clearance.hidden ? true : undefined}
+        tabIndex={!open && clearance.hidden ? -1 : undefined}
         aria-expanded={open}
         aria-label={translateString(open ? 'Close chat' : 'Open booking assistant', siteLanguage)}
         className={
           open
             ? 'chatbot-launcher chatbot-launcher--open fixed bottom-4 end-3 z-[9999] flex h-12 w-12 items-center justify-center rounded-full bg-primary text-on-primary shadow-brand transition-all duration-300 hover:bg-primary-dark active:scale-95 sm:hidden'
-            : 'chatbot-launcher chatbot-launcher--closed group fixed bottom-4 end-3 z-[9999] flex h-[3.75rem] items-center gap-3 overflow-hidden rounded-full border border-white/20 bg-gradient-to-br from-primary to-primary-dark px-1.5 py-1.5 text-on-primary shadow-brand transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-white/35 active:scale-[0.98] max-[380px]:h-14 max-[380px]:w-14 max-[380px]:justify-center max-[380px]:p-0 sm:bottom-6 sm:end-6 sm:h-16 sm:gap-3.5 sm:ps-2 sm:pe-5'
+            : `${clearance.hidden ? 'invisible ' : ''}chatbot-launcher chatbot-launcher--closed group fixed bottom-4 end-3 z-[9999] flex h-[3.75rem] items-center gap-3 overflow-hidden rounded-full border border-white/20 bg-gradient-to-br from-primary to-primary-dark px-1.5 py-1.5 text-on-primary shadow-brand transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-white/35 active:scale-[0.98] max-[380px]:h-14 max-[380px]:w-14 max-[380px]:justify-center max-[380px]:p-0 sm:bottom-6 sm:end-6 sm:h-16 sm:gap-3.5 sm:ps-2 sm:pe-5`
         }
       >
         {open ? (

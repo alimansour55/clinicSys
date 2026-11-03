@@ -21,6 +21,7 @@ import { logAudit } from './auditService.js'
 import { normalizeVisitFeeType } from './globalVisitFeesService.js'
 import { normalizeHomeVisitAddress, validateHomeVisitAddress } from './homeVisitService.js'
 import { getHomeVisitPricingSettings } from './homeVisitPricingService.js'
+import { sanitizeDoctorSnapshot, sanitizeUserSnapshot } from './bookingService.js'
 
 /**
  * Book appointment from chatbot — same safety checks as patient bookAppointment.
@@ -155,9 +156,8 @@ export const bookChatbotAppointment = async ({
     return { success: false, message: 'Slot not available' }
   }
 
-  const appointmentDocData = docData.toObject()
-  delete appointmentDocData.slots_booked
-  delete appointmentDocData.home_visit_slots_booked
+  // The copy on the appointment must not carry passwords, MFA data, reset codes or medical history.
+  const appointmentDocData = sanitizeDoctorSnapshot(docData)
 
   const appointmentId = new appointmentModel()._id
   const teleconsultationLink = ['Voice Call', 'Video Call'].includes(normalizedType)
@@ -169,7 +169,7 @@ export const bookChatbotAppointment = async ({
     reservationNumber: await getNextReservationNumber(),
     userId,
     docId,
-    userData,
+    userData: sanitizeUserSnapshot(userData),
     docData: appointmentDocData,
     amount: pricing.amount,
     originalAmount: pricing.baseAmount,

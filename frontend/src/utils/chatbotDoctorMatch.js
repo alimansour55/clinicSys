@@ -47,7 +47,9 @@ const scoreDoctorNameMatch = (doctor, query) => {
 
   const latinScore = scoreAgainst(name)
   const arabicScore = scoreAgainst(displayPersonName(doctor.name, 'ar'))
-  return Math.max(latinScore, arabicScore)
+  /* The admin's stored name in both languages, so either spelling finds the doctor. */
+  const storedScores = [doctor?.i18n?.name?.en, doctor?.i18n?.name?.ar].map(scoreAgainst)
+  return Math.max(latinScore, arabicScore, ...storedScores)
 }
 
 export const findDoctorsByNameQuery = (doctors, message) => {

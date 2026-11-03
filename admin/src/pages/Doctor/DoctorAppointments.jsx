@@ -498,7 +498,7 @@ const DoctorAppointments = () => {
                       </div>
                       <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
                         <input value={item.instructions} onChange={(e) => updateMedicationItem(index, "instructions", e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Medicine instructions" />
-                        <button type="button" onClick={() => removeMedicationItem(index)} disabled={medicationItems.length === 1} className="px-3 py-2 rounded-lg border border-eed-200 text-red-600 text-sm disabled:opacity-40">
+                        <button type="button" onClick={() => removeMedicationItem(index)} disabled={medicationItems.length === 1} className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm disabled:opacity-40">
                           Remove
                         </button>
                       </div>
@@ -549,7 +549,7 @@ const DoctorAppointments = () => {
               </div>
 
               {/* Lab Tests */}
-              <div className="border-s-4 border-eed-500 ps-4">
+              <div className="border-s-4 border-red-500 ps-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Activity className="w-5 h-5 text-red-500" />
                   <label className="block text-gray-700 font-semibold text-sm sm:text-base">
@@ -878,7 +878,7 @@ const DoctorAppointments = () => {
             <p className="mt-1 text-2xl font-black text-emerald-950">{stats.completed}</p>
             <p className="mt-1 text-xs text-emerald-800/80">Closed visits</p>
           </div>
-          <div className="rounded-2xl border border-eose-200/70 bg-rose-50/90 p-4 shadow-sm">
+          <div className="rounded-2xl border border-rose-200/70 bg-rose-50/90 p-4 shadow-sm">
             <p className="text-[11px] font-bold uppercase tracking-wide text-rose-800">Cancelled</p>
             <p className="mt-1 text-2xl font-black text-rose-950">{stats.cancelled}</p>
             <p className="mt-1 text-xs text-rose-800/80">Did not occur</p>
@@ -1051,7 +1051,7 @@ const DoctorAppointments = () => {
                         <button
                           type="button"
                           onClick={() => requestCancel(item)}
-                          className="flex items-center gap-1 rounded-lg border border-eed-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                          className="flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
                         >
                           <Ban className="h-3.5 w-3.5" />
                           Cancel
@@ -1133,7 +1133,7 @@ const DoctorAppointments = () => {
                       <button
                         type="button"
                         onClick={() => requestCancel(item)}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-eed-200 bg-red-50 text-red-700 transition hover:bg-red-100"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100"
                         title="Cancel appointment"
                         aria-label="Cancel appointment"
                       >

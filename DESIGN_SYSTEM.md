@@ -209,16 +209,16 @@ await save({ nameI18n: bilingualPayload(name) })
 
 ### Forms still to convert
 
-The clinics form is the only one converted. Their plain fields keep working until then.
+The clinics form and the Admin forms below are converted. The rest keep working on their plain fields until they are converted.
 
-| Session | Form | Fields and kinds |
-|---|---|---|
-| Admin | `AddDoctor.jsx`, `DoctorsList.jsx` | name `name`, about `text`, degree and speciality `label`, address `place` |
-| Admin | `AddReceptionist.jsx`, `EditReceptionist.jsx`, `ReceptionistList.jsx` | name `name` |
-| Admin | `InsuranceProvidersSettings.jsx` | provider names `label` |
-| Admin | `FooterSettings.jsx`, `HomeHeroSettings.jsx`, `HomeBannerSettings.jsx`, `HomeServiceCardsSettings.jsx` | all text `text`. Site settings are one document, so also needs a registry entry that can walk nested fields |
-| Doctor | `DoctorProfile.jsx` | about `text`, address `place` |
-| Receptionist | `ReceptionistProfile.jsx`, `ReceptionistPatients.jsx` | name `name`. Decide with the owner whether patient records should be translated at all |
+| Session | Form | Fields and kinds | Status |
+|---|---|---|---|
+| Admin | `AddDoctor.jsx`, `DoctorsList.jsx` | name `name`, about `text`, degree and speciality `label`, address `place` | Done |
+| Admin | `AddReceptionist.jsx`, `EditReceptionist.jsx`, `ReceptionistList.jsx` | name `name` | Done |
+| Admin | `InsuranceProvidersSettings.jsx` | provider names `label` | Done |
+| Admin | `FooterSettings.jsx`, `HomeHeroSettings.jsx`, `HomeBannerSettings.jsx`, `HomeServiceCardsSettings.jsx` | all text `text`. Site settings are one document, so also needs a registry entry that can walk nested fields | Done |
+| Doctor | `DoctorProfile.jsx` | about `text`, address `place` | To do |
+| Receptionist | `ReceptionistProfile.jsx`, `ReceptionistPatients.jsx` | name `name`. Decide with the owner whether patient records should be translated at all | To do |
 
 ### Existing records
 

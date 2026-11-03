@@ -1,12 +1,34 @@
 import { describe, it, expect } from 'vitest'
 import { api, loginAdmin, loginDoctor, authHeader } from './helpers/harness.js'
 import { testIds } from './helpers/seed.js'
+import doctorModel from '../../models/doctorModel.js'
 
 describe('T3.7 Doctor API', () => {
   it('lists doctors publicly', async () => {
     const res = await api().get('/api/doctor/list')
     expect(res.body.success).toBe(true)
     expect(res.body.doctors.length).toBeGreaterThan(0)
+  })
+
+  it('public doctor list leaves out private fields but keeps the offer', async () => {
+    await doctorModel.updateOne(
+      { _id: testIds.doctorId },
+      { $set: { promoCode: { code: 'SECRET10', discountType: 'percentage', discountValue: 10, active: true } } }
+    )
+    const res = await api().get('/api/doctor/list')
+    expect(res.body.success).toBe(true)
+    const doctor = res.body.doctors.find((d) => String(d._id) === testIds.doctorId)
+    expect(doctor).toBeTruthy()
+    for (const d of res.body.doctors) {
+      expect(d.password).toBeUndefined()
+      expect(d.email).toBeUndefined()
+      expect(d.mfa).toBeUndefined()
+      expect(d.financialCompensation).toBeUndefined()
+      expect(d.phone).toBeUndefined()
+      expect(d.promoCode?.code).toBeUndefined()
+    }
+    expect(JSON.stringify(res.body)).not.toContain('SECRET10')
+    expect(doctor.promoCode).toMatchObject({ active: true, discountType: 'percentage', discountValue: 10 })
   })
 
   it('doctor profile requires auth', async () => {

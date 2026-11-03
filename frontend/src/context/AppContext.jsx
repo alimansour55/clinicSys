@@ -10,7 +10,8 @@ import {
   writeCachedPublicDoctors,
 } from "../utils/publicCatalogCache";
 import { displayPersonName as displayPersonNameAr } from '../utils/personNameArabic.js'
-import { storedClinicLabels } from '../utils/bilingualContent.js'
+import { hasBilingualText, storedClinicLabels } from '../utils/bilingualContent.js'
+import { doctorFieldText } from '../utils/doctorText.js'
 import { collectPlaceStringsNeedingTranslate } from '../utils/placeTranslations.js'
 import { collectDoctorAboutTextsNeedingTranslate } from '../utils/doctorAboutTranslate.js'
 import { resolveBackendUrl } from '../utils/resolveBackendUrl.js'
@@ -36,6 +37,18 @@ const AppContextProvider = (props) => {
   const [placeTranslationOverrides, setPlaceTranslationOverrides] = useState({})
   const storedLabels = useMemo(() => storedClinicLabels(clinics), [clinics])
   const [textTranslationOverrides, setTextTranslationOverrides] = useState({})
+  const doctorsById = useMemo(() => new Map((doctors || []).map((doctor) => [String(doctor._id), doctor])), [doctors])
+
+  /*
+   * Appointments keep a snapshot of the doctor from booking time, and some lists carry only an id
+   * and a plain name. The live doctor's stored bilingual text wins over both.
+   */
+  const doctorText = (doctor, field) => {
+    const id = doctor?._id ?? doctor?.docId
+    const live = id ? doctorsById.get(String(id)) : null
+    const source = live && hasBilingualText(live.i18n?.[field]) ? live : doctor
+    return doctorFieldText(source, field, { tc, language, textTranslationOverrides })
+  }
 
   const clearAuthSession = () => {
     localStorage.removeItem('token')
@@ -215,8 +228,6 @@ const AppContextProvider = (props) => {
         { appointmentId },
         { headers: { token } }
       )
-
-      console.log('📄 API Response:', data)
 
       if (data.success) {
         return data.prescription
@@ -507,6 +518,8 @@ const AppContextProvider = (props) => {
     textTranslationOverrides,
     localizeDigits,
     displayPersonName: (name) => displayPersonNameAr(name, language),
+    /* A doctor's name, speciality, degree, about or address: stored bilingual text first. */
+    doctorText,
 
     // Utility Functions
     calculateAge,

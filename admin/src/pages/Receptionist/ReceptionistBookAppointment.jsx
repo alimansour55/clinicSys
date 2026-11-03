@@ -27,7 +27,7 @@ import { ReceptionistContext } from "../../context/ReceptionistContext";
 import { AppContext } from "../../context/AppContext";
 import { buildDoctorSlots, slotDateForCalendarOffset } from "../../utils/schedule";
 import { usesClinicWeeklySchedule } from "../../utils/doctorBooking";
-import { translateInsuranceProviderName } from "../../data/insuranceProviderNamesAr";
+import { insuranceProviderLabel } from "../../data/insuranceProviderNamesAr";
 import { RatingBadge, RatingsList, StarRow } from "../../components/DoctorRating";
 import { doctorOffersHomeVisit, emptyHomeVisitAddress, getDoctorHomeVisitAreas } from "../../utils/homeVisitAreas";
 import { computeDoctorPromoDiscountAmount, computeHomeVisitSurcharge, getHomeVisitFeeLabel, normalizeHomeVisitPricing, percentageDiscountAmount } from "../../utils/promoPricing";
@@ -93,7 +93,9 @@ const ReceptionistBookAppointment = () => {
     getDoctorRatings,
     updateDoctorLocations,
   } = useContext(ReceptionistContext);
-  const { currency, t, slotDateFormat, language } = useContext(AppContext);
+  const { currency, t, tc, slotDateFormat, language } = useContext(AppContext);
+  const doctorName = (doc) => tc(doc?.i18n?.name) || doc?.name;
+  const doctorSpeciality = (doc) => tc(doc?.i18n?.speciality) || (doc?.speciality ? t(doc.speciality) : "");
   const [searchParams] = useSearchParams();
 
   const [docId, setDocId] = useState("");
@@ -124,6 +126,8 @@ const ReceptionistBookAppointment = () => {
   const [insuranceForm, setInsuranceForm] = useState({ enabled: true, provider: "", fullName: "", birthDate: "", idNumber: "", expiryDate: "" });
   const [insuranceCard, setInsuranceCard] = useState(null);
   const [insuranceProvidersList, setInsuranceProvidersList] = useState([]);
+  const [insuranceProvidersI18n, setInsuranceProvidersI18n] = useState([]);
+  const providerName = (name) => insuranceProviderLabel(name, insuranceProvidersI18n, { t, tc, language });
   const [deskIns, setDeskIns] = useState({ enabled: false, provider: "", fullName: "", birthDate: "", idNumber: "", expiryDate: "" });
   const [deskInsCard, setDeskInsCard] = useState(null);
   const [ratingsData, setRatingsData] = useState({ summary: { averageRating: 0, ratingCount: 0 }, ratings: [] });
@@ -163,6 +167,7 @@ const ReceptionistBookAppointment = () => {
         ]);
         if (!cancelled && insRes.data.success && Array.isArray(insRes.data.providers)) {
           setInsuranceProvidersList(insRes.data.providers);
+          setInsuranceProvidersI18n(Array.isArray(insRes.data.providersI18n) ? insRes.data.providersI18n : []);
         }
         if (!cancelled && siteRes.data.success && siteRes.data.settings?.homeVisitPricing) {
           setHomeVisitPricingSettings(normalizeHomeVisitPricing(siteRes.data.settings.homeVisitPricing));
@@ -285,7 +290,7 @@ const ReceptionistBookAppointment = () => {
     const query = doctorSearch.toLowerCase().trim();
     return doctors.filter((doctor) => {
       if (!query) return true;
-      const blob = [doctor.name, doctor.speciality, doctor.email].filter(Boolean).join(" ").toLowerCase();
+      const blob = [doctor.name, doctor.i18n?.name?.ar, doctor.speciality, doctor.i18n?.speciality?.ar, doctor.email].filter(Boolean).join(" ").toLowerCase();
       return blob.includes(query);
     });
   }, [doctors, doctorSearch]);
@@ -649,9 +654,9 @@ const ReceptionistBookAppointment = () => {
                     >
                       <img src={doctor.image} alt="" className="h-11 w-11 shrink-0 rounded-full bg-slate-100 object-cover" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-semibold text-slate-900">{doctor.name}</p>
+                        <p className="truncate font-semibold text-slate-900">{doctorName(doctor)}</p>
                         <p className="truncate text-xs text-slate-500">
-                          {doctor.speciality} · {currency}
+                          {doctorSpeciality(doctor)} · {currency}
                           {doctor.fees}
                         </p>
                       </div>
@@ -668,8 +673,8 @@ const ReceptionistBookAppointment = () => {
                         <RatingBadge summary={selectedDoctor.ratingSummary || ratingsData.summary} className="absolute -start-1 -top-1" />
                       </div>
                       <div className="min-w-0 flex-1 overflow-hidden">
-                        <p className="break-words font-semibold text-slate-900">{selectedDoctor.name}</p>
-                        <p className="break-words text-sm text-slate-500">{selectedDoctor.speciality}</p>
+                        <p className="break-words font-semibold text-slate-900">{doctorName(selectedDoctor)}</p>
+                        <p className="break-words text-sm text-slate-500">{doctorSpeciality(selectedDoctor)}</p>
                         <button
                           type="button"
                           onClick={() => setShowRatings((v) => !v)}
@@ -743,7 +748,7 @@ const ReceptionistBookAppointment = () => {
                                   placeholder={t("e.g. Mohandseen")}
                                 />
                                 {locationDrafts.length > 1 && (
-                                  <button type="button" onClick={() => setLocationDrafts((prev) => prev.filter((_, i) => i !== index))} className="rounded-lg border border-eose-200 p-2 text-rose-600">
+                                  <button type="button" onClick={() => setLocationDrafts((prev) => prev.filter((_, i) => i !== index))} className="rounded-lg border border-rose-200 p-2 text-rose-600">
                                     <X className="h-4 w-4" />
                                   </button>
                                 )}
@@ -894,7 +899,7 @@ const ReceptionistBookAppointment = () => {
                       <option value="">{t("Insurance provider")}</option>
                       {insuranceProvidersList.map((name) => (
                         <option key={name} value={name}>
-                          {translateInsuranceProviderName(name, t, language)}
+                          {providerName(name)}
                         </option>
                       ))}
                     </select>
@@ -1024,7 +1029,7 @@ const ReceptionistBookAppointment = () => {
                         <option value="">{t("Insurance provider")}</option>
                         {insuranceProvidersList.map((name) => (
                           <option key={name} value={name}>
-                            {translateInsuranceProviderName(name, t, language)}
+                            {providerName(name)}
                           </option>
                         ))}
                       </select>
@@ -1071,7 +1076,7 @@ const ReceptionistBookAppointment = () => {
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {selectedPatient.insurance.provider && (
                         <p className="break-words text-xs font-semibold text-teal-800">
-                          {t("Insurance")}: {selectedPatient.insurance.provider}
+                          {t("Insurance")}: {providerName(selectedPatient.insurance.provider)}
                         </p>
                       )}
                       <InsuranceStatusBadge insurance={selectedPatient.insurance} t={t} />
@@ -1110,7 +1115,7 @@ const ReceptionistBookAppointment = () => {
                           <option value="">{t("Insurance provider")}</option>
                           {insuranceProvidersList.map((name) => (
                             <option key={name} value={name}>
-                              {translateInsuranceProviderName(name, t, language)}
+                              {providerName(name)}
                             </option>
                           ))}
                         </select>
@@ -1147,10 +1152,10 @@ const ReceptionistBookAppointment = () => {
                     <Stethoscope className="h-3.5 w-3.5 shrink-0" />
                     {t("Doctor")}
                   </p>
-                  <p className="break-words font-semibold text-slate-900">{selectedDoctor?.name || t("No doctor selected")}</p>
+                  <p className="break-words font-semibold text-slate-900">{(selectedDoctor && doctorName(selectedDoctor)) || t("No doctor selected")}</p>
                   {selectedDoctor && (
                     <p className="mt-1 break-words text-xs text-slate-500">
-                      {selectedDoctor.speciality} · {currency}
+                      {doctorSpeciality(selectedDoctor)} · {currency}
                       {selectedDoctor.fees}
                     </p>
                   )}

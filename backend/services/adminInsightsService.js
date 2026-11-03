@@ -2,7 +2,9 @@
  * Everything on the admin command centre, worked out from real records. Pure, so it can be tested
  * without a database: the controller loads the rows and passes them in.
  */
-const CLINIC_TIME_ZONE = 'Africa/Cairo'
+import { getClinicTimeZone } from './clinicTimeService.js'
+
+const CLINIC_TIME_ZONE = getClinicTimeZone()
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /** The clinic's calendar date for a moment. Slots are stored as clinic time and the server may run in UTC. */

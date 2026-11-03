@@ -32,7 +32,7 @@ const StatCard = ({ icon, label, value, sub, tone = 'slate' }) => {
     emerald: 'from-emerald-50 to-white border-emerald-200 text-emerald-900',
     amber: 'from-amber-50 to-white border-amber-200 text-amber-950',
     indigo: 'from-indigo-50 to-white border-indigo-200 text-indigo-950',
-    rose: 'from-rose-50 to-white border-eose-200 text-rose-900',
+    rose: 'from-rose-50 to-white border-rose-200 text-rose-900',
     violet: 'from-violet-50 to-white border-violet-200 text-violet-950'
   }
   return (

@@ -21,7 +21,7 @@ const dayLabel = (date, now, language, t) => {
  * board at a station. Every row is a slot the doctor's own schedule offers right now.
  */
 export default function NextOpeningsBoard({ rows, stats, now, loading }) {
-  const { t, tc, language, displayPersonName, placeTranslationOverrides, localizeDigits } = useContext(AppContext)
+  const { t, language, doctorText, placeTranslationOverrides, localizeDigits } = useContext(AppContext)
   const [mode, setMode] = useState('')
   const modes = VISIT_MODES.filter((m) => stats.modes[m] > 0)
   const items = upcomingOpenings(rows, mode, 5)
@@ -91,9 +91,9 @@ export default function NextOpeningsBoard({ rows, stats, now, loading }) {
                 <Link to={doctorHref(row, rowMode)} className='group -mx-2 flex items-center gap-3 rounded-control px-2 py-3 transition hover:bg-surface-sunken'>
                   <img src={optimizedImage(doctor.image, 96)} alt='' width={44} height={44} loading='lazy' decoding='async' className='size-11 shrink-0 rounded-full bg-primary-soft object-cover object-top' />
                   <span className='min-w-0 flex-1'>
-                    <span className='block truncate text-body-sm font-semibold text-ink'>{displayPersonName(doctor.name)}</span>
+                    <span className='block truncate text-body-sm font-semibold text-ink'>{doctorText(doctor, 'name')}</span>
                     <span className='flex min-w-0 items-center gap-1 text-caption text-ink-2'>
-                      <span className='truncate'>{tc(doctor.speciality)}</span>
+                      <span className='truncate'>{doctorText(doctor, 'speciality')}</span>
                       {place && rowMode !== 'home' && (
                         <>
                           <MapPin aria-hidden='true' className='ms-1 size-3 shrink-0' />

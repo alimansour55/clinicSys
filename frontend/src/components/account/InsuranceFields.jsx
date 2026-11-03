@@ -3,22 +3,26 @@ import axios from 'axios'
 import { FileUp } from 'lucide-react'
 import { AppContext } from '../../context/AppContext'
 import { translateInsuranceProviderName } from '../../data/insuranceProviderNamesAr'
+import { providerLabel } from '../../utils/bilingualContent'
 import { useLanguage } from '../../i18n'
 import { Field, Input, Select } from '../ui'
 
 
 /** The insurance form, shared by sign-up and the insurance page. */
 const InsuranceFields = ({ values, onChange, file, onFileChange, existingCardUrl = '', today }) => {
-  const { t, language } = useLanguage()
-  const { backendUrl } = useContext(AppContext)
+  const { t, tc, language } = useLanguage()
+  const { backendUrl, siteSettings } = useContext(AppContext)
   const inputRef = useRef(null)
   const [providers, setProviders] = useState([])
+  const [providerLabels, setProviderLabels] = useState([])
 
   useEffect(() => {
     let cancelled = false
     axios.get(`${backendUrl}/api/user/insurance-providers`)
       .then(({ data }) => {
-        if (!cancelled && data?.success && Array.isArray(data.providers)) setProviders(data.providers)
+        if (cancelled || !data?.success || !Array.isArray(data.providers)) return
+        setProviders(data.providers)
+        if (Array.isArray(data.providersI18n)) setProviderLabels(data.providersI18n)
       })
       .catch(() => {})
     return () => {
@@ -27,6 +31,9 @@ const InsuranceFields = ({ values, onChange, file, onFileChange, existingCardUrl
   }, [backendUrl])
 
   const set = (key) => (event) => onChange({ ...values, [key]: event.target.value })
+  /* The value stays the plain name the server matches on; only the label changes language. */
+  const labels = providerLabels.length ? providerLabels : siteSettings?.insuranceProvidersI18n
+  const providerText = (name) => providerLabel({ tc, language }, labels, name, (plain) => translateInsuranceProviderName(plain, t, language))
 
   return (
     <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
@@ -34,7 +41,7 @@ const InsuranceFields = ({ values, onChange, file, onFileChange, existingCardUrl
         <Select value={values.provider} onChange={set('provider')}>
           <option value=''>{t('Select provider')}</option>
           {providers.map((name) => (
-            <option key={name} value={name}>{translateInsuranceProviderName(name, t, language)}</option>
+            <option key={name} value={name}>{providerText(name)}</option>
           ))}
         </Select>
       </Field>

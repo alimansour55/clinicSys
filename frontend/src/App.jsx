@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useContext, useEffect, useMemo, useRef } from 'react'
+import React, { lazy, Suspense, useContext, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { AppContext } from './context/AppContext'
 import { getPolicyForRole } from './utils/languageAvailability'
@@ -8,7 +8,7 @@ import ScrollToTop from './components/ScrollToTop'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import { ToastViewport } from './components/ui/Toast'
-import { LanguageDomSync, useLanguage } from './i18n'
+import { LanguageDomSync, LanguagePolicySync } from './i18n'
 import RouteMeta from './components/discovery/RouteMeta'
 
 /* Home is in the first bundle. Every other page, and the assistant, loads when needed. */
@@ -29,25 +29,6 @@ const ChatbotWidget = lazy(() => import('./components/Chatbot/ChatbotWidget'))
 
 /* Discovery pages lay out their own full-width sections. The rest keep the original side margins. */
 const isFullBleed = (pathname) => pathname === '/' || /^\/(doctors(\/|$)|about$|contact$)/.test(pathname)
-
-/*
- * Applies the admin's language policy once per change. The shared LanguagePolicySync re-runs
- * whenever setLanguagePolicy changes identity, which it does after every call, so it loops
- * forever. The admin app already guards it the same way.
- */
-const PatientLanguagePolicySync = ({ policy }) => {
-  const { setLanguagePolicy } = useLanguage()
-  const applied = useRef(null)
-  const en = policy?.en
-  const ar = policy?.ar
-  useEffect(() => {
-    const key = `${en}:${ar}`
-    if (applied.current === key) return
-    applied.current = key
-    setLanguagePolicy({ en, ar })
-  }, [en, ar, setLanguagePolicy])
-  return null
-}
 
 const PageFallback = () => (
   <div className='flex min-h-[50vh] items-center justify-center' role='status' aria-live='polite'>
@@ -75,7 +56,7 @@ const App = () => {
       >
         {t('Skip to content')}
       </a>
-      <PatientLanguagePolicySync policy={patientLanguagePolicy} />
+      <LanguagePolicySync policy={patientLanguagePolicy} />
       <LanguageDomSync />
       <ScrollToTop />
       <RouteMeta />

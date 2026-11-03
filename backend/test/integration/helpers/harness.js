@@ -41,12 +41,12 @@ export async function loginReceptionist() {
   return res
 }
 
-/** Future slot string DD_MM_YYYY and HH:mm on a working weekday. */
+/** Future slot string DD_MM_YYYY and HH:mm on a working weekday, 2 to 8 days ahead so the hour never matters. */
 export function futureBookingSlot(weekday = 2) {
   const date = new Date()
   date.setHours(14, 0, 0, 0)
+  date.setDate(date.getDate() + 2)
   while (date.getDay() !== weekday) date.setDate(date.getDate() + 1)
-  if (date <= new Date()) date.setDate(date.getDate() + 7)
   const day = date.getDate()
   const month = date.getMonth() + 1
   const year = date.getFullYear()

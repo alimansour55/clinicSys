@@ -14,17 +14,24 @@ import userModel from '../../models/userModel.js'
 import { countPendingBilingual, backfillBilingual, retryPendingBilingual } from '../../services/bilingualContentService.js'
 import { BILINGUAL_MODELS } from '../../services/bilingualRegistry.js'
 import { tryTranslatePlainText } from '../../services/plainTextTranslateService.js'
-import { api, authHeader, loginAdmin, loginDoctor } from './helpers/harness.js'
+import { api, authHeader, loginAdmin, loginDoctor, loginReceptionist } from './helpers/harness.js'
 import { testIds, testUsers } from './helpers/seed.js'
 
 const translator = vi.mocked(tryTranslatePlainText)
 const settingsEntry = () => BILINGUAL_MODELS.find((entry) => entry.label === 'site settings')
 
+/* Each fixture takes its own slot: the booking index allows one live appointment per doctor per slot. */
+let fixtureSlot = 0
+const nextSlotTime = () => {
+  const minutes = 10 * 60 + (fixtureSlot++ % 20) * 30
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+}
+
 const appointmentFor = (overrides = {}) => ({
   userId: testIds.patientId,
   docId: testIds.doctorId,
   slotDate: '1_1_2026',
-  slotTime: '10:00',
+  slotTime: nextSlotTime(),
   userData: { name: 'Test Patient' },
   docData: { name: 'Test Doctor', speciality: 'General physician' },
   amount: 100,
@@ -83,7 +90,8 @@ describe('admin session', () => {
       .send({ email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD })
     expect(login.body.mfaSetupRequired).toBe(true)
     const res = await api().get('/api/admin/dashboard').set(authHeader.admin(login.body.mfaToken))
-    expect(res.status).toBe(403)
+    // Refused as "not a session" (401): MFA step tokens carry a purpose and are never accepted as logins.
+    expect(res.status).toBe(401)
   })
 
   it('expires with the session timeout in the security settings', async () => {
@@ -210,6 +218,45 @@ describe('bilingual staff records', () => {
     const saved = await receptionistModel.findById(row._id).lean()
     expect(saved.name).toBe('Sara Mostafa')
     expect(saved.i18n.name.ar).toBeTruthy()
+  })
+
+  it('a receptionist renaming themselves refreshes the bilingual name', async () => {
+    await receptionistModel.updateOne(
+      { _id: testIds.receptionistId },
+      { $set: { name: 'Old Name', 'i18n.name': { en: 'Old Name', ar: 'اسم مصحح', source: 'en', manual: true, status: 'complete' } } }
+    )
+    const { body: login } = await loginReceptionist()
+    const headers = authHeader.receptionist(login.token)
+
+    await api().post('/api/receptionist/update-profile').set(headers).send({ name: 'Old Name', phone: '01022223333' })
+    let saved = await receptionistModel.findById(testIds.receptionistId).lean()
+    expect(saved.i18n.name.ar).toBe('اسم مصحح')
+
+    await api().post('/api/receptionist/update-profile').set(headers).send({ name: 'New Name' })
+    saved = await receptionistModel.findById(testIds.receptionistId).lean()
+    expect(saved.name).toBe('New Name')
+    expect(saved.i18n.name.en).toBe('New Name')
+    expect(saved.i18n.name.ar).toBeTruthy()
+    expect(saved.i18n.name.ar).not.toBe('اسم مصحح')
+  })
+
+  it('a doctor editing their own about text refreshes both languages and keeps a hand correction', async () => {
+    await doctorModel.updateOne(
+      { _id: testIds.doctorId },
+      { $set: { about: 'Old about', 'i18n.about': { en: 'Old about', ar: 'نبذة مصححة', source: 'en', manual: true, status: 'complete' } } }
+    )
+    const { body: login } = await loginDoctor()
+    const headers = authHeader.doctor(login.token)
+
+    await api().post('/api/doctor/update-profile').set(headers).send({ about: 'Old about' })
+    let saved = await doctorModel.findById(testIds.doctorId).lean()
+    expect(saved.i18n.about.ar).toBe('نبذة مصححة')
+
+    const res = await api().post('/api/doctor/update-profile').set(headers).send({ about: 'New about' })
+    expect(res.body.success).toBe(true)
+    saved = await doctorModel.findById(testIds.doctorId).lean()
+    expect(saved.about).toBe('New about')
+    expect(saved.i18n.about).toMatchObject({ en: 'New about', ar: 'ar:New about' })
   })
 
   it('renaming from the user accounts page keeps both languages in step', async () => {

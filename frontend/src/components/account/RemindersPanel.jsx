@@ -9,7 +9,7 @@ import ReminderModal from './ReminderModal'
 const FREQUENCY_LABELS = { daily: 'Every day', weekly: 'Every week', monthly: 'Every month', once: 'Just once' }
 
 const DOT = { taken: 'bg-success', skipped: 'bg-line-strong', missed: 'bg-warning' }
-const DOT_LABEL = { taken: 'Taken', skipped: 'Skipped', missed: 'Missed' }
+const DOT_LABEL = { taken: 'Taken (medicine)', skipped: 'Skipped', missed: 'Missed (medicine)' }
 
 /** The last few answers, each with its own title, so the pattern does not rely on colour alone. */
 const History = ({ reminder }) => {
@@ -85,7 +85,7 @@ const RemindersPanel = ({ reminders, members, reload }) => {
                   <div className='mt-3 flex flex-wrap items-center gap-1'>
                     {due.has(reminder._id) && (
                       <>
-                        <Button size='sm' onClick={() => act('post', `/api/account/reminders/${reminder._id}/respond`, { action: 'taken' })}>{t('Taken')}</Button>
+                        <Button size='sm' onClick={() => act('post', `/api/account/reminders/${reminder._id}/respond`, { action: 'taken' })}>{t('Taken (medicine)')}</Button>
                         <Button size='sm' variant='ghost' onClick={() => act('post', `/api/account/reminders/${reminder._id}/respond`, { action: 'skipped' })}>{t('Skip')}</Button>
                       </>
                     )}

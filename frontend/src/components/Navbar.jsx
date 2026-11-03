@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { loginPath } from '../utils/loginRedirect'
 import { AppContext } from '../context/AppContext'
 import {
   CalendarDays,
@@ -56,6 +57,8 @@ function useDismiss(open, close, ref) {
 const Navbar = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  /* Logging in from any page comes back to it; on the login page itself, keep its own ?next=. */
+  const returnTo = location.pathname === '/login' ? new URLSearchParams(location.search).get('next') || '' : location
   const { token, setToken, userData, siteSettings, displayPersonName } = useContext(AppContext)
   const { t } = useLanguage()
   // Each popup remembers the page it was opened on, so navigating anywhere closes it without an effect
@@ -190,10 +193,10 @@ const Navbar = () => {
 
           {!token && (
             <span className='hidden items-center gap-2 md:flex'>
-              <Link to='/login?mode=login' className='inline-flex min-h-10 items-center rounded-control px-3 text-body-sm font-semibold text-brand transition hover:bg-primary-soft'>
+              <Link to={loginPath(returnTo)} className='inline-flex min-h-10 items-center rounded-control px-3 text-body-sm font-semibold text-brand transition hover:bg-primary-soft'>
                 {t('Sign in')}
               </Link>
-              <Link to='/login?mode=signup' className='inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-body-sm font-semibold text-on-primary shadow-e1 transition hover:bg-primary-dark'>
+              <Link to={loginPath(returnTo, 'signup')} className='inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-body-sm font-semibold text-on-primary shadow-e1 transition hover:bg-primary-dark'>
                 {t('Create Account')}
               </Link>
             </span>
@@ -301,10 +304,10 @@ const Navbar = () => {
 
               {!token && (
                 <div className='mt-6 grid gap-3'>
-                  <Link to='/login?mode=login' className='flex min-h-12 items-center justify-center rounded-control border border-primary font-semibold text-brand'>
+                  <Link to={loginPath(returnTo)} className='flex min-h-12 items-center justify-center rounded-control border border-primary font-semibold text-brand'>
                     {t('Sign in')}
                   </Link>
-                  <Link to='/login?mode=signup' className='flex min-h-12 items-center justify-center rounded-control bg-primary font-semibold text-on-primary shadow-e1'>
+                  <Link to={loginPath(returnTo, 'signup')} className='flex min-h-12 items-center justify-center rounded-control bg-primary font-semibold text-on-primary shadow-e1'>
                     {t('Create Account')}
                   </Link>
                 </div>

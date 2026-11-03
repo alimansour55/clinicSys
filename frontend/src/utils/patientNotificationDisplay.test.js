@@ -53,4 +53,24 @@ describe('patientNotificationDisplay', () => {
     const en = formatNotificationRelativeTime(iso, 'en')
     expect(en.length).toBeGreaterThan(0)
   })
+
+  it('renders the waitlist offer and rescheduled templates in both languages', () => {
+    const offer = { meta: { docId: 'd1', i18n: { templateId: 'patient_waitlist_offer', params: { doctorName: 'Smith', when: '2026/11/04 10:00 AM' } } } }
+    expect(formatPatientNotification(offer, 'en')).toEqual({
+      title: 'A slot opened for you',
+      message: 'Dr. Smith has an opening (2026/11/04 10:00 AM). It is held for you for 15 minutes.',
+    })
+    expect(formatPatientNotification(offer, 'ar').title).toBe('توفّر موعد لك')
+    expect(formatPatientNotification(offer, 'ar').message).toContain('د. Smith')
+
+    const moved = { meta: { i18n: { templateId: 'patient_appt_rescheduled', params: { doctorName: 'Jones', when: '4 11 2026 · 10:00 AM' } } } }
+    expect(formatPatientNotification(moved, 'en').message).toBe('Your visit with Dr. Jones is now on 4 11 2026 · 10:00 AM.')
+    expect(formatPatientNotification(moved, 'ar').title).toBe('تم تغيير الموعد')
+  })
+
+  it('shows the doctor name passed in for the current language', () => {
+    const moved = { meta: { i18n: { templateId: 'patient_appt_rescheduled', params: { doctorName: 'Jones', when: 'soon' } } } }
+    expect(formatPatientNotification(moved, 'ar', { doctorName: 'جونز' }).message).toContain('د. جونز')
+    expect(formatPatientNotification(moved, 'ar', { doctorName: '' }).message).toContain('د. Jones')
+  })
 })

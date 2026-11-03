@@ -178,7 +178,9 @@ const DoctorContextProvider = (props) => {
         return {
             name: profileData.name || 'Doctor',
             image: profileData.image || '',
-            speciality: profileData.speciality || ''
+            speciality: profileData.speciality || '',
+            // Bilingual values from the admin forms; render with tc() and fall back to the plain fields
+            i18n: profileData.i18n
         }
     }, [profileData])
 

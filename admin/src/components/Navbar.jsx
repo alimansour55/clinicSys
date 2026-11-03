@@ -16,7 +16,10 @@ const Navbar = () => {
   const { aToken, setAToken, siteSettings, adminNavSummary } = useContext(AdminContext)
   const { dToken, setDToken, doctorNavSummary, setProfileData } = useContext(DoctorContext)
   const { rToken, setRToken, receptionistNavSummary } = useContext(ReceptionistContext)
-  const { t } = useLanguage()
+  const { t, tc } = useLanguage()
+  const receptionistName = tc(receptionistNavSummary?.i18n?.name) || receptionistNavSummary?.name
+  const doctorName = tc(doctorNavSummary?.i18n?.name) || doctorNavSummary?.name
+  const doctorSpeciality = tc(doctorNavSummary?.i18n?.speciality) || (doctorNavSummary?.speciality ? t(doctorNavSummary.speciality) : '')
 
   const navigate = useNavigate()
   const [receptionistMenuOpen, setReceptionistMenuOpen] = useState(false)
@@ -68,8 +71,8 @@ const Navbar = () => {
     }
   }
 
-  const receptionistInitial = (receptionistNavSummary?.name || '?').trim().charAt(0).toUpperCase() || '?'
-  const doctorInitial = (doctorNavSummary?.name || '?').trim().charAt(0).toUpperCase() || '?'
+  const receptionistInitial = (receptionistName || '?').trim().charAt(0).toUpperCase() || '?'
+  const doctorInitial = (doctorName || '?').trim().charAt(0).toUpperCase() || '?'
   const adminInitial = (adminNavSummary?.name || 'A').trim().charAt(0).toUpperCase() || 'A'
 
   const headerLogoSrc = siteSettings?.branding?.headerLogoUrl || assets.site_default_logo
@@ -147,7 +150,7 @@ const Navbar = () => {
                 className='absolute end-0 top-full z-[60] mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg ring-1 ring-black/5'
               >
                 <div className='border-b border-gray-100 px-3 py-2.5'>
-                  <p className='truncate text-sm font-semibold text-gray-900'>{receptionistNavSummary?.name || t('Receptionist')}</p>
+                  <p className='truncate text-sm font-semibold text-gray-900'>{receptionistName || t('Receptionist')}</p>
                   <p className='truncate text-xs text-gray-500'>{t('Receptionist')}</p>
                 </div>
                 <Link
@@ -199,8 +202,8 @@ const Navbar = () => {
                 className='absolute end-0 top-full z-[60] mt-2 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-black/5'
               >
                 <div className='border-b border-slate-100 px-3 py-2.5'>
-                  <p className='truncate text-sm font-semibold text-slate-900'>{doctorNavSummary?.name || t('Doctor')}</p>
-                  <p className='truncate text-xs text-slate-500'>{doctorNavSummary?.speciality || t('Doctor')}</p>
+                  <p className='truncate text-sm font-semibold text-slate-900'>{doctorName || t('Doctor')}</p>
+                  <p className='truncate text-xs text-slate-500'>{doctorSpeciality || t('Doctor')}</p>
                 </div>
                 <Link
                   role='menuitem'

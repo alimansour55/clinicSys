@@ -11,6 +11,7 @@ import { fixedDiscountAmount, percentageDiscountAmount } from '../../utils/promo
 import { extractMainPlaceFromLocation, placeFilterKey } from '../../utils/placeTranslations'
 import { doctorBelongsToClinicSection } from '../../utils/doctorClinicPlaces'
 import { normalizeSearchText } from './searchText'
+import { recordSearchTexts } from '../../utils/bilingualContent'
 
 export const VISIT_MODES = ['clinic', 'voice', 'tele', 'home']
 
@@ -113,6 +114,8 @@ export const buildDoctorRow = (doctor, { globalVisitFees, labels = () => [], now
     ...places.map((place) => place.raw),
     ...languages,
     ...labels(doctor),
+    /* Stored English and Arabic, so a search in either language matches. */
+    ...recordSearchTexts(doctor, ['name', 'speciality', 'degree', 'address']),
   ]
 
   return {

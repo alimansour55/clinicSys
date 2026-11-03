@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { loginPath } from '../utils/loginRedirect'
 import { Banknote, Building2, CreditCard, Home, Info, MapPin, MessageCircle, Phone, Radio, ShieldCheck, Stethoscope, Tag, Video } from 'lucide-react'
 import { AppContext } from '../context/AppContext'
 import { useLanguage } from '../i18n'
@@ -10,7 +11,6 @@ import { Badge, Button, Card, CardBody, EmptyState, Field, Input, Select, Skelet
 import { emptyHomeVisitAddress, getDoctorHomeVisitAreas, doctorOffersHomeVisit } from '../utils/homeVisitAreas'
 import { hasDoctorPublishedSchedule, isDoctorBookableForPatients, usesClinicWeeklySchedule } from '../utils/doctorBooking'
 import { formatLocationLine, translatePlaceSegment } from '../utils/placeTranslations'
-import { getTranslatedDoctorAbout } from '../utils/doctorAboutTranslate'
 import { formatExperienceEn, parseExperienceYears } from '../utils/doctorExperience'
 import BookingConfirmation from '../features/booking/BookingConfirmation'
 import CheckoutForm from '../features/booking/CheckoutForm'
@@ -107,7 +107,7 @@ const LiveBadge = () => {
 
 const SoonerElsewhere = ({ doctors, thisDoctorNext, appointmentType, timeZone }) => {
   const { t, language, localizeDigits } = useLanguage()
-  const { displayPersonName } = useContext(AppContext)
+  const { doctorText } = useContext(AppContext)
   const sooner = doctors.filter((row) => !thisDoctorNext || row.startsAt < thisDoctorNext.startsAt).slice(0, 2)
   if (!sooner.length) return null
 
@@ -127,7 +127,7 @@ const SoonerElsewhere = ({ doctors, thisDoctorNext, appointmentType, timeZone })
               <Link to={`/appointment/${row.docId}?${params.toString()}`} className='flex items-center gap-3 rounded-control bg-surface p-2 transition-colors duration-(--duration-fast) hover:bg-primary-soft'>
                 <img src={row.image} alt='' className='h-10 w-10 rounded-full object-cover' loading='lazy' />
                 <span className='min-w-0 flex-1'>
-                  <span className='block truncate text-body-sm font-semibold text-ink'>{displayPersonName(row.name)}</span>
+                  <span className='block truncate text-body-sm font-semibold text-ink'>{doctorText({ docId: row.docId, name: row.name }, 'name')}</span>
                   <span className='block text-caption text-ink-2'>
                     {formatRelativeDay(row.startsAt, language, undefined, timeZone)} · {formatSlotTime(row.slotTime, language, localizeDigits)}
                   </span>
@@ -189,11 +189,12 @@ const BookingFlow = ({ docId, docInfo }) => {
     getDoctorRatings,
     getDoctorsData,
     getUserAppointments,
-    displayPersonName,
-    placeTranslationOverrides,
-    textTranslationOverrides
+    doctorText,
+    placeTranslationOverrides
   } = useContext(AppContext)
-  const { t, tc, language, localizeDigits } = useLanguage()
+  const { t, language, localizeDigits } = useLanguage()
+  const doctorName = doctorText(docInfo, 'name')
+  const doctorAbout = doctorText(docInfo, 'about')
 
   const whenTitleId = useId()
   const howTitleId = useId()
@@ -419,7 +420,7 @@ const BookingFlow = ({ docId, docInfo }) => {
 
   const goToLogin = () => {
     notify.info(t('Log in to finish booking. We kept your choices.'))
-    navigate(`/login?mode=login&next=${encodeURIComponent(`/appointment/${docId}`)}`)
+    navigate(loginPath(`/appointment/${docId}`))
   }
 
   const submit = async () => {
@@ -531,7 +532,7 @@ const BookingFlow = ({ docId, docInfo }) => {
     return (
       <BookingConfirmation
         appointment={confirmed}
-        doctorName={displayPersonName(docInfo.name)}
+        doctorName={doctorName}
         backendUrl={backendUrl}
         token={token}
         formatMoney={formatMoney}
@@ -575,20 +576,20 @@ const BookingFlow = ({ docId, docInfo }) => {
         <CardBody>
           <div className='flex gap-4'>
             <div className='relative shrink-0'>
-              <img className='h-24 w-24 rounded-control bg-surface-sunken object-cover sm:h-28 sm:w-28' src={docInfo.image} alt={displayPersonName(docInfo.name)} />
+              <img className='h-24 w-24 rounded-control bg-surface-sunken object-cover sm:h-28 sm:w-28' src={docInfo.image} alt={doctorName} />
               <RatingBadge summary={summary} className='absolute -bottom-2 start-1/2 -translate-x-1/2 rtl:translate-x-1/2' />
             </div>
             <div className='min-w-0 flex-1'>
               <h1 className='flex flex-wrap items-center gap-2 font-display text-display text-ink'>
-                {displayPersonName(docInfo.name)}
+                {doctorName}
                 <img className='h-5 w-5' src={assets.verified_icon} alt={t('Verified')} />
               </h1>
-              <p className='mt-1 text-body-sm text-ink-2'>{docInfo.degree} · {tc(docInfo.speciality)}</p>
+              <p className='mt-1 text-body-sm text-ink-2'>{[doctorText(docInfo, 'degree'), doctorText(docInfo, 'speciality')].filter(Boolean).join(' · ')}</p>
               <div className='mt-2 flex flex-wrap items-center gap-2'>
                 {experienceLabel && <Badge tone='neutral'>{experienceLabel}</Badge>}
                 {bookable ? <Badge tone='success' dot>{t('Open for booking')}</Badge> : <Badge tone='warning'>{t('Coming Soon')}</Badge>}
               </div>
-              {docInfo.about && (
+              {doctorAbout && (
                 <button type='button' aria-expanded={aboutOpen} onClick={() => setAboutOpen((open) => !open)} className='mt-2 flex items-center gap-1 text-caption font-semibold text-brand'>
                   <Info className='h-3.5 w-3.5' aria-hidden='true' />
                   {aboutOpen ? t('Hide details') : t('About the doctor')}
@@ -598,7 +599,7 @@ const BookingFlow = ({ docId, docInfo }) => {
           </div>
           {aboutOpen && (
             <div className='mt-4 animate-rise border-t border-line pt-4'>
-              <p className='whitespace-pre-wrap text-body-sm text-ink-2'>{getTranslatedDoctorAbout(docInfo.about, language, textTranslationOverrides)}</p>
+              <p className='whitespace-pre-wrap text-body-sm text-ink-2'>{doctorAbout}</p>
               <button type='button' aria-expanded={ratingsOpen} onClick={() => setRatingsOpen((open) => !open)} className='mt-3 flex items-center gap-2 text-body-sm font-semibold text-ink'>
                 <StarRow value={summary?.averageRating} />
                 {summary?.ratingCount
@@ -795,9 +796,9 @@ const BookingFlow = ({ docId, docInfo }) => {
 
       {/* Phones: price and action always in reach, above the keyboard-safe area */}
       {bookable && !checkout && (
-        <div className='fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-e3 lg:hidden'>
-          {/* End padding keeps the action clear of the assistant's floating button */}
-          <div className='mx-auto flex max-w-3xl items-center gap-3 pe-16'>
+        <div data-chat-avoid className='fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-e3 lg:hidden'>
+          {/* data-chat-avoid lifts the assistant's floating button above this bar */}
+          <div className='mx-auto flex max-w-3xl items-center gap-3'>
             <div className='min-w-0 flex-1'>
               <p className='truncate text-caption text-ink-2'>{whenLabel || t('Pick a time')}</p>
               <p className='text-subtitle font-semibold text-brand'>{quote ? formatMoney(quote.amount) : ' '}</p>

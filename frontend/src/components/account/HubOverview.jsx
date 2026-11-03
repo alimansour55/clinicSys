@@ -78,7 +78,7 @@ const TodayReminders = ({ reminders, onChanged, onOpenTab }) => {
                 <p dir='auto' className='text-body-sm font-semibold'>{reminder.title}</p>
                 <p className='text-caption'>{t('Due at')} {timeOf(reminder.nextDueAt)}</p>
                 <div className='mt-2 flex flex-wrap gap-2'>
-                  <Button size='sm' loading={busy === reminder._id} onClick={() => respond(reminder, 'taken')}>{t('Taken')}</Button>
+                  <Button size='sm' loading={busy === reminder._id} onClick={() => respond(reminder, 'taken')}>{t('Taken (medicine)')}</Button>
                   <Button size='sm' variant='ghost' disabled={busy === reminder._id} onClick={() => respond(reminder, 'skipped')}>{t('Skip')}</Button>
                 </div>
               </li>

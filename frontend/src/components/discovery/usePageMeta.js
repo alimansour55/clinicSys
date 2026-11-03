@@ -45,8 +45,10 @@ export function applyPageMeta({ title, description, path, image, type = 'website
   meta('og:url', url, 'property')
   meta('og:site_name', brand, 'property')
   meta('og:locale', language === 'ar' ? 'ar_EG' : 'en_US', 'property')
-  meta('og:image', image ? absoluteUrl(image) : absoluteUrl('/og-image.png'), 'property')
+  const shareImage = image ? absoluteUrl(image) : absoluteUrl('/og-image.png')
+  meta('og:image', shareImage, 'property')
   meta('twitter:card', 'summary_large_image')
+  meta('twitter:image', shareImage)
   meta('twitter:title', fullTitle)
   meta('twitter:description', description)
   upsert('link[rel="canonical"]', () => {
