@@ -58,16 +58,19 @@ const Navbar = () => {
   const location = useLocation()
   const { token, setToken, userData, siteSettings, displayPersonName } = useContext(AppContext)
   const { t } = useLanguage()
-  const [showMenu, setShowMenu] = useState(false)
-  const [showAccount, setShowAccount] = useState(false)
+  // Each popup remembers the page it was opened on, so navigating anywhere closes it without an effect
+  const [menuPath, setMenuPath] = useState(null)
+  const [accountPath, setAccountPath] = useState(null)
+  const showMenu = menuPath === location.pathname
+  const showAccount = accountPath === location.pathname
   const accountRef = useRef(null)
   const drawerRef = useRef(null)
   const closeButtonRef = useRef(null)
   const menuButtonRef = useRef(null)
 
   const logoAltText = resolveLogoAltText(siteSettings)
-  const closeAccount = React.useCallback(() => setShowAccount(false), [])
-  const closeMenu = React.useCallback(() => setShowMenu(false), [])
+  const closeAccount = React.useCallback(() => setAccountPath(null), [])
+  const closeMenu = React.useCallback(() => setMenuPath(null), [])
   useDismiss(showAccount, closeAccount, accountRef)
   useDismiss(showMenu, closeMenu, drawerRef)
 
@@ -76,11 +79,6 @@ const Navbar = () => {
     localStorage.removeItem('token')
     navigate('/')
   }
-
-  useEffect(() => {
-    setShowMenu(false)
-    setShowAccount(false)
-  }, [location.pathname])
 
   useEffect(() => {
     if (!showMenu) return undefined
@@ -148,7 +146,7 @@ const Navbar = () => {
               <div ref={accountRef} className='relative hidden md:block'>
                 <button
                   type='button'
-                  onClick={() => setShowAccount((open) => !open)}
+                  onClick={() => setAccountPath(showAccount ? null : location.pathname)}
                   aria-expanded={showAccount}
                   aria-haspopup='true'
                   aria-controls='account-menu'
@@ -167,7 +165,7 @@ const Navbar = () => {
                     <ul>
                       {[{ to: '/my-appointments', label: 'My Appointments', icon: CalendarDays }, ...accountLinks].map(({ to, label, icon: Icon }) => (
                         <li key={to}>
-                          <Link to={to} className='flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-body-sm text-ink transition hover:bg-primary-soft hover:text-brand'>
+                          <Link to={to} onClick={closeAccount} className='flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-body-sm text-ink transition hover:bg-primary-soft hover:text-brand'>
                             <Icon aria-hidden='true' className='size-4 shrink-0' />
                             {t(label)}
                           </Link>
@@ -207,7 +205,7 @@ const Navbar = () => {
           <button
             ref={menuButtonRef}
             type='button'
-            onClick={() => setShowMenu(true)}
+            onClick={() => setMenuPath(location.pathname)}
             className='inline-flex size-10 items-center justify-center rounded-control border border-line bg-surface text-ink transition active:bg-primary-soft md:hidden'
             aria-label={t('Menu')}
             aria-expanded={showMenu}
