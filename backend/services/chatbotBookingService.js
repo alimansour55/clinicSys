@@ -47,7 +47,7 @@ export const bookChatbotAppointment = async ({
     return { success: false, message: 'Please choose Cash or Visa payment method' }
   }
 
-  const docData = await doctorModel.findById(docId).select('-password')
+  const docData = await doctorModel.findById(docId).select('-password -mfa.secret')
   if (!docData) {
     return { success: false, message: 'Doctor not found' }
   }
@@ -125,7 +125,7 @@ export const bookChatbotAppointment = async ({
     return { success: false, message: scheduleCheck.reason }
   }
 
-  const userData = await userModel.findById(userId).select('-password')
+  const userData = await userModel.findById(userId).select('-password -mfa.secret')
   if (!userData || userData.isActive === false) {
     return { success: false, message: 'Patient account is deactivated' }
   }
@@ -239,7 +239,7 @@ export const resolvePatientForChatbot = async ({ userId }) => {
       message: 'Please log in or register to confirm your appointment.'
     }
   }
-  const user = await userModel.findById(userId).select('-password')
+  const user = await userModel.findById(userId).select('-password -mfa.secret')
   if (user && user.isActive !== false) return { userId: user._id.toString(), user }
   return { error: 'Patient account not found or deactivated' }
 }

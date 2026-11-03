@@ -541,6 +541,20 @@ describe('booking', () => {
     expect(offered).not.toContain(`${tomorrowKey()} 10:00 AM`)
   })
 
+  it('never copies MFA secrets into the stored appointment', async () => {
+    const doctor = await addDentist({ mfa: { secret: 'DOCTOR-MFA-SECRET' } })
+    const userModel = (await import('../../models/userModel.js')).default
+    await userModel.updateOne({ _id: testIds.patientId }, { $set: { 'mfa.secret': 'PATIENT-MFA-SECRET' } }, { strict: false })
+    const token = await tokenFor()
+    const { body } = await api()
+      .post('/api/chatbot/book-appointment')
+      .set(authHeader.patient(token))
+      .send(bookingBody(String(doctor._id)))
+    expect(body.success).toBe(true)
+    const saved = JSON.stringify(await appointmentModel.findById(body.appointment.id).lean())
+    expect(saved).not.toContain('MFA-SECRET')
+  })
+
   it('keeps health details out of the appointment and the audit log', async () => {
     const doctor = await addDentist()
     const token = await tokenFor()

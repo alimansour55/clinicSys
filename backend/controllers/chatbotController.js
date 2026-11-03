@@ -72,7 +72,7 @@ const formatDoctorForChat = (doc, nextSlots = null) => ({
 const isValidDocId = (value) => typeof value === 'string' && mongoose.isValidObjectId(value)
 
 const loadBookableDoctors = async ({ specialty = '', strict = false } = {}) => {
-  const doctors = await doctorModel.find({ available: { $ne: false } }).select('-password -email').lean()
+  const doctors = await doctorModel.find({ available: { $ne: false } }).select('-password -email -mfa.secret').lean()
   const withRatings = await attachRatingSummariesToDoctors(doctors)
   const bookable = withRatings
     .map((doc) => ({
@@ -267,7 +267,7 @@ const respondWithSpecialty = async ({ res, base, specialty, entities, replyI18n,
 
 /** A doctor is already chosen and the message is about when. */
 const respondWithDoctorSlots = async ({ res, base, context, entities, language }) => {
-  const doctor = await doctorModel.findById(context.docId).select('-password -email')
+  const doctor = await doctorModel.findById(context.docId).select('-password -email -mfa.secret')
   if (!doctor) {
     return res.json({ success: false, message: 'Doctor not found' })
   }
@@ -565,7 +565,7 @@ export const getChatbotAvailableSlots = async (req, res) => {
       return res.json({ success: false, message: 'Doctor not found' })
     }
 
-    const doctor = await doctorModel.findById(docId).select('-password -email')
+    const doctor = await doctorModel.findById(docId).select('-password -email -mfa.secret')
     if (!doctor) {
       return res.json({ success: false, message: 'Doctor not found' })
     }
