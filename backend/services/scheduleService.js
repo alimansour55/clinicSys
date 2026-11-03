@@ -1,33 +1,14 @@
+import { parseSlotDateParts, parseSlotMinutes as parseMinutes, slotStartDate } from './clinicTimeService.js'
+
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/
 
-const parseMinutes = (value) => {
-  if (!value || typeof value !== 'string') return null
-  const trimmed = value.trim()
-  const directMatch = trimmed.match(timePattern)
-  if (directMatch) return Number(directMatch[1]) * 60 + Number(directMatch[2])
+/** How far ahead patients can book. Availability and validation must agree, or a shown slot gets rejected. */
+const BOOKING_WINDOW_DAYS = 31
 
-  const match = trimmed.match(/^(\d{1,2}):([0-5]\d)\s*([AP]M)$/i)
-  if (!match) return null
-
-  let hours = Number(match[1])
-  const minutes = Number(match[2])
-  const period = match[3].toUpperCase()
-
-  if (hours < 1 || hours > 12) return null
-  if (period === 'PM' && hours !== 12) hours += 12
-  if (period === 'AM' && hours === 12) hours = 0
-
-  return hours * 60 + minutes
-}
-
+/** A calendar date for weekday and blocked-date checks. Built and read in one zone, so the process zone cannot shift it. */
 const parseSlotDate = (slotDate) => {
-  if (!slotDate || typeof slotDate !== 'string') return null
-  const [day, month, year] = slotDate.split('_').map(Number)
-  if (!day || !month || !year) return null
-  const date = new Date(year, month - 1, day)
-  if (Number.isNaN(date.getTime())) return null
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null
-  return date
+  const parts = parseSlotDateParts(slotDate)
+  return parts ? new Date(parts.year, parts.month - 1, parts.day) : null
 }
 
 const toDateKey = (date) => {
@@ -253,7 +234,7 @@ const isDoctorOpenForPatientBooking = (doctor) => {
   return hasDoctorPublishedSchedule(doctor)
 }
 
-const isSlotAllowedBySchedule = (doctor, slotDate, slotTime, appointmentType = 'Clinic', clinicLocation = '') => {
+const isSlotAllowedBySchedule = (doctor, slotDate, slotTime, appointmentType = 'Clinic', clinicLocation = '', { now = new Date() } = {}) => {
   if (!hasDoctorPublishedSchedule(doctor)) {
     return { allowed: false, reason: 'Doctor has not published appointment slots yet' }
   }
@@ -265,11 +246,8 @@ const isSlotAllowedBySchedule = (doctor, slotDate, slotTime, appointmentType = '
 
   if (!date || start === null) return { allowed: false, reason: 'Invalid appointment date or time' }
 
-  const slotStart = new Date(date)
-  slotStart.setHours(Math.floor(start / 60), start % 60, 0, 0)
-  const now = new Date()
-  const maxBookingDate = new Date(now)
-  maxBookingDate.setMonth(maxBookingDate.getMonth() + 1)
+  const slotStart = slotStartDate(slotDate, slotTime)
+  const maxBookingDate = new Date(now.getTime() + BOOKING_WINDOW_DAYS * 24 * 60 * 60 * 1000)
 
   if (slotStart <= now) return { allowed: false, reason: 'Cannot book a past time' }
   if (slotStart > maxBookingDate) return { allowed: false, reason: 'Appointments can only be booked within one month' }
@@ -328,6 +306,7 @@ const isSlotAllowedBySchedule = (doctor, slotDate, slotTime, appointmentType = '
 }
 
 export {
+  BOOKING_WINDOW_DAYS,
   getBookedSlots,
   getBookedSlotsField,
   getDoctorSchedule,
