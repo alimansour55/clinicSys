@@ -8,10 +8,11 @@ export const normalizeEmail = (email) => {
   return value ? value.toLowerCase() : ''
 }
 
-export const findOneByEmail = (Model, email, extraFilter = {}) => {
+export const findOneByEmail = (Model, email, extraFilter = {}, select = null) => {
   const normalized = normalizeEmail(email)
   if (!normalized) return Promise.resolve(null)
-  return Model.findOne({ ...extraFilter, email: normalized }).collation(EMAIL_COLLATION)
+  const query = Model.findOne({ ...extraFilter, email: normalized }).collation(EMAIL_COLLATION)
+  return select ? query.select(select) : query
 }
 
 export const emailExists = async (Model, email, excludeId = null) => {

@@ -86,6 +86,8 @@ const getPublicSiteSettings = async (req, res) => {
     payload.globalVisitFees = normalizeGlobalVisitFees(payload.globalVisitFees)
     payload.insuranceProviders = await getResolvedInsuranceProviders()
     payload.languagePolicies = normalizeLanguagePolicies(payload.languagePolicies, payload.languageAvailability)
+    const { adminMfa, ...publicSecurity } = payload.security || {}
+    payload.security = publicSecurity
     res.json({ success: true, settings: payload })
   } catch (error) {
     console.log(error)

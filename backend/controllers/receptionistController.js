@@ -74,7 +74,7 @@ const signReceptionistMfaToken = (receptionist, purpose = 'receptionist-mfa') =>
 const getReceptionistFromMfaToken = async (mfaToken, purpose = 'receptionist-mfa') => {
   const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET)
   if (decoded?.purpose !== purpose || decoded?.role !== 'receptionist' || !decoded?.id) return null
-  return receptionistModel.findById(decoded.id)
+  return receptionistModel.findById(decoded.id).select('+mfa.secret')
 }
 
 const normalizeDoctorLocations = (locations) => {
@@ -229,7 +229,7 @@ const changeReceptionistStatus = async (req, res) => {
 const loginReceptionist = async (req, res) => {
   try {
     const { email, password } = req.body
-    const receptionist = await findOneByEmail(receptionistModel, email)
+    const receptionist = await findOneByEmail(receptionistModel, email, {}, '+mfa.secret')
 
     if (!receptionist) {
       await logAudit({
@@ -1389,7 +1389,7 @@ const enableReceptionistMfa = async (req, res) => {
   try {
     const { receptionistId } = req.receptionist
     const { code } = req.body
-    const receptionist = await receptionistModel.findById(receptionistId).select('mfa')
+    const receptionist = await receptionistModel.findById(receptionistId).select('+mfa.secret')
     if (!receptionist?.mfa?.secret) return res.json({ success: false, message: 'Start MFA setup first' })
     if (!verifyTotpCode(receptionist.mfa.secret, code)) return res.json({ success: false, message: 'Invalid MFA code' })
 
@@ -1414,7 +1414,7 @@ const disableReceptionistMfa = async (req, res) => {
   try {
     const { receptionistId } = req.receptionist
     const { code } = req.body
-    const receptionist = await receptionistModel.findById(receptionistId).select('mfa')
+    const receptionist = await receptionistModel.findById(receptionistId).select('+mfa.secret')
     const security = await getSecuritySettings()
     if (isMfaRequiredForProfile(security, 'receptionist', receptionist)) {
       return res.json({ success: false, message: 'MFA is required by policy and cannot be disabled' })

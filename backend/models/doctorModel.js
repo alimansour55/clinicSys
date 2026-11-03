@@ -62,7 +62,7 @@ const doctorSchema = new mongoose.Schema({
     homeVisitAreas: { type: [String], default: [] },
     mfa: {
         enabled: { type: Boolean, default: false },
-        secret: { type: String, default: '' },
+        secret: { type: String, default: '', select: false },
         requiredByAdmin: { type: Boolean, default: false },
         configuredAt: { type: Number, default: 0 },
         resetAt: { type: Number, default: 0 }

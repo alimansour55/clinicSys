@@ -53,7 +53,7 @@ const signPatientMfaToken = (user, purpose = 'patient-mfa') => jwt.sign({
 const getPatientFromMfaToken = async (mfaToken, purpose = 'patient-mfa') => {
   const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET)
   if (decoded?.purpose !== purpose || decoded?.role !== 'patient' || !decoded?.id) return null
-  return userModel.findById(decoded.id)
+  return userModel.findById(decoded.id).select('+mfa.secret')
 }
 
 
@@ -263,8 +263,8 @@ const loginUser = async (req,res) => {
 
       const phoneLookup = normalizePhone(loginId)
       const user = validator.isEmail(loginId)
-        ? await findOneByEmail(userModel, loginId)
-        : await userModel.findOne({ phone: phoneLookup })
+        ? await findOneByEmail(userModel, loginId, {}, '+mfa.secret')
+        : await userModel.findOne({ phone: phoneLookup }).select('+mfa.secret')
 
       if(!user){
        await logAudit({
@@ -762,7 +762,7 @@ const enablePatientMfa = async (req, res) => {
   try {
     const userId = req.user.userId
     const { code } = req.body
-    const user = await userModel.findById(userId).select('mfa')
+    const user = await userModel.findById(userId).select('+mfa.secret')
     if (!user?.mfa?.secret) return res.json({ success: false, message: 'Start MFA setup first' })
     if (!verifyTotpCode(user.mfa.secret, code)) return res.json({ success: false, message: 'Invalid authenticator code' })
 
@@ -787,7 +787,7 @@ const disablePatientMfa = async (req, res) => {
   try {
     const userId = req.user.userId
     const { code } = req.body
-    const user = await userModel.findById(userId).select('mfa')
+    const user = await userModel.findById(userId).select('+mfa.secret')
     const security = await getSecuritySettings()
     if (isMfaRequiredForProfile(security, 'patient', user)) {
       return res.json({ success: false, message: 'MFA is required by policy and cannot be disabled' })

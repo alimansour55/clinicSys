@@ -58,7 +58,7 @@ const userSchema = new mongoose.Schema({
     resetOtpExpireAt: {type: Number, default: 0},
     mfa: {
       enabled: { type: Boolean, default: false },
-      secret: { type: String, default: '' },
+      secret: { type: String, default: '', select: false },
       requiredByAdmin: { type: Boolean, default: false },
       configuredAt: { type: Number, default: 0 },
       resetAt: { type: Number, default: 0 }

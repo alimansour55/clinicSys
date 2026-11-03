@@ -31,7 +31,7 @@ const signDoctorMfaToken = (doctor, purpose = 'doctor-mfa') => jwt.sign({
 const getDoctorFromMfaToken = async (mfaToken, purpose = 'doctor-mfa') => {
    const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET)
    if (decoded?.purpose !== purpose || decoded?.role !== 'doctor' || !decoded?.id) return null
-   return doctorModel.findById(decoded.id)
+   return doctorModel.findById(decoded.id).select('+mfa.secret')
 }
 
 const normalizeDoctorLocations = (locations) => {
@@ -168,7 +168,7 @@ const doctorList = async (req,res) => {
 const loginDoctor = async (req,res) => {
    try {
      const { email, password } = req.body
-     const doctor = await findOneByEmail(doctorModel, email)
+     const doctor = await findOneByEmail(doctorModel, email, {}, '+mfa.secret')
 
      if(!doctor){
         await logAudit({
@@ -375,7 +375,7 @@ const enableDoctorMfa = async (req, res) => {
    try {
       const docId = req.doctor.docId
       const { code } = req.body
-      const doctor = await doctorModel.findById(docId).select('mfa')
+      const doctor = await doctorModel.findById(docId).select('+mfa.secret')
       if (!doctor?.mfa?.secret) return res.json({ success: false, message: 'Start MFA setup first' })
       if (!verifyTotpCode(doctor.mfa.secret, code)) return res.json({ success: false, message: 'Invalid MFA code' })
 
@@ -400,7 +400,7 @@ const disableDoctorMfa = async (req, res) => {
    try {
       const docId = req.doctor.docId
       const { code } = req.body
-      const doctor = await doctorModel.findById(docId).select('mfa')
+      const doctor = await doctorModel.findById(docId).select('+mfa.secret')
       const security = await getSecuritySettings()
       if (isMfaRequiredForProfile(security, 'doctor', doctor)) {
          return res.json({ success: false, message: 'MFA is required by policy and cannot be disabled' })

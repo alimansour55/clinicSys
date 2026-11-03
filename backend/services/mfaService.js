@@ -93,4 +93,4 @@ const buildMfaSetupPayload = ({ secret, accountName }) => {
   }
 }
 
-export { buildMfaSetupPayload, generateMfaSecret, verifyTotpCode }
+export { buildMfaSetupPayload, generateMfaSecret, generateTotpCode, verifyTotpCode }
