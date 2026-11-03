@@ -13,15 +13,12 @@ import { getPublicAppBrand } from '../config/publicBrand.js'
 import transporter from "../config/nodemailer.js";
 import { createJwtPayload } from '../middlewares/rbac.js'
 import { logAudit } from '../services/auditService.js'
-import { getBookedSlotsField, isDoctorOpenForPatientBooking, isSlotAllowedBySchedule, resolveClinicLocationForSchedule, usesClinicWeeklySchedule } from '../services/scheduleService.js'
-import { buildTeleconsultationLink, getDoctorAppointmentModeError, normalizeAppointmentTeleconsultationLinks, normalizeAppointmentType } from '../services/appointmentModeService.js'
-import { normalizeHomeVisitAddress, validateHomeVisitAddress } from '../services/homeVisitService.js'
-import { refundAppointmentPayment } from './paymentController.js'
-import { applyAppointmentPricing } from '../services/appointmentPricingService.js'
-import { getHomeVisitPricingSettings } from '../services/homeVisitPricingService.js'
-import { getVisitFeeQuote, normalizeVisitFeeType } from '../services/globalVisitFeesService.js'
+import { refreshRefundsForUser, refundAppointmentPayment } from './paymentController.js'
+import { getVisitFeeQuote } from '../services/globalVisitFeesService.js'
 import { patientCanBookConsultation } from '../services/visitFeeEligibilityService.js'
-import { getNextReservationNumber } from '../services/reservationService.js'
+import { createAppointmentFromBooking, findOwnActiveAppointment, findPatientClash, isValidId, releaseHold, toPatientAppointment, unlockSlot, validateBookingRequest } from '../services/bookingService.js'
+import { acquireSlotForUser, consumeHold, reconcileUserHolds } from '../services/slotHoldService.js'
+import { closeWaitlistAfterBooking, processWaitlistForDoctor } from '../services/waitlistService.js'
 import { getSecuritySettings, isMfaRequiredForProfile, validatePasswordAgainstPolicy } from '../services/securityPolicyService.js'
 import { buildMfaSetupPayload, generateMfaSecret, verifyTotpCode } from '../services/mfaService.js'
 import { notifyAppointmentBooked, notifyAppointmentCancelled } from '../services/notificationService.js'
@@ -903,6 +900,7 @@ const getVisitFeeEligibility = async (req, res) => {
       success: true,
       canBookConsultation: eligibility.allowed,
       lastExaminationAt: eligibility.lastExaminationAt,
+      consultationUntil: eligibility.consultationUntil,
       examinationFee: quote.examinationAmount,
       consultationFee: quote.consultationAmount,
       globalFeesEnabled: Boolean(quote.globalVisitFees?.enabled)
@@ -916,143 +914,61 @@ const getVisitFeeEligibility = async (req, res) => {
 //  API to book appointment
 const bookAppointment = async (req,res) => {
 
-  try {
-    
-    const userId = req.user.userId; 
-    const { docId, slotDate, slotTime } = req.body;
-    const clinicLocation = String(req.body.clinicLocation || '').trim()
-    const paymentMethod = String(req.body.paymentMethod || 'Cash').trim()
-    const promoCodeInput = String(req.body.promoCode || '').trim()
-    const appointmentType = normalizeAppointmentType(req.body.appointmentType)
-    const visitFeeType = normalizeVisitFeeType(req.body.visitFeeType)
-    const homeVisitAddress = normalizeHomeVisitAddress(req.body.homeVisitAddress || {})
+  let lockedSlot = null
 
-    if (!['Cash', 'Visa'].includes(paymentMethod)) {
+  try {
+
+    const userId = req.user.userId;
+    const paymentMethod = String(req.body.paymentMethod || 'Cash').trim()
+
+    if (paymentMethod === 'Visa') {
+      // Reserving a slot as "Visa" without paying would hold it forever. Online payment has its own flow.
+      return res.json({ success: false, message: 'Please complete online payment to book with Visa' })
+    }
+    if (!['Cash', 'Insurance'].includes(paymentMethod)) {
       return res.json({ success: false, message: 'Please choose Cash or Visa payment method' })
     }
 
-    const docData = await doctorModel.findById(docId).select('-password')
-    if (!docData) {
-      return res.json({ success: false, message: 'Doctor not found' })
+    const booking = await validateBookingRequest({ userId, body: req.body, paymentMethod })
+    if (booking.error) {
+      return res.json({ success: false, message: booking.error })
     }
-    if (appointmentType === 'Home Visit') {
-      const addressError = validateHomeVisitAddress(homeVisitAddress, docData)
-      if (addressError) return res.json({ success: false, message: addressError })
-    }
-    if (visitFeeType === 'consultation') {
-      const eligibility = await patientCanBookConsultation(userId, docId)
-      if (!eligibility.allowed) {
-        return res.json({
-          success: false,
-          message: 'Follow-up consultation is only available within 30 days of a completed examination with this doctor'
-        })
-      }
-    }
-    if (!isDoctorOpenForPatientBooking(docData)) {
-      return res.json({ success: false, message: 'This doctor has not opened appointments yet. Please check back later.' })
-    }
-    const appointmentModeError = getDoctorAppointmentModeError(docData, appointmentType)
-    if (appointmentModeError) {
-      return res.json({ success: false, message: appointmentModeError })
-    }
-    const doctorLocations = (docData.locations || []).map((location) => String(location || '').trim()).filter(Boolean)
-    const resolvedClinicLocation = resolveClinicLocationForSchedule(docData, clinicLocation, appointmentType)
-    if (usesClinicWeeklySchedule(appointmentType) && doctorLocations.length > 1 && !resolvedClinicLocation) {
-      return res.json({ success: false, message: 'Please choose a clinic location' })
-    }
-    if (usesClinicWeeklySchedule(appointmentType) && resolvedClinicLocation && doctorLocations.length > 0 && !doctorLocations.includes(resolvedClinicLocation)) {
-      return res.json({ success: false, message: 'Please choose a valid clinic location' })
-    }
-    const paymentError = getDoctorPaymentError(docData, paymentMethod)
-    if (paymentError) {
-      return res.json({ success: false, message: paymentError })
-    }
-    const homeVisitPricing = await getHomeVisitPricingSettings()
-    const pricing = await applyAppointmentPricing(docData, {
-      promoCode: promoCodeInput,
-      appointmentType,
-      homeVisitPricing,
-      visitFeeType
-    })
-    if (pricing.error) {
-      return res.json({ success: false, message: pricing.error })
-    }
+    const { docId, doctor, user, slotDate, slotTime, appointmentType } = booking
 
-    const scheduleCheck = isSlotAllowedBySchedule(docData, slotDate, slotTime, appointmentType, clinicLocation)
-    if(!scheduleCheck.allowed){
-      return res.json({success: false, message: scheduleCheck.reason})
-    }
-
-
-    const userData = await userModel.findById(userId).select('-password')
-
-    if (!userData || userData.isActive === false) {
-      return res.json({ success: false, message: 'Patient account is deactivated' })
-    }
-
-    // Check for any existing appointment for this doctor at the same time across all locations
-    // This prevents double-booking across multiple clinic locations
-    const conflictingAppointment = await appointmentModel.findOne({
-      docId,
-      slotDate,
-      slotTime,
-      appointmentType,
-      appointmentStatus: { $ne: 'Cancelled' }
-    })
-
-    if (conflictingAppointment) {
-      return res.json({ 
-        success: false, 
-        message: `Doctor is already booked for this time slot at ${conflictingAppointment.clinicLocation || 'another location'}` 
+    const alreadyBooked = await findOwnActiveAppointment({ userId, docId, slotDate, slotTime })
+    if (alreadyBooked) {
+      // A double click or a retry after a lost response lands here. The patient has what they asked for.
+      return res.json({
+        success: true,
+        alreadyBooked: true,
+        message: 'Appointment Booked',
+        appointmentId: alreadyBooked._id,
+        appointment: toPatientAppointment(alreadyBooked)
       })
     }
- 
-    const bookedSlotsField = getBookedSlotsField(appointmentType)
-    const slotUpdate = await doctorModel.updateOne(
-      { _id: docId, [`${bookedSlotsField}.${slotDate}`]: { $ne: slotTime } },
-      { $addToSet: { [`${bookedSlotsField}.${slotDate}`]: slotTime } }
-    )
-
-    if (slotUpdate.modifiedCount === 0) {
-      return res.json({success: false, message: 'Slot not available'})
+    if (await findPatientClash({ userId, slotDate, slotTime })) {
+      return res.json({ success: false, message: 'You already have another appointment at this time' })
     }
 
-    const appointmentDocData = docData.toObject()
-    delete appointmentDocData.slots_booked
-    delete appointmentDocData.home_visit_slots_booked
-    
-    const appointmentId = new appointmentModel()._id
-    const teleconsultationLink = ['Voice Call', 'Video Call'].includes(appointmentType) ? buildTeleconsultationLink({ appointmentId, docId, userId, slotDate, slotTime }) : ''
-
-    const appointmentData = {
-      _id: appointmentId,
-      reservationNumber: await getNextReservationNumber(),
-      userId,
-      docId,
-      userData,
-      docData: appointmentDocData,
-      amount: pricing.amount,
-      originalAmount: pricing.baseAmount,
-      discountAmount: pricing.discountAmount,
-      discountReason: pricing.discountReason,
-      promoCode: pricing.promoCode,
-      visitFeeType: pricing.visitFeeType,
-      slotTime, 
-      slotDate,
-      clinicLocation: usesClinicWeeklySchedule(appointmentType) ? resolvedClinicLocation : '',
-      appointmentType,
-      teleconsultationLink,
-      homeVisitAddress: appointmentType === 'Home Visit' ? { ...homeVisitAddress, updatedBy: 'Patient', updatedAt: Date.now() } : {},
-      date: Date.now(),
-      appointmentStatus: 'Booked',
-      paymentStatus: 'Not Paid',
-      paymentMethod,
-      bookedBy: 'Patient'
+    const acquired = await acquireSlotForUser({ userId, docId, slotDate, slotTime, appointmentType })
+    if (!acquired.ok) {
+      return res.json({ success: false, message: 'Slot not available' })
     }
+    lockedSlot = { docId, slotDate, slotTime, appointmentType, hold: acquired.hold }
 
-    const newAppointment = new appointmentModel(appointmentData)
+    const created = await createAppointmentFromBooking(booking, {
+      fields: { paymentStatus: 'Not Paid', paymentMethod }
+    })
+    if (created.slotConflict) {
+      // The doctor document and the appointments disagreed. The unique index caught it, and the slot belongs to the other booking.
+      lockedSlot = null
+      return res.json({ success: false, message: 'Slot not available' })
+    }
+    lockedSlot = null
 
-    await newAppointment.save()
+    const newAppointment = created.appointment
+    await consumeHold(acquired.hold)
+    await closeWaitlistAfterBooking({ userId, docId, slotDate })
 
     await logAudit({
       action: 'appointment_create',
@@ -1063,10 +979,10 @@ const bookAppointment = async (req,res) => {
       metadata: {
         bookedBy: 'patient',
         patientId: userId,
-        patientName: userData.name,
-        patientLoginId: userData.patientId,
+        patientName: user.name,
+        patientLoginId: user.patientId,
         doctorId: docId,
-        doctorName: docData.name,
+        doctorName: doctor.name,
         slotDate,
         slotTime,
         appointmentType
@@ -1076,9 +992,18 @@ const bookAppointment = async (req,res) => {
 
     notifyAppointmentBooked({ appointment: newAppointment, bookedBy: 'Patient' })
 
-    res.json({success: true, message: 'Appointment Booked', appointment: newAppointment})
+    res.json({
+      success: true,
+      message: 'Appointment Booked',
+      appointmentId: newAppointment._id,
+      appointment: toPatientAppointment(newAppointment)
+    })
   } catch (error) {
     console.log(error)
+    if (lockedSlot) {
+      if (lockedSlot.hold) await releaseHold(lockedSlot.hold).catch(() => {})
+      else await unlockSlot(lockedSlot).catch(() => {})
+    }
     res.json({success: false, message: error.message})
   }
 
@@ -1091,8 +1016,12 @@ const bookAppointment = async (req,res) => {
 // API to get user appointments for forntend my-appointments page
 const listAppointment = async (req,res) => {
   try {
-    
-   const userId = req.user.userId;  
+
+   const userId = req.user.userId;
+   // A paid checkout whose confirm call was lost, or a refund that has settled, shows up here.
+   await reconcileUserHolds(userId).catch((error) => console.error('reconcile', error.message))
+   await refreshRefundsForUser(userId).catch((error) => console.error('refunds', error.message))
+
    const appointments = await appointmentModel.find({userId}).lean()
    const ratings = await ratingModel.find({
      userId,
@@ -1102,11 +1031,11 @@ const listAppointment = async (req,res) => {
      acc[rating.appointmentId] = rating
      return acc
    }, {})
-   const appointmentsWithRatings = normalizeAppointmentTeleconsultationLinks(appointments).map((appointment) => ({
-     ...appointment,
-     myRating: ratingsByAppointment[appointment._id.toString()] || null
-   }))
-   
+   const now = Date.now()
+   const appointmentsWithRatings = appointments.map((appointment) =>
+     toPatientAppointment(appointment, { now, rating: ratingsByAppointment[appointment._id.toString()] || null })
+   )
+
    res.json({ success: true, appointments: appointmentsWithRatings })
 
   } catch (error) {
@@ -1122,11 +1051,19 @@ const listAppointment = async (req,res) => {
 //API to cancel appointment
 const cancelAppointment = async (req,res) => {
   try {
-    
-   const userId = req.user.userId;     
-   const { appointmentId } = req.body; 
+
+   const userId = req.user.userId;
+   const { appointmentId } = req.body;
+
+   if (!isValidId(appointmentId)) {
+     return res.json({ success: false, message: 'Appointment not found' })
+   }
 
    const appointmentData = await appointmentModel.findById(appointmentId)
+
+   if (!appointmentData) {
+     return res.json({ success: false, message: 'Appointment not found' })
+   }
 
    // verify appointment user
    if(appointmentData.userId !== userId){
@@ -1143,24 +1080,41 @@ const cancelAppointment = async (req,res) => {
      return res.json({success: false, message: 'Unauthorized action'})
    }
 
-   let refundMessage = ''
-   if (appointmentData.paymentStatus === 'Paid' && appointmentData.paymentMethod === 'Visa') {
-     const refundResult = await refundAppointmentPayment({ appointment: appointmentData, appointmentId, requestedBy: 'patient', req })
-     refundMessage = refundResult.refunded ? ' Refund requested.' : ''
+   if (appointmentData.cancelled) {
+     // Cancelling again must not release the slot a second time: someone else may have booked it since.
+     return res.json({ success: true, alreadyCancelled: true, message: 'Appointment Cancelled' })
    }
 
-   await appointmentModel.findByIdAndUpdate(appointmentId, {cancelled: true, appointmentStatus: 'Cancelled', statusUpdatedAt: Date.now()})
+   if (!toPatientAppointment(appointmentData).canCancel) {
+     return res.json({ success: false, message: 'This appointment can no longer be cancelled' })
+   }
+
+   // Status first, money second: if the refund fails the visit is still cancelled and the refund retries.
+   const claimed = await appointmentModel.findOneAndUpdate(
+     { _id: appointmentId, userId, cancelled: false, isCompleted: false, appointmentStatus: 'Booked' },
+     { cancelled: true, appointmentStatus: 'Cancelled', statusUpdatedAt: Date.now() },
+     { new: true }
+   )
+   if (!claimed) {
+     const latest = await appointmentModel.findById(appointmentId).select('cancelled').lean()
+     if (latest?.cancelled) return res.json({ success: true, alreadyCancelled: true, message: 'Appointment Cancelled' })
+     return res.json({ success: false, message: 'This appointment can no longer be cancelled' })
+   }
 
    // releasing doctor slot
-   const { docId, slotDate, slotTime } = appointmentData
-   const doctorData = await doctorModel.findById(docId)
+   const { docId, slotDate, slotTime, appointmentType } = claimed
+   await unlockSlot({ docId, slotDate, slotTime, appointmentType })
 
-   const bookedSlotsField = getBookedSlotsField(appointmentData.appointmentType)
-   let slots_booked = doctorData[bookedSlotsField] || {}
-
-   slots_booked[slotDate] = (slots_booked[slotDate] || []).filter(e => e !== slotTime)
-
-   await doctorModel.findByIdAndUpdate(docId, { [bookedSlotsField]: slots_booked })
+   let refundMessage = ''
+   if (claimed.paymentStatus === 'Paid' && claimed.paymentMethod === 'Visa') {
+     try {
+       const refundResult = await refundAppointmentPayment({ appointment: claimed, appointmentId, requestedBy: 'patient', req })
+       refundMessage = refundResult.refunded ? ' Refund requested.' : ''
+     } catch (error) {
+       console.error('Refund failed after cancel', appointmentId, error.message)
+       refundMessage = ' Your refund could not be completed yet. We will retry it.'
+     }
+   }
 
    await logAudit({
      action: 'appointment_cancel',
@@ -1178,7 +1132,9 @@ const cancelAppointment = async (req,res) => {
      req
    })
 
-   notifyAppointmentCancelled({ appointment: appointmentData, cancelledBy: 'patient' })
+   notifyAppointmentCancelled({ appointment: claimed, cancelledBy: 'patient' })
+
+   await processWaitlistForDoctor(docId).catch((error) => console.error('waitlist', error.message))
 
    res.json({success: true, message:`Appointment Cancelled${refundMessage}`})
 
@@ -1198,9 +1154,7 @@ const getUserPrescription = async (req, res) => {
     const { appointmentId } = req.body;
     const userId = req.user.userId; 
 
-    console.log('Searching for prescription with:', { appointmentId, userId })
-
-    if (!appointmentId) {
+    if (!isValidId(appointmentId)) {
       return res.json({ success: false, message: 'Appointment ID required' });
     }
 
@@ -1209,7 +1163,6 @@ const getUserPrescription = async (req, res) => {
       appointmentId: appointmentId,  
       userId: userId 
     })
-    console.log('Found prescription:', prescription) 
 
     if (!prescription) {
       return res.json({ success: false, message: 'Prescription not found' });

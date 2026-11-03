@@ -16,7 +16,20 @@ import authUser from '../middlewares/authUser.js'
 import upload from '../middlewares/multer.js'
 import { authorizePermission } from '../middlewares/rbac.js'
 import { getPublicSiteSettings, listInsuranceProviders } from '../controllers/siteSettingController.js'
-import { confirmBookingPaymentIntent, confirmPaymentIntent, createBookingPaymentIntent, createPaymentIntent } from '../controllers/paymentController.js'
+import { confirmBookingPaymentIntent, confirmPaymentIntent, createBookingPaymentIntent, createPaymentIntent, releaseBookingHold } from '../controllers/paymentController.js'
+import {
+  downloadAppointmentPdf,
+  downloadCalendar,
+  downloadPrescriptionPdf,
+  getAvailability,
+  getBookingQuote,
+  getCalendarLinks,
+  getMyWaitlist,
+  getNextAvailable,
+  joinDoctorWaitlist,
+  leaveDoctorWaitlist,
+  rescheduleAppointment
+} from '../controllers/bookingController.js'
 import { createRating, getDoctorRatings } from '../controllers/ratingController.js'
 import { postTranslatePlaces, postTranslateTexts } from '../controllers/translateController.js'
 
@@ -46,6 +59,9 @@ userRouter.get('/insurance-providers', listInsuranceProviders)
 userRouter.post('/translate-places', postTranslatePlaces)
 userRouter.post('/translate-texts', postTranslateTexts)
 userRouter.get('/doctor-ratings/:docId', getDoctorRatings)
+userRouter.get('/availability/:docId', getAvailability)
+userRouter.get('/next-available', getNextAvailable)
+userRouter.get('/booking-quote/:docId', getBookingQuote)
 
 userRouter.post('/send-reset-otp', sendPasswordResetOtp)
 userRouter.post('/verify-reset-otp', verifyPasswordResetOtp)
@@ -66,10 +82,19 @@ userRouter.get('/visit-fee-eligibility/:docId', authUser, authorizePermission('c
 userRouter.post('/book-appointment', authUser, authorizePermission('create appointments'), bookAppointment)
 userRouter.post('/create-booking-payment-intent', authUser, authorizePermission('create appointments'), createBookingPaymentIntent)
 userRouter.post('/confirm-booking-payment-intent', authUser, authorizePermission('create appointments'), confirmBookingPaymentIntent)
+userRouter.post('/release-booking-hold', authUser, authorizePermission('create appointments'), releaseBookingHold)
 userRouter.post('/create-payment-intent', authUser, authorizePermission('create appointments'), createPaymentIntent)
 userRouter.post('/confirm-payment-intent', authUser, authorizePermission('create appointments'), confirmPaymentIntent)
 userRouter.get('/appointments', authUser, authorizePermission('view own appointments'), listAppointment)
 userRouter.post('/cancel-appointment', authUser, authorizePermission('cancel own appointments'), cancelAppointment)
+userRouter.post('/reschedule-appointment', authUser, authorizePermission('cancel own appointments'), rescheduleAppointment)
+userRouter.get('/appointments/:appointmentId/calendar.ics', authUser, authorizePermission('view own appointments'), downloadCalendar)
+userRouter.get('/appointments/:appointmentId/calendar-links', authUser, authorizePermission('view own appointments'), getCalendarLinks)
+userRouter.get('/appointments/:appointmentId/pdf', authUser, authorizePermission('view own appointments'), downloadAppointmentPdf)
+userRouter.get('/prescriptions/:appointmentId/pdf', authUser, authorizePermission('view own prescriptions'), downloadPrescriptionPdf)
+userRouter.get('/waitlist', authUser, authorizePermission('view own appointments'), getMyWaitlist)
+userRouter.post('/waitlist/join', authUser, authorizePermission('create appointments'), joinDoctorWaitlist)
+userRouter.post('/waitlist/leave', authUser, authorizePermission('create appointments'), leaveDoctorWaitlist)
 userRouter.post('/get-prescription', authUser, authorizePermission('view own prescriptions'), getUserPrescription)  
 userRouter.post('/ratings', authUser, authorizePermission('view own appointments'), createRating)
   

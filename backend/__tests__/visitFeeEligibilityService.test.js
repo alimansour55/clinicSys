@@ -14,8 +14,8 @@ describe('visitFeeEligibilityService', () => {
   })
 
   it('returns false when userId or docId missing', async () => {
-    expect(await patientCanBookConsultation('', 'doc1')).toEqual({ allowed: false, lastExaminationAt: null })
-    expect(await patientCanBookConsultation('u1', '')).toEqual({ allowed: false, lastExaminationAt: null })
+    expect(await patientCanBookConsultation('', 'doc1')).toEqual({ allowed: false, lastExaminationAt: null, consultationUntil: null })
+    expect(await patientCanBookConsultation('u1', '')).toEqual({ allowed: false, lastExaminationAt: null, consultationUntil: null })
   })
 
   it('allows consultation when recent completed examination exists', async () => {
